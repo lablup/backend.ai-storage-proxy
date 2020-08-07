@@ -6,18 +6,10 @@ password = ""				    # env: BACKEND_ETCD_PASSWORD
 
 
 [agent]
-# Agent mode; required
-mode = "scratch"
-
-# Change the reported host/address of the agent.
-# The manager will use this value to connect to the agent.
-# If host is an empty string, the agent tries to auto-detect it with a fallback to "127.0.0.1".
-# For mobile environments such as developer laptops which roam around different networks,
-# it is HIGHLY RECOMMENDED to set this to "127.0.0.1" manually.
+# The service address
+proxy-addr = { host = "0.0.0.0", port = 6021 }
 rpc-listen-addr = { host = "127.0.0.1", port = 6020 }
-# UID and GID of user which will run Backend.AI agent.
-user-uid = 1000
-user-gid = 1000
+
 
 [logging]
 # One of: "NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
@@ -38,8 +30,38 @@ colored = true
 # One of: "simple", "verbose"
 format = "simple"
 
+
 [storage]
-# Storage mode; currently we support XFS only.
-mode = "xfs"
-# Root path where XFS partitions is mounted.
-path = "/xfs"
+# storage uses
+
+
+[storage.local]
+# The default, generic filesystem.
+# It uses the standard syscalls to perform filesystem operations
+# such as scanning the file/directory metadata.
+# This does *NOT* support per-direcotry quota.
+backend = "vfs"
+path = "/vfroot/xfs"
+
+
+[storage.fastlocal]
+# An extended version for XFS, which supports per-directory quota
+# based on xfs projects.
+backend = "xfs"
+path = "/vfroot/xfs"
+
+
+[storage.mypure]
+# An extended version for PureStorage FlashBlade nodes, which uses
+# RapidFile Tools to perform filesystem metadata queries and the
+# FB REST APIs to configure per-directory quota.
+backend = "purestorage"
+path = "/vfroot/fb1"
+purity_endpoint = "192.168.0.10:443"
+
+
+[storage.myceph]
+# An extended version for CephFS, which supports extended inode attributes
+# for per-directory quota and fast metadata queries.
+backend = "cephfs"
+path = "/vfroot/ceph-fuse"
