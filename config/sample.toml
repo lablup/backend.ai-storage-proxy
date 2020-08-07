@@ -32,7 +32,8 @@ format = "simple"
 
 
 [storage]
-# storage uses
+# storage section may define one or more named subsections with
+# backend-specific configurations.
 
 
 [storage.local]
@@ -58,6 +59,9 @@ path = "/vfroot/xfs"
 backend = "purestorage"
 path = "/vfroot/fb1"
 purity_endpoint = "192.168.0.10:443"
+purity_ssl_verify = false
+purity_api_token = "xxxxxx"
+purity_fs_name = "mypure"  # the name of filesystem used by the filesystem API
 
 
 [storage.myceph]
