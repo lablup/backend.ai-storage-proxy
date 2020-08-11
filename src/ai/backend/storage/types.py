@@ -87,7 +87,8 @@ class AbstractVFolderHost(metaclass=ABCMeta):
 
     @abstractmethod
     def read_file(
-        self, vfid: UUID,
+        self,
+        vfid: UUID,
         relpath: PurePosixPath,
         *,
         chunk_size: int = 0,

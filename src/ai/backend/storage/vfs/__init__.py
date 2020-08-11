@@ -147,7 +147,8 @@ class BaseVFolderHost(AbstractVFolderHost):
             await write_task
 
     def read_file(
-        self, vfid: UUID,
+        self,
+        vfid: UUID,
         relpath: PurePosixPath,
         *,
         chunk_size: int = 0,
@@ -171,6 +172,7 @@ class BaseVFolderHost(AbstractVFolderHost):
                 _vfs_stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
                 chunk_size = _vfs_stat.f_bsize
             read_task = asyncio.create_task(loop.run_in_executor(None, _read, q.sync_q))
+            await asyncio.sleep(0)
             try:
                 while True:
                     buf = await q.async_q.get()
