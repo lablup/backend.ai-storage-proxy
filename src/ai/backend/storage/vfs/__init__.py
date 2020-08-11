@@ -165,6 +165,11 @@ class BaseVFolderHost(AbstractVFolderHost):
                         return
 
         async def _aiter() -> AsyncIterator[bytes]:
+            nonlocal chunk_size
+            if chunk_size == 0:
+                # get the preferred io block size
+                _vfs_stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
+                chunk_size = _vfs_stat.f_bsize
             read_task = asyncio.create_task(loop.run_in_executor(None, _read, q.sync_q))
             try:
                 while True:
