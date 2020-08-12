@@ -43,12 +43,27 @@ class BaseVFolderHost(AbstractVFolderHost):
     async def create_vfolder(self, vfid: UUID) -> None:
         vfpath = self._mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
+        await loop.run_in_executor(
+            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
 
     async def delete_vfolder(self, vfid: UUID) -> None:
         vfpath = self._mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: shutil.rmtree(vfpath))
+
+    async def get_metadata(self, vfid: UUID) -> bytes:
+        vfpath = self._mangle_vfpath(vfid)
+        metadata_path = (vfpath / 'metadata.json')
+        loop = asyncio.get_running_loop()
+        try:
+            stat = await loop.run_in_executor(None, metadata_path.stat)
+            if stat.st_size > 10 * (2 ** 20):
+                raise RuntimeError("Too large metadata (more than 10 MiB)")
+            data = await loop.run_in_executor(None, metadata_path.read_bytes)
+            return data
+        except FileNotFoundError:
+            return b''
+        # Other IO errors should be bubbled up.
 
     async def get_quota(self, vfid: UUID) -> int:
         raise NotImplementedError
