@@ -51,6 +51,12 @@ class BaseVFolderHost(AbstractVFolderHost):
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: shutil.rmtree(vfpath))
 
+    async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
+        vfpath = self._mangle_vfpath(vfid)
+        metadata_path = (vfpath / 'metadata.json')
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, metadata_path.write_bytes, payload)
+
     async def get_metadata(self, vfid: UUID) -> bytes:
         vfpath = self._mangle_vfpath(vfid)
         metadata_path = (vfpath / 'metadata.json')

@@ -50,6 +50,10 @@ class AbstractVFolderHost(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
+        pass
+
+    @abstractmethod
     async def get_metadata(self, vfid: UUID) -> bytes:
         pass
 
