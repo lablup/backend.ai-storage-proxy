@@ -57,7 +57,8 @@ async def server_main(
     client_api_app = init_client_app(ctx)
     manager_api_app = init_manager_app(ctx)
 
-    ssl_ctx = None
+    client_ssl_ctx = None
+    manager_ssl_ctx = None
     if config['api']['client']['ssl-enabled']:
         client_ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         client_ssl_ctx.load_cert_chain(
@@ -82,7 +83,7 @@ async def server_main(
         client_service_addr.port,
         backlog=1024,
         reuse_port=True,
-        ssl_context=ssl_ctx,
+        ssl_context=client_ssl_ctx,
     )
     manager_api_site = web.TCPSite(
         manager_api_runner,
@@ -90,7 +91,7 @@ async def server_main(
         manager_service_addr.port,
         backlog=1024,
         reuse_port=True,
-        ssl_context=ssl_ctx,
+        ssl_context=manager_ssl_ctx,
     )
     await client_api_site.start()
     await manager_api_site.start()
