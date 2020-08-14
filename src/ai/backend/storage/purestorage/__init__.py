@@ -23,13 +23,20 @@ from ..types import (
 class FlashBladeVFolderHost(BaseVFolderHost):
 
     async def init(self) -> None:
-        proc = await asyncio.create_subprocess_exec(
-            b'pdu', b'--version',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if b'RapidFile Toolkit' not in stdout or proc.returncode != 0:
+        available = True
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                b'pdu', b'--version',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            available = False
+        else:
+            stdout, stderr = await proc.communicate()
+            if b'RapidFile Toolkit' not in stdout or proc.returncode != 0:
+                available = False
+        if not available:
             raise RuntimeError(
                 "PureStorage RapidFile Toolkit is not installed. "
                 "You cannot use the PureStorage backend for the stroage proxy.")
