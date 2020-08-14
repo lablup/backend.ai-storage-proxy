@@ -13,8 +13,8 @@ from uuid import UUID
 
 import janus
 
+from ..abc import AbstractVFolderHost
 from ..types import (
-    AbstractVFolderHost,
     FSPerfMetric,
     FSUsage,
     VFolderUsage,
@@ -40,6 +40,8 @@ class BaseVFolderHost(AbstractVFolderHost):
             raise PermissionError("cannot acess outside of the given vfolder")
         return target_path
 
+    # ------ vfhost operations -------
+
     async def create_vfolder(self, vfid: UUID) -> None:
         vfpath = self._mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
@@ -49,7 +51,19 @@ class BaseVFolderHost(AbstractVFolderHost):
     async def delete_vfolder(self, vfid: UUID) -> None:
         vfpath = self._mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: shutil.rmtree(vfpath))
+
+        def _delete_vfolder():
+            shutil.rmtree(vfpath)
+            # remove intermediate prefix directories if they become empty
+            if not os.listdir(vfpath.parent):
+                vfpath.parent.rmdir()
+            if not os.listdir(vfpath.parent.parent):
+                vfpath.parent.parent.rmdir()
+
+        await loop.run_in_executor(None, _delete_vfolder)
+
+    async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
+        raise NotImplementedError
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self._mangle_vfpath(vfid)
@@ -84,8 +98,8 @@ class BaseVFolderHost(AbstractVFolderHost):
         loop = asyncio.get_running_loop()
         stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
         return FSUsage(
-            size_bytes=stat.f_frsize * stat.f_blocks,
-            usage_bytes=stat.f_frsize * (stat.f_blocks - stat.f_bavail),
+            capacity_bytes=stat.f_frsize * stat.f_blocks,
+            used_bytes=stat.f_frsize * (stat.f_blocks - stat.f_bavail),
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
@@ -93,18 +107,23 @@ class BaseVFolderHost(AbstractVFolderHost):
         total_size = 0
         total_count = 0
 
-        def _get_usage() -> None:
+        def _calc_usage(target_path: os.PathLike) -> None:
             nonlocal total_size, total_count
             with os.scandir(target_path) as scanner:
                 for entry in scanner:
+                    if entry.is_dir():
+                        _calc_usage(entry)
+                        continue
                     if entry.is_file() or entry.is_symlink():
                         stat = entry.stat(follow_symlinks=False)
                         total_size += stat.st_size
                         total_count += 1
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _get_usage)
-        return VFolderUsage(num_files=total_count, usage_bytes=total_size)
+        await loop.run_in_executor(None, _calc_usage, target_path)
+        return VFolderUsage(file_count=total_count, used_bytes=total_size)
+
+    # ------ vfolder internal operations -------
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[os.DirEntry]:
         target_path = self._sanitize_vfpath(vfid, relpath)
@@ -141,6 +160,12 @@ class BaseVFolderHost(AbstractVFolderHost):
         target_path = self._sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, target_path.rmdir)
+
+    async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
+        raise NotImplementedError
+
+    async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
+        raise NotImplementedError
 
     async def add_file(self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]) -> None:
         target_path = self._sanitize_vfpath(vfid, relpath)
