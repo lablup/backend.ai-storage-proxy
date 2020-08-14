@@ -6,7 +6,7 @@ import pytest
 
 @pytest.fixture
 def vfroot():
-    with tempfile.TemporaryDirectory(prefix="bai-storage-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="bai-storage-test-") as tmpdir:
         yield Path(tmpdir)
 
 
