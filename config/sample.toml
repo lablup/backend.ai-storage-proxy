@@ -5,10 +5,21 @@ user = ""                                   # env: BACKEND_ETCD_USER
 password = ""				    # env: BACKEND_ETCD_PASSWORD
 
 
-[agent]
-# The service address
-proxy-addr = { host = "0.0.0.0", port = 6021 }
-rpc-listen-addr = { host = "127.0.0.1", port = 6020 }
+[api.client]
+# Client-facing API
+service-addr = { host = "0.0.0.0", port = 6021 }
+ssl-enabeld = false
+ssl-cert = ""
+ssl-privkey = ""
+
+
+[api.manager]
+# Manager-facing API
+# Recommended to have SSL and bind on a private IP only accessible by managers
+service-addr = { host = "127.0.0.1", port = 6022 }
+ssl-enabeld = true
+ssl-cert = "config/ssl/test-selfsigned.crt"
+ssl-privkey = "config/ssl/test-selfsigned.key"
 
 
 [logging]

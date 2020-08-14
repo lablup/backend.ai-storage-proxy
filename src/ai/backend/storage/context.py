@@ -8,6 +8,8 @@ from typing import (
     Type,
 )
 
+from ai.backend.common.etcd import AsyncEtcd
+
 from .abc import AbstractVFolderHost
 from .vfs import BaseVFolderHost
 from .purestorage import FlashBladeVFolderHost
@@ -24,6 +26,7 @@ BACKENDS: Mapping[str, Type[AbstractVFolderHost]] = {
 @attr.s(auto_attribs=True, slots=True)
 class Context:
     pid: int
+    etcd: AsyncEtcd
 
     @actxmgr
     async def get_vfhost(self, host: str) -> AsyncIterator[AbstractVFolderHost]:
