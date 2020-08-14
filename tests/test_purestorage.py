@@ -1,5 +1,5 @@
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import secrets
 import shutil
 import uuid
@@ -7,6 +7,7 @@ import uuid
 import pytest
 
 from ai.backend.storage.purestorage import FlashBladeVFolderHost
+from ai.backend.storage.types import DirEntryType
 
 
 @pytest.fixture
@@ -45,6 +46,34 @@ async def test_fbfs_get_usage(fbfs, empty_vfolder):
     (vfpath / 'inner').mkdir()
     (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
     (vfpath / 'inner' / 'world.txt').write_bytes(b'901')
+    (vfpath / 'test2.txt').symlink_to((vfpath / 'inner' / 'hello.txt'))
+    (vfpath / 'inner2').symlink_to((vfpath / 'inner'))
     usage = await fbfs.get_usage(empty_vfolder)
-    assert usage.file_count == 3  # including directory
-    assert usage.used_bytes == 11
+    assert usage.file_count == 5  # including symlinks
+    assert usage.used_bytes == (
+        11 +
+        len(bytes(vfpath / 'inner' / 'hello.txt')) +
+        len(bytes(vfpath / 'inner'))
+    )
+
+
+@pytest.mark.asyncio
+async def test_fbfs_scandir(fbfs, empty_vfolder):
+    vfpath = fbfs._mangle_vfpath(empty_vfolder)
+    (vfpath / 'test1.txt').write_bytes(b'12345')
+    (vfpath / 'inner').mkdir()
+    (vfpath / 'inner' / 'hello.txt').write_bytes(b'abc')
+    (vfpath / 'inner' / 'world.txt').write_bytes(b'def')
+    (vfpath / 'test2.txt').symlink_to((vfpath / 'inner' / 'hello.txt'))
+    (vfpath / 'inner2').symlink_to((vfpath / 'inner'))
+    entries = [item async for item in fbfs.scandir(empty_vfolder, PurePosixPath('.'))]
+    assert len(entries) == 4
+    entries.sort(key=lambda entry: entry.name)
+    assert entries[0].name == 'inner'
+    assert entries[0].type == DirEntryType.DIRECTORY
+    assert entries[1].name == 'inner2'
+    assert entries[1].type == DirEntryType.SYMLINK
+    assert entries[2].name == 'test1.txt'
+    assert entries[2].type == DirEntryType.FILE
+    assert entries[3].name == 'test2.txt'
+    assert entries[3].type == DirEntryType.SYMLINK

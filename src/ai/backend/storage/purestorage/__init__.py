@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path, PurePosixPath
+import json
 import os
+from pathlib import Path, PurePosixPath
 from typing import (
     AsyncIterator,
-    Optional,
     Sequence,
 )
 from uuid import UUID
 
-import janus
-
 from ..vfs import BaseVFolderHost
 from ..types import (
     FSPerfMetric,
-    FSUsage,
     VFolderUsage,
+    DirEntry,
+    DirEntryType,
+    Stat,
 )
+from ..utils import fstime2datetime
 
 
 class FlashBladeVFolderHost(BaseVFolderHost):
@@ -28,14 +29,17 @@ class FlashBladeVFolderHost(BaseVFolderHost):
             proc = await asyncio.create_subprocess_exec(
                 b'pdu', b'--version',
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
             )
         except FileNotFoundError:
             available = False
         else:
-            stdout, stderr = await proc.communicate()
-            if b'RapidFile Toolkit' not in stdout or proc.returncode != 0:
-                available = False
+            try:
+                stdout, stderr = await proc.communicate()
+                if b'RapidFile Toolkit' not in stdout or proc.returncode != 0:
+                    available = False
+            finally:
+                await proc.wait()
         if not available:
             raise RuntimeError(
                 "PureStorage RapidFile Toolkit is not installed. "
@@ -64,7 +68,7 @@ class FlashBladeVFolderHost(BaseVFolderHost):
         proc = await asyncio.create_subprocess_exec(
             b'pdu', b'-0', b'-b', b'-a', b'-s', raw_target_path,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
         assert proc.stdout is not None
         try:
@@ -85,27 +89,46 @@ class FlashBladeVFolderHost(BaseVFolderHost):
 
     # ------ vfolder internal operations -------
 
-    def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[os.DirEntry]:
-        # TODO: pls --json <vf-internal-path>
+    def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
         target_path = self._sanitize_vfpath(vfid, relpath)
-        q: janus.Queue[os.DirEntry] = janus.Queue()
-        loop = asyncio.get_running_loop()
+        raw_target_path = bytes(target_path)
 
-        def _scandir(q: janus._SyncQueueProxy[os.DirEntry]) -> None:
-            with os.scandir(target_path) as scanner:
-                for entry in scanner:
-                    q.put(entry)
-
-        async def _aiter() -> AsyncIterator[os.DirEntry]:
-            scan_task = asyncio.create_task(loop.run_in_executor(None, _scandir, q.sync_q))
-            await asyncio.sleep(0)
+        async def _aiter() -> AsyncIterator[DirEntry]:
+            proc = await asyncio.create_subprocess_exec(
+                b'pls', b'--json', raw_target_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            assert proc.stdout is not None
             try:
                 while True:
-                    item = await q.async_q.get()
-                    yield item
-                    q.async_q.task_done()
+                    line = await proc.stdout.readline()
+                    if not line:
+                        break
+                    line = line.rstrip(b'\n')
+                    item = json.loads(line)
+                    item_path = Path(item['path'])
+                    entry_type = DirEntryType.FILE
+                    if item['filetype'] == 40000:
+                        entry_type = DirEntryType.DIRECTORY
+                    if item['filetype'] == 120000:
+                        entry_type = DirEntryType.SYMLINK
+                    yield DirEntry(
+                        name=item_path.name,
+                        path=item_path,
+                        type=entry_type,
+                        stat=Stat(
+                            size=item['size'],
+                            owner=str(item['uid']),
+                            # The integer represents the octal number in decimal
+                            # (e.g., 644 which actually means 0o644)
+                            mode=int(str(item['mode']), 8),
+                            modified=fstime2datetime(item['mtime']),
+                            created=fstime2datetime(item['ctime']),
+                        ),
+                    )
             finally:
-                await scan_task
+                await proc.wait()
 
         return _aiter()
 

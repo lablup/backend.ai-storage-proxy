@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path, PurePosixPath
-from os import DirEntry
 from typing import (
     AsyncIterator,
     Sequence,
@@ -11,6 +10,7 @@ from .types import (
     FSPerfMetric,
     FSUsage,
     VFolderUsage,
+    DirEntry,
 )
 
 

@@ -18,7 +18,11 @@ from ..types import (
     FSPerfMetric,
     FSUsage,
     VFolderUsage,
+    DirEntry,
+    DirEntryType,
+    Stat,
 )
+from ..utils import fstime2datetime
 
 
 class BaseVFolderHost(AbstractVFolderHost):
@@ -125,17 +129,33 @@ class BaseVFolderHost(AbstractVFolderHost):
 
     # ------ vfolder internal operations -------
 
-    def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[os.DirEntry]:
+    def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
         target_path = self._sanitize_vfpath(vfid, relpath)
-        q: janus.Queue[os.DirEntry] = janus.Queue()
+        q: janus.Queue[DirEntry] = janus.Queue()
         loop = asyncio.get_running_loop()
 
-        def _scandir(q: janus._SyncQueueProxy[os.DirEntry]) -> None:
+        def _scandir(q: janus._SyncQueueProxy[DirEntry]) -> None:
             with os.scandir(target_path) as scanner:
                 for entry in scanner:
-                    q.put(entry)
+                    entry_type = DirEntryType.FILE
+                    if entry.is_dir():
+                        entry_type = DirEntryType.DIRECTORY
+                    if entry.is_symlink():
+                        entry_type = DirEntryType.SYMLINK
+                    q.put(DirEntry(
+                        name=entry.name,
+                        path=Path(entry.path),
+                        type=entry_type,
+                        stat=Stat(
+                            size=entry.stat().st_size,
+                            owner=str(entry.stat().st_uid),
+                            mode=entry.stat().st_mode,
+                            modified=fstime2datetime(entry.stat().st_mtime),
+                            created=fstime2datetime(entry.stat().st_ctime),
+                        )
+                    ))
 
-        async def _aiter() -> AsyncIterator[os.DirEntry]:
+        async def _aiter() -> AsyncIterator[DirEntry]:
             scan_task = asyncio.create_task(loop.run_in_executor(None, _scandir, q.sync_q))
             await asyncio.sleep(0)
             try:
