@@ -27,60 +27,6 @@ from .exception import ExecutionError
 log = BraceStyleAdapter(logging.getLogger('ai.backend.storage.server'))
 
 
-async def run(cmd: str) -> str:
-    log.debug('Executing [{}]', cmd)
-    proc = await create_subprocess_shell(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = await proc.communicate()
-    if err:
-        raise ExecutionError(err.decode())
-    return out.decode()
-
-
-class RPCFunctionRegistry:
-
-    functions: Set[str]
-
-    def __init__(self) -> None:
-        self.functions = set()
-
-    def __call__(self, meth: Callable) -> Callable[[RPCMessage], Any]:
-
-        @functools.wraps(meth)
-        async def _inner(self: AgentRPCServer, request: RPCMessage):
-            try:
-                if request.body is None:
-                    return await meth(self)
-                else:
-                    return await meth(
-                        self,
-                        *request.body['args'],
-                        **request.body['kwargs'],
-                    )
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                raise
-            except Exception as e:
-                log.exception('unexpected error')
-                log.exception(e)
-                raise
-
-        self.functions.add(meth.__name__)
-        return _inner
-
-
-class AbstractVolumeAgent:
-    async def init(self):
-        pass
-
-    async def create(self, kernel_id: str, size: str):
-        pass
-
-    async def remove(self, kernel_id: str):
-        pass
-
-    async def get(self, kernel_id: str):
-        pass
-
-
 class AgentRPCServer(aobject):
     rpc_function: ClassVar[RPCFunctionRegistry] = RPCFunctionRegistry()
 
@@ -198,7 +144,7 @@ async def server_main(loop, pidx, _args):
 
 @click.group(invoke_without_command=True)
 @click.option('-f', '--config-path', '--config', type=Path, default=None,
-              help='The config file path. (default: ./volume.toml and /etc/backend.ai/volume.toml)')
+              help='The config file path. (default: ./storage.toml and /etc/backend.ai/storage.toml)')
 @click.option('--debug', is_flag=True,
               help='Enable the debug mode and override the global log level to DEBUG.')
 @click.pass_context
@@ -222,7 +168,7 @@ def main(cli_ctx, config_path, debug):
     }).allow_extra('*')
 
     # Determine where to read configuration.
-    raw_cfg, cfg_src_path = config.read_from_file(config_path, 'agent')
+    raw_cfg, cfg_src_path = config.read_from_file(config_path, 'storage')
 
     config.override_with_env(raw_cfg, ('etcd', 'namespace'), 'BACKEND_NAMESPACE')
     config.override_with_env(raw_cfg, ('etcd', 'addr'), 'BACKEND_ETCD_ADDR')
