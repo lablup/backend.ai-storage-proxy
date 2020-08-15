@@ -1,7 +1,9 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path, PurePosixPath
 from typing import (
+    Any,
     AsyncIterator,
+    Mapping,
     Sequence,
 )
 from uuid import UUID
@@ -16,8 +18,9 @@ from .types import (
 
 class AbstractVFolderHost(metaclass=ABCMeta):
 
-    def __init__(self, mount_path: Path) -> None:
+    def __init__(self, mount_path: Path, options: Mapping[str, Any]) -> None:
         self.mount_path = mount_path
+        self.config = options
 
     async def init(self) -> None:
         pass

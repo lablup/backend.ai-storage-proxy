@@ -5,21 +5,32 @@ user = ""                                   # env: BACKEND_ETCD_USER
 password = ""				    # env: BACKEND_ETCD_PASSWORD
 
 
+[storage-proxy]
+# An identifier of this storage proxy, which must be unique in a cluster.
+node-id = "i-storage-proxy-01"
+num-proc = 4
+# The PID file for systemd or other daemon managers to keep track of.
+# pid-file = "./storage-proxy.pid"
+event-loop = "uvloop"
+
+
 [api.client]
 # Client-facing API
 service-addr = { host = "0.0.0.0", port = 6021 }
 ssl-enabeld = false
-ssl-cert = ""
-ssl-privkey = ""
 
 
 [api.manager]
 # Manager-facing API
 # Recommended to have SSL and bind on a private IP only accessible by managers
 service-addr = { host = "127.0.0.1", port = 6022 }
-ssl-enabeld = true
-ssl-cert = "config/ssl/test-selfsigned.crt"
-ssl-privkey = "config/ssl/test-selfsigned.key"
+ssl-enabled = true
+ssl-cert = "config/ssl/manager-api-selfsigned.cert.pem"
+ssl-privkey = "config/ssl/manager-api-selfsigned.key.pem"
+
+
+[debug]
+enabled = false
 
 
 [logging]
@@ -32,6 +43,11 @@ level = "INFO"
 # in this config file as exemplified below.
 drivers = ["console"]
 
+[logging.pkg-ns]
+"" = "WARNING"
+"aiotools" = "INFO"
+"aiohttp" = "INFO"
+"ai.backend" = "INFO"
 
 [logging.console]
 # If set true, use ANSI colors if the console is a terminal.
@@ -69,6 +85,8 @@ path = "/vfroot/xfs"
 # FB REST APIs to configure per-directory quota.
 backend = "purestorage"
 path = "/vfroot/fb1"
+
+[storage.mypure.options]
 purity_endpoint = "192.168.0.10:443"
 purity_ssl_verify = false
 purity_api_token = "xxxxxx"

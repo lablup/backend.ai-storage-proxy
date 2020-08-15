@@ -134,3 +134,6 @@ dmypy.json
 # Vim
 .swp
 .*.swp
+
+# local config
+storage-proxy.toml
