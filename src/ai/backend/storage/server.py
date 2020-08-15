@@ -1,6 +1,6 @@
 import asyncio
-from ipaddress import _BaseAddress as BaseIPAddress
 import logging
+import multiprocessing
 import os
 from pathlib import Path
 from pprint import pformat, pprint
@@ -29,6 +29,16 @@ from .api.client import init_client_app
 from .api.manager import init_manager_app
 
 log = BraceStyleAdapter(logging.getLogger('ai.backend.storage.server'))
+
+
+@aiotools.server
+async def server_main_logwrapper(loop, pidx, _args):
+    setproctitle(f"backend.ai: storage-proxy worker-{pidx}")
+    log_endpoint = _args[1]
+    logger = Logger(_args[0]['logging'], is_master=False, log_endpoint=log_endpoint)
+    with logger:
+        async with server_main(loop, pidx, _args):
+            yield
 
 
 @aiotools.server
@@ -95,6 +105,7 @@ async def server_main(
     )
     await client_api_site.start()
     await manager_api_site.start()
+    log.info('Started service.')
     try:
         yield
     finally:
@@ -120,54 +131,58 @@ def main(cli_ctx, config_path, debug):
     config.override_with_env(raw_cfg, ('etcd', 'password'), 'BACKEND_ETCD_PASSWORD')
     if debug:
         config.override_key(raw_cfg, ('debug', 'enabled'), True)
-        config.override_key(raw_cfg, ('logging', 'level'), 'DEBUG')
-        config.override_key(raw_cfg, ('logging', 'pkg-ns', 'ai.backend'), 'DEBUG')
 
     try:
-        cfg = config.check(raw_cfg, local_config_iv)
-        cfg['_src'] = cfg_src_path
+        local_config = config.check(raw_cfg, local_config_iv)
+        local_config['_src'] = cfg_src_path
     except config.ConfigurationError as e:
         print('ConfigurationError: Validation of agent configuration has failed:', file=sys.stderr)
         print(pformat(e.invalid_data), file=sys.stderr)
         raise click.Abort()
 
+    if local_config['debug']['enabled']:
+        config.override_key(local_config, ('logging', 'level'), 'DEBUG')
+        config.override_key(local_config, ('logging', 'pkg-ns', 'ai.backend'), 'DEBUG')
+
     # if os.getuid() != 0:
     #     print('Storage agent can only be run as root', file=sys.stderr)
     #     raise click.Abort()
 
+    multiprocessing.set_start_method('spawn')
+
     if cli_ctx.invoked_subcommand is None:
-        cfg['storage-proxy']['pid-file'].write_text(str(os.getpid()))
+        local_config['storage-proxy']['pid-file'].write_text(str(os.getpid()))
         log_sockpath = Path(f'/tmp/backend.ai/ipc/storage-proxy-logger-{os.getpid()}.sock')
         log_sockpath.parent.mkdir(parents=True, exist_ok=True)
         log_endpoint = f'ipc://{log_sockpath}'
-        cfg['logging']['endpoint'] = log_endpoint
+        local_config['logging']['endpoint'] = log_endpoint
         try:
-            logger = Logger(cfg['logging'], is_master=True, log_endpoint=log_endpoint)
+            logger = Logger(local_config['logging'], is_master=True, log_endpoint=log_endpoint)
             with logger:
                 setproctitle('backend.ai: storage-proxy')
                 log.info('Backend.AI Storage Proxy', VERSION)
-                log.info('runtime: {0}', env_info())
-
+                log.info('Runtime: {0}', env_info())
+                log.info('Node ID: {0}', local_config['storage-proxy']['node-id'])
                 log_config = logging.getLogger('ai.backend.agent.config')
-                if debug:
+                if local_config['debug']['enabled']:
                     log_config.debug('debug mode enabled.')
-                if 'debug' in cfg and cfg['debug']['enabled']:
+                if 'debug' in local_config and local_config['debug']['enabled']:
                     print('== Storage proxy configuration ==')
-                    pprint(cfg)
-                if cfg['storage-proxy']['event-loop'] == 'uvloop':
+                    pprint(local_config)
+                if local_config['storage-proxy']['event-loop'] == 'uvloop':
                     import uvloop
                     uvloop.install()
                     log.info('Using uvloop as the event loop backend')
                 aiotools.start_server(
-                    server_main,
+                    server_main_logwrapper,
                     use_threading=False,
-                    args=(cfg, ),
+                    args=(local_config, log_endpoint),
                 )
                 log.info('exit.')
         finally:
-            if cfg['storage-proxy']['pid-file'].is_file():
+            if local_config['storage-proxy']['pid-file'].is_file():
                 # check is_file() to prevent deleting /dev/null!
-                cfg['storage-proxy']['pid-file'].unlink()
+                local_config['storage-proxy']['pid-file'].unlink()
     return 0
 
 

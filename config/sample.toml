@@ -30,6 +30,7 @@ ssl-privkey = "config/ssl/manager-api-selfsigned.key.pem"
 
 
 [debug]
+# Enable the debug mode by overriding the global loglevel and "ai.backend" loglevel.
 enabled = false
 
 
