@@ -1,12 +1,12 @@
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 import secrets
 import shutil
 import uuid
 
 import pytest
 
-from ai.backend.storage.purestorage import FlashBladeVFolderHost
+from ai.backend.storage.purestorage import FlashBladeVolume
 from ai.backend.storage.types import DirEntryType
 
 
@@ -22,8 +22,11 @@ def fbroot():
 
 
 @pytest.fixture
-async def fbfs(fbroot):
-    host = FlashBladeVFolderHost(fbroot)
+async def fb_volume(fbroot):
+    options = {
+        # TODO: mock options
+    }
+    host = FlashBladeVolume(fbroot, fsprefix=PurePath('fsprefix'), options=options)
     await host.init()
     try:
         yield host
@@ -32,23 +35,23 @@ async def fbfs(fbroot):
 
 
 @pytest.fixture
-async def empty_vfolder(fbfs):
+async def empty_vfolder(fb_volume):
     vfid = uuid.uuid4()
-    await fbfs.create_vfolder(vfid)
+    await fb_volume.create_vfolder(vfid)
     yield vfid
-    await fbfs.delete_vfolder(vfid)
+    await fb_volume.delete_vfolder(vfid)
 
 
 @pytest.mark.asyncio
-async def test_fbfs_get_usage(fbfs, empty_vfolder):
-    vfpath = fbfs._mangle_vfpath(empty_vfolder)
+async def test_fb_get_usage(fb_volume, empty_vfolder):
+    vfpath = fb_volume._mangle_vfpath(empty_vfolder)
     (vfpath / 'test.txt').write_bytes(b'12345')
     (vfpath / 'inner').mkdir()
     (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
     (vfpath / 'inner' / 'world.txt').write_bytes(b'901')
     (vfpath / 'test2.txt').symlink_to((vfpath / 'inner' / 'hello.txt'))
     (vfpath / 'inner2').symlink_to((vfpath / 'inner'))
-    usage = await fbfs.get_usage(empty_vfolder)
+    usage = await fb_volume.get_usage(empty_vfolder)
     assert usage.file_count == 5  # including symlinks
     assert usage.used_bytes == (
         11 +
@@ -58,15 +61,15 @@ async def test_fbfs_get_usage(fbfs, empty_vfolder):
 
 
 @pytest.mark.asyncio
-async def test_fbfs_scandir(fbfs, empty_vfolder):
-    vfpath = fbfs._mangle_vfpath(empty_vfolder)
+async def test_fb_scandir(fb_volume, empty_vfolder):
+    vfpath = fb_volume._mangle_vfpath(empty_vfolder)
     (vfpath / 'test1.txt').write_bytes(b'12345')
     (vfpath / 'inner').mkdir()
     (vfpath / 'inner' / 'hello.txt').write_bytes(b'abc')
     (vfpath / 'inner' / 'world.txt').write_bytes(b'def')
     (vfpath / 'test2.txt').symlink_to((vfpath / 'inner' / 'hello.txt'))
     (vfpath / 'inner2').symlink_to((vfpath / 'inner'))
-    entries = [item async for item in fbfs.scandir(empty_vfolder, PurePosixPath('.'))]
+    entries = [item async for item in fb_volume.scandir(empty_vfolder, PurePosixPath('.'))]
     assert len(entries) == 4
     entries.sort(key=lambda entry: entry.name)
     assert entries[0].name == 'inner'

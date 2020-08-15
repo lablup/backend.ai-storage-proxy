@@ -13,7 +13,7 @@ from uuid import UUID
 
 import janus
 
-from ..abc import AbstractVFolderHost
+from ..abc import AbstractVolume
 from ..types import (
     FSPerfMetric,
     FSUsage,
@@ -25,7 +25,7 @@ from ..types import (
 from ..utils import fstime2datetime
 
 
-class BaseVFolderHost(AbstractVFolderHost):
+class BaseVolume(AbstractVolume):
 
     def _mangle_vfpath(self, vfid: UUID) -> Path:
         prefix1 = vfid.hex[0:2]
@@ -44,7 +44,7 @@ class BaseVFolderHost(AbstractVFolderHost):
             raise PermissionError("cannot acess outside of the given vfolder")
         return target_path
 
-    # ------ vfhost operations -------
+    # ------ volume operations -------
 
     async def create_vfolder(self, vfid: UUID) -> None:
         vfpath = self._mangle_vfpath(vfid)

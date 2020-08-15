@@ -11,7 +11,7 @@ def vfroot():
 
 
 @pytest.fixture
-def vfhost_local(vfroot):
-    vfhost = vfroot / 'local'
-    vfhost.mkdir(parents=True, exist_ok=True)
-    yield vfhost
+def local_volume(vfroot):
+    volume = vfroot / 'local'
+    volume.mkdir(parents=True, exist_ok=True)
+    yield volume

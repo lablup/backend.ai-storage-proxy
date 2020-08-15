@@ -9,7 +9,7 @@ from typing import (
 )
 from uuid import UUID
 
-from ..vfs import BaseVFolderHost
+from ..vfs import BaseVolume
 from ..types import (
     FSPerfMetric,
     VFolderUsage,
@@ -20,7 +20,7 @@ from ..types import (
 from ..utils import fstime2datetime
 
 
-class FlashBladeVFolderHost(BaseVFolderHost):
+class FlashBladeVolume(BaseVolume):
 
     async def init(self) -> None:
         available = True

@@ -31,7 +31,7 @@ async def create_vfolder(request: web.Request) -> web.Response:
     })) as params:
         await log_api_entry(log, 'create_vfolder', params)
         ctx: Context = request.app['ctx']
-        async with ctx.get_vfhost(params['vfhost']) as host:
+        async with ctx.get_volume(params['vfhost']) as host:
             await host.create_vfolder(params['vfid'])
             return web.json_response({
                 'status': 'ok',
@@ -45,7 +45,7 @@ async def delete_vfolder(request: web.Request) -> web.Response:
     })) as params:
         await log_api_entry(log, 'delete_vfolder', params)
         ctx: Context = request.app['ctx']
-        async with ctx.get_vfhost(params['vfhost']) as host:
+        async with ctx.get_volume(params['vfhost']) as host:
             await host.delete_vfolder(params['vfid'])
             return web.json_response({
                 'status': 'ok',
@@ -60,7 +60,7 @@ async def clone_vfolder(request: web.Request) -> web.Response:
     })) as params:
         await log_api_entry(log, 'clone_vfolder', params)
         ctx: Context = request.app['ctx']
-        async with ctx.get_vfhost(params['vfhost']) as host:
+        async with ctx.get_volume(params['vfhost']) as host:
             await host.clone_vfolder(params['src_vfid'], params['new_vfid'])
             return web.json_response({
                 'status': 'ok',

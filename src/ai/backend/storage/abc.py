@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import (
     Any,
     AsyncIterator,
@@ -16,11 +16,17 @@ from .types import (
 )
 
 
-class AbstractVFolderHost(metaclass=ABCMeta):
+class AbstractVolume(metaclass=ABCMeta):
 
-    def __init__(self, mount_path: Path, options: Mapping[str, Any]) -> None:
+    def __init__(
+        self,
+        mount_path: Path,
+        fsprefix: PurePath = None,
+        options: Mapping[str, Any] = None,
+    ) -> None:
         self.mount_path = mount_path
-        self.config = options
+        self.fsprefix = fsprefix or PurePath('.')
+        self.config = options or {}
 
     async def init(self) -> None:
         pass
@@ -28,7 +34,7 @@ class AbstractVFolderHost(metaclass=ABCMeta):
     async def shutdown(self) -> None:
         pass
 
-    # ------ vfhost operations -------
+    # ------ volume operations -------
 
     @abstractmethod
     async def create_vfolder(self, vfid: UUID) -> None:
@@ -70,7 +76,7 @@ class AbstractVFolderHost(metaclass=ABCMeta):
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
         pass
 
-    # ------ vfolder internal operations -------
+    # ------ vfolder operations -------
 
     @abstractmethod
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:

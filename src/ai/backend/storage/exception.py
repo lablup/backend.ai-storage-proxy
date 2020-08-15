@@ -12,6 +12,14 @@ class ExecutionError(Exception):
         self.message = message
 
 
+class StorageProxyError(Exception):
+    pass
+
+
+class InvalidVolumeError(StorageProxyError):
+    pass
+
+
 class InvalidAPIParameters(web.HTTPBadRequest):
     def __init__(
         self,

@@ -1,13 +1,14 @@
+from pathlib import PurePath
 import uuid
 
 import pytest
 
-from ai.backend.storage.vfs import BaseVFolderHost
+from ai.backend.storage.vfs import BaseVolume
 
 
 @pytest.fixture
-async def vfs(vfhost_local):
-    vfs = BaseVFolderHost(vfhost_local)
+async def vfs(local_volume):
+    vfs = BaseVolume(local_volume, fsprefix=PurePath('fsprefix'), options={})
     await vfs.init()
     try:
         yield vfs
