@@ -5,10 +5,12 @@ import json
 from pathlib import Path, PurePosixPath
 from typing import (
     AsyncIterator,
+    FrozenSet,
     Sequence,
 )
 from uuid import UUID
 
+from ..abc import CAP_VFOLDER, CAP_METRIC
 from ..vfs import BaseVolume
 from ..types import (
     FSPerfMetric,
@@ -43,6 +45,12 @@ class FlashBladeVolume(BaseVolume):
             raise RuntimeError(
                 "PureStorage RapidFile Toolkit is not installed. "
                 "You cannot use the PureStorage backend for the stroage proxy.")
+
+    async def get_capabilities(self) -> FrozenSet[str]:
+        return frozenset([
+            CAP_VFOLDER,
+            CAP_METRIC,
+        ])
 
     async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
         # TODO: pcp -r -p <src_vfpath>/. <new_vfpath>

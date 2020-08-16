@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime
 import enum
-from pathlib import Path
+from pathlib import Path, PurePath
+from typing import (
+    Any,
+    Mapping,
+    Optional,
+)
 
 import attr
+import trafaret as t
+
+from ai.backend.common import validators as tx
 
 
-@attr.s(auto_attribs=True, slots=True)
+@attr.s(auto_attribs=True, slots=True, frozen=True)
 class FSPerfMetric:
     iops_read: int
     iops_write: int
@@ -15,13 +23,41 @@ class FSPerfMetric:
     iobytes_write: int
 
 
-@attr.s(auto_attribs=True, slots=True)
+@attr.s(auto_attribs=True, slots=True, frozen=True)
 class FSUsage:
     capacity_bytes: int
     used_bytes: int
 
 
-@attr.s(auto_attribs=True, slots=True)
+@attr.s(auto_attribs=True, slots=True, frozen=True)
+class VolumeInfo:
+    backend: str
+    path: Path
+    fsprefix: Optional[PurePath]
+    options: Optional[Mapping[str, Any]]
+
+    @classmethod
+    def as_trafaret(cls) -> t.Trafaret:
+        return t.Dict({
+            t.Key('backend'): t.String,
+            t.Key('path'): tx.Path(type='dir'),
+            t.Key('fsprefix', default='.'): tx.PurePath(relative_only=True),
+            t.Key('options', default=None): t.Null | t.Mapping(t.String, t.Any),
+        })
+
+
+@attr.s(auto_attribs=True, slots=True, frozen=True)
+class VFolderCreationOptions:
+    quota: int
+
+    @classmethod
+    def as_trafaret(cls) -> t.Trafaret:
+        return t.Dict({
+            t.Key('quota', default=0): t.ToInt[0:],
+        })
+
+
+@attr.s(auto_attribs=True, slots=True, frozen=True)
 class VFolderUsage:
     file_count: int
     used_bytes: int

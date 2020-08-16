@@ -6,6 +6,8 @@ from ai.backend.common import validators as tx
 from ai.backend.common.config import etcd_config_iv
 from ai.backend.common.logging import logging_config_iv
 
+from .types import VolumeInfo
+
 _max_cpu_count = os.cpu_count()
 
 
@@ -33,13 +35,8 @@ local_config_iv = t.Dict({
             t.Key('ssl-privkey', default=None): t.Null | tx.Path(type='file'),
         }),
     }),
-    t.Key('storage'): t.Mapping(
-        t.String,  # storage name
-        t.Dict({
-            t.Key('backend'): t.String,
-            t.Key('path'): t.String,
-            t.Key('options', default=None): t.Null | t.Mapping(t.String, t.Any),
-        }),
+    t.Key('volume'): t.Mapping(
+        t.String, VolumeInfo.as_trafaret(),  # volume name -> details
     ),
     t.Key('debug'): t.Dict({
         t.Key('enabled', default=False): t.ToBool,

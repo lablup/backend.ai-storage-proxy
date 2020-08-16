@@ -6,6 +6,7 @@ from typing import (
     Any,
     AsyncIterator,
     Mapping,
+    Sequence,
     Type,
 )
 
@@ -15,6 +16,7 @@ from .abc import AbstractVolume
 from .exception import InvalidVolumeError
 from .vfs import BaseVolume
 from .purestorage import FlashBladeVolume
+from .types import VolumeInfo
 
 
 BACKENDS: Mapping[str, Type[AbstractVolume]] = {
@@ -36,20 +38,26 @@ class Context:
         self.etcd = etcd
         self.local_config = local_config
 
+    def list_volumes(self) -> Mapping[str, VolumeInfo]:
+        return {
+            name: VolumeInfo(**info)
+            for name, info in self.local_config['volume'].items()
+        }
+
     @actxmgr
-    async def get_volume(self, host: str) -> AsyncIterator[AbstractVolume]:
+    async def get_volume(self, name: str) -> AsyncIterator[AbstractVolume]:
         try:
-            storage_config = self.local_config['storage'][host]
+            volume_config = self.local_config['volume'][name]
         except KeyError:
-            raise InvalidVolumeError(host)
-        host_cls: Type[AbstractVolume] = BACKENDS[storage_config['backend']]
-        host_obj = host_cls(
-            mount_path=Path(storage_config['path']),
-            fsprefix=PurePosixPath(storage_config['fsprefix']),
-            options=storage_config['options'] or {},
+            raise InvalidVolumeError(name)
+        volume_cls: Type[AbstractVolume] = BACKENDS[volume_config['backend']]
+        volume_obj = volume_cls(
+            mount_path=Path(volume_config['path']),
+            fsprefix=PurePosixPath(volume_config['fsprefix']),
+            options=volume_config['options'] or {},
         )
-        await host_obj.init()
+        await volume_obj.init()
         try:
-            yield host_obj
+            yield volume_obj
         finally:
-            await host_obj.shutdown()
+            await volume_obj.shutdown()

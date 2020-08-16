@@ -6,6 +6,7 @@ import os
 import shutil
 from typing import (
     AsyncIterator,
+    FrozenSet,
     Optional,
     Sequence,
 )
@@ -13,10 +14,11 @@ from uuid import UUID
 
 import janus
 
-from ..abc import AbstractVolume
+from ..abc import AbstractVolume, CAP_VFOLDER
 from ..types import (
     FSPerfMetric,
     FSUsage,
+    VFolderCreationOptions,
     VFolderUsage,
     DirEntry,
     DirEntryType,
@@ -45,8 +47,11 @@ class BaseVolume(AbstractVolume):
         return target_path
 
     # ------ volume operations -------
+    #
+    async def get_capabilities(self) -> FrozenSet[str]:
+        return frozenset([CAP_VFOLDER])
 
-    async def create_vfolder(self, vfid: UUID) -> None:
+    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions) -> None:
         vfpath = self._mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(

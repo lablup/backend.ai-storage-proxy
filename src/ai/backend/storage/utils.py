@@ -4,11 +4,14 @@ import logging
 import json
 from typing import (
     Any,
+    Optional,
     Union,
 )
 
 from aiohttp import web
 import trafaret as t
+
+from ai.backend.common.logging import BraceStyleAdapter
 
 
 def fstime2datetime(t: Union[float, int]) -> datetime:
@@ -18,13 +21,23 @@ def fstime2datetime(t: Union[float, int]) -> datetime:
 @actxmgr
 async def check_params(
     request: web.Request,
-    checker: t.Trafaret,
+    checker: Optional[t.Trafaret],
     *,
     auth_required: bool = True,
 ) -> Any:
-    body = await request.json()
+    if checker is None:
+        if request.has_body:
+            raise web.HTTPBadRequest(text=json.dumps({
+                'type': 'https://api.backend.ai/probs/storage/malformed-request',
+                'title': 'Malformed request (request body should be empty)',
+            }), content_type='application/problem+json')
+    else:
+        body = await request.json()
     try:
-        yield checker.check(body)
+        if checker is None:
+            yield None
+        else:
+            yield checker.check(body)
     except t.DataError as e:
         raise web.HTTPBadRequest(text=json.dumps({
             'type': 'https://api.backend.ai/probs/storage/invalid-api-params',
@@ -38,46 +51,51 @@ async def check_params(
         }), content_type='application/problem+json')
 
 
-async def log_api_entry(log: logging.Logger, name: str, params: Any) -> None:
-    if 'src_vfid' in params and 'dst_vfid' in params:
-        log.info(
-            "{}(h:{}, f:{} -> dst_f:{})",
-            name,
-            params['vfhost'],
-            params['src_vfid'],
-            params['dst_vfid'],
-        )
-    elif 'relpaths' in params:
-        log.info(
-            "{}(h:{}, f:{}, p*:{})",
-            name,
-            params['vfhost'],
-            params['vfid'],
-            str(params['relpaths'][0]) + '...',
-        )
-    elif 'relpath' in params:
-        log.info(
-            "{}(h:{}, f:{}, p:{})",
-            name,
-            params['vfhost'],
-            params['vfid'],
-            params['relpath'],
-        )
-    elif 'vfid' in params:
-        log.info(
-            "{}(h:{}, f:{})",
-            name,
-            params['vfhost'],
-            params['vfid'],
-        )
-    elif 'vfhost' in params:
-        log.info(
-            "{}(h:{})",
-            name,
-            params['vfhost'],
-        )
-    else:
-        log.info(
-            "{}()",
-            name,
-        )
+async def log_api_entry(
+    log: Union[logging.Logger, BraceStyleAdapter],
+    name: str,
+    params: Any,
+) -> None:
+    if params is not None:
+        if 'src_vfid' in params and 'dst_vfid' in params:
+            log.info(
+                "ManagerAPI::{}(h:{}, f:{} -> dst_f:{})",
+                name.upper(),
+                params['volume'],
+                params['src_vfid'],
+                params['dst_vfid'],
+            )
+        elif 'relpaths' in params:
+            log.info(
+                "ManagerAPI::{}(h:{}, f:{}, p*:{})",
+                name.upper(),
+                params['volume'],
+                params['vfid'],
+                str(params['relpaths'][0]) + '...',
+            )
+        elif 'relpath' in params:
+            log.info(
+                "ManagerAPI::{}(h:{}, f:{}, p:{})",
+                name.upper(),
+                params['volume'],
+                params['vfid'],
+                params['relpath'],
+            )
+        elif 'vfid' in params:
+            log.info(
+                "ManagerAPI::{}(h:{}, f:{})",
+                name.upper(),
+                params['volume'],
+                params['vfid'],
+            )
+        elif 'volume' in params:
+            log.info(
+                "ManagerAPI::{}(h:{})",
+                name.upper(),
+                params['volume'],
+            )
+        return
+    log.info(
+        "ManagerAPI::{}()",
+        name.upper(),
+    )

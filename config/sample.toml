@@ -59,12 +59,12 @@ colored = true
 format = "simple"
 
 
-[storage]
-# storage section may define one or more named subsections with
+[volume]
+# volume section may define one or more named subsections with
 # backend-specific configurations.
 
 
-[storage.local]
+[volume.local]
 # The default, generic filesystem.
 # It uses the standard syscalls to perform filesystem operations
 # such as scanning the file/directory metadata.
@@ -73,28 +73,28 @@ backend = "vfs"
 path = "/vfroot/xfs"
 
 
-[storage.fastlocal]
+[volume.fastlocal]
 # An extended version for XFS, which supports per-directory quota
 # based on xfs projects.
 backend = "xfs"
 path = "/vfroot/xfs"
 
 
-[storage.mypure]
+[volume.mypure]
 # An extended version for PureStorage FlashBlade nodes, which uses
 # RapidFile Tools to perform filesystem metadata queries and the
 # FB REST APIs to configure per-directory quota.
 backend = "purestorage"
 path = "/vfroot/fb1"
 
-[storage.mypure.options]
+[volume.mypure.options]
 purity_endpoint = "192.168.0.10:443"
 purity_ssl_verify = false
 purity_api_token = "xxxxxx"
 purity_fs_name = "mypure"  # the name of filesystem used by the filesystem API
 
 
-[storage.myceph]
+[volume.myceph]
 # An extended version for CephFS, which supports extended inode attributes
 # for per-directory quota and fast metadata queries.
 backend = "cephfs"

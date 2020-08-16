@@ -3,6 +3,8 @@ from pathlib import Path, PurePath, PurePosixPath
 from typing import (
     Any,
     AsyncIterator,
+    Final,
+    FrozenSet,
     Mapping,
     Sequence,
 )
@@ -11,9 +13,16 @@ from uuid import UUID
 from .types import (
     FSPerfMetric,
     FSUsage,
+    VFolderCreationOptions,
     VFolderUsage,
     DirEntry,
 )
+
+
+# Available capabilities of a volume implementation
+CAP_VFOLDER: Final = 'vfolder'
+CAP_METRIC: Final = 'metric'
+CAP_QUOTA: Final = 'quota'
 
 
 class AbstractVolume(metaclass=ABCMeta):
@@ -37,7 +46,11 @@ class AbstractVolume(metaclass=ABCMeta):
     # ------ volume operations -------
 
     @abstractmethod
-    async def create_vfolder(self, vfid: UUID) -> None:
+    async def get_capabilities(self) -> FrozenSet[str]:
+        pass
+
+    @abstractmethod
+    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions) -> None:
         pass
 
     @abstractmethod
