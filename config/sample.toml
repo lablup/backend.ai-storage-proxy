@@ -13,6 +13,11 @@ num-proc = 4
 # pid-file = "./storage-proxy.pid"
 event-loop = "uvloop"
 
+# The maximum number of directory entries to return upon
+# a scandir operation to prevent excessive loads/delays on filesystems.
+# Settings it zero means no limit.
+scandir-limit = 1000
+
 
 [api.client]
 # Client-facing API

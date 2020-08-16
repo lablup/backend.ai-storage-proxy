@@ -30,10 +30,13 @@ class AbstractVolume(metaclass=ABCMeta):
 
     def __init__(
         self,
+        local_config: Mapping[str, Any],
         mount_path: Path,
+        *,
         fsprefix: PurePath = None,
         options: Mapping[str, Any] = None,
     ) -> None:
+        self.local_config = local_config
         self.mount_path = mount_path
         self.fsprefix = fsprefix or PurePath('.')
         self.config = options or {}

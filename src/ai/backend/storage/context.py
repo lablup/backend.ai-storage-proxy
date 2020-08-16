@@ -52,6 +52,7 @@ class Context:
             raise InvalidVolumeError(name)
         volume_cls: Type[AbstractVolume] = BACKENDS[volume_config['backend']]
         volume_obj = volume_cls(
+            local_config=self.local_config,
             mount_path=Path(volume_config['path']),
             fsprefix=PurePosixPath(volume_config['fsprefix']),
             options=volume_config['options'] or {},

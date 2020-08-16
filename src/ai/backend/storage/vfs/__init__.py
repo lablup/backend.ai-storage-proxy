@@ -4,7 +4,6 @@ import asyncio
 from pathlib import Path, PurePosixPath
 import os
 import shutil
-import sys
 from typing import (
     AsyncIterator,
     FrozenSet,
@@ -147,6 +146,8 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
 
         def _scandir(q: janus._SyncQueueProxy[Union[QueueSentinel, DirEntry]]) -> None:
+            count = 0
+            limit = self.local_config['storage-proxy']['scandir-limit']
             try:
                 with os.scandir(target_path) as scanner:
                     for entry in scanner:
@@ -167,6 +168,9 @@ class BaseVolume(AbstractVolume):
                                 created=fstime2datetime(entry.stat().st_ctime),
                             )
                         ))
+                        count += 1
+                        if limit > 0 and count == limit:
+                            break
             finally:
                 q.put(EOQ)
 

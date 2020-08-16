@@ -19,6 +19,7 @@ local_config_iv = t.Dict({
                                                        allow_nonexisting=True,
                                                        allow_devnull=True),
         t.Key('event-loop', default='asyncio'): t.Enum('asyncio', 'uvloop'),
+        t.Key('scandir-limit', default=1000): t.Int[0:],
     }),
     t.Key('logging'): logging_config_iv,
     t.Key('api'): t.Dict({
