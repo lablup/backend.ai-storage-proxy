@@ -10,7 +10,7 @@ from typing import (
 )
 from uuid import UUID
 
-from ..abc import CAP_VFOLDER, CAP_METRIC
+from ..abc import CAP_VFOLDER, CAP_METRIC, CAP_FAST_SCAN
 from ..vfs import BaseVolume
 from ..types import (
     FSPerfMetric,
@@ -50,6 +50,7 @@ class FlashBladeVolume(BaseVolume):
         return frozenset([
             CAP_VFOLDER,
             CAP_METRIC,
+            CAP_FAST_SCAN,
         ])
 
     async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:

@@ -4,11 +4,13 @@ import asyncio
 from pathlib import Path, PurePosixPath
 import os
 import shutil
+import sys
 from typing import (
     AsyncIterator,
     FrozenSet,
     Optional,
     Sequence,
+    Union,
 )
 from uuid import UUID
 
@@ -16,6 +18,7 @@ import janus
 
 from ..abc import AbstractVolume, CAP_VFOLDER
 from ..types import (
+    EOQ,
     FSPerfMetric,
     FSUsage,
     VFolderCreationOptions,
@@ -23,6 +26,7 @@ from ..types import (
     DirEntry,
     DirEntryType,
     Stat,
+    QueueSentinel,
 )
 from ..utils import fstime2datetime
 
@@ -139,40 +143,50 @@ class BaseVolume(AbstractVolume):
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
         target_path = self._sanitize_vfpath(vfid, relpath)
-        q: janus.Queue[DirEntry] = janus.Queue()
+        q: janus.Queue[Union[QueueSentinel, DirEntry]] = janus.Queue()
         loop = asyncio.get_running_loop()
 
-        def _scandir(q: janus._SyncQueueProxy[DirEntry]) -> None:
-            with os.scandir(target_path) as scanner:
-                for entry in scanner:
-                    entry_type = DirEntryType.FILE
-                    if entry.is_dir():
-                        entry_type = DirEntryType.DIRECTORY
-                    if entry.is_symlink():
-                        entry_type = DirEntryType.SYMLINK
-                    q.put(DirEntry(
-                        name=entry.name,
-                        path=Path(entry.path),
-                        type=entry_type,
-                        stat=Stat(
-                            size=entry.stat().st_size,
-                            owner=str(entry.stat().st_uid),
-                            mode=entry.stat().st_mode,
-                            modified=fstime2datetime(entry.stat().st_mtime),
-                            created=fstime2datetime(entry.stat().st_ctime),
-                        )
-                    ))
+        def _scandir(q: janus._SyncQueueProxy[Union[QueueSentinel, DirEntry]]) -> None:
+            try:
+                with os.scandir(target_path) as scanner:
+                    for entry in scanner:
+                        entry_type = DirEntryType.FILE
+                        if entry.is_dir():
+                            entry_type = DirEntryType.DIRECTORY
+                        if entry.is_symlink():
+                            entry_type = DirEntryType.SYMLINK
+                        q.put(DirEntry(
+                            name=entry.name,
+                            path=Path(entry.path),
+                            type=entry_type,
+                            stat=Stat(
+                                size=entry.stat().st_size,
+                                owner=str(entry.stat().st_uid),
+                                mode=entry.stat().st_mode,
+                                modified=fstime2datetime(entry.stat().st_mtime),
+                                created=fstime2datetime(entry.stat().st_ctime),
+                            )
+                        ))
+            finally:
+                q.put(EOQ)
+
+        async def _scan_task(_scandir, q) -> None:
+            await loop.run_in_executor(None, _scandir, q.sync_q)
 
         async def _aiter() -> AsyncIterator[DirEntry]:
-            scan_task = asyncio.create_task(loop.run_in_executor(None, _scandir, q.sync_q))
+            scan_task = asyncio.create_task(_scan_task(_scandir, q))
             await asyncio.sleep(0)
             try:
                 while True:
                     item = await q.async_q.get()
+                    if item is EOQ:
+                        break
                     yield item
                     q.async_q.task_done()
             finally:
                 await scan_task
+                q.close()
+                await q.wait_closed()
 
         return _aiter()
 
@@ -190,7 +204,10 @@ class BaseVolume(AbstractVolume):
         await loop.run_in_executor(None, target_path.rmdir)
 
     async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        raise NotImplementedError
+        src_path = self._sanitize_vfpath(vfid, src)
+        dst_path = self._sanitize_vfpath(vfid, dst)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, src_path.rename, dst_path)
 
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
         raise NotImplementedError

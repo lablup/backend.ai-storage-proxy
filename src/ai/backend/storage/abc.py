@@ -23,6 +23,7 @@ from .types import (
 CAP_VFOLDER: Final = 'vfolder'
 CAP_METRIC: Final = 'metric'
 CAP_QUOTA: Final = 'quota'
+CAP_FAST_SCAN: Final = 'fast-scan'
 
 
 class AbstractVolume(metaclass=ABCMeta):

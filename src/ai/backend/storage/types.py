@@ -15,6 +15,13 @@ import trafaret as t
 from ai.backend.common import validators as tx
 
 
+class QueueSentinel(enum.Enum):
+    token = 0
+
+
+EOQ = QueueSentinel.token
+
+
 @attr.s(auto_attribs=True, slots=True, frozen=True)
 class FSPerfMetric:
     iops_read: int

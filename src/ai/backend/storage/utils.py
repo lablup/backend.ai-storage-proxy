@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager as actxmgr
-from datetime import datetime
+from datetime import datetime, timezone as tz
 import logging
 import json
 from typing import (
@@ -15,7 +15,7 @@ from ai.backend.common.logging import BraceStyleAdapter
 
 
 def fstime2datetime(t: Union[float, int]) -> datetime:
-    return datetime.fromtimestamp(t)
+    return datetime.utcfromtimestamp(t).replace(tzinfo=tz.utc)
 
 
 @actxmgr
@@ -59,7 +59,7 @@ async def log_manager_api_entry(
     if params is not None:
         if 'src_vfid' in params and 'dst_vfid' in params:
             log.info(
-                "ManagerAPI::{}(h:{}, f:{} -> dst_f:{})",
+                "ManagerAPI::{}(v:{}, f:{} -> dst_f:{})",
                 name.upper(),
                 params['volume'],
                 params['src_vfid'],
@@ -67,7 +67,7 @@ async def log_manager_api_entry(
             )
         elif 'relpaths' in params:
             log.info(
-                "ManagerAPI::{}(h:{}, f:{}, p*:{})",
+                "ManagerAPI::{}(v:{}, f:{}, p*:{})",
                 name.upper(),
                 params['volume'],
                 params['vfid'],
@@ -75,7 +75,7 @@ async def log_manager_api_entry(
             )
         elif 'relpath' in params:
             log.info(
-                "ManagerAPI::{}(h:{}, f:{}, p:{})",
+                "ManagerAPI::{}(v:{}, f:{}, p:{})",
                 name.upper(),
                 params['volume'],
                 params['vfid'],
@@ -83,14 +83,14 @@ async def log_manager_api_entry(
             )
         elif 'vfid' in params:
             log.info(
-                "ManagerAPI::{}(h:{}, f:{})",
+                "ManagerAPI::{}(v:{}, f:{})",
                 name.upper(),
                 params['volume'],
                 params['vfid'],
             )
         elif 'volume' in params:
             log.info(
-                "ManagerAPI::{}(h:{})",
+                "ManagerAPI::{}(v:{})",
                 name.upper(),
                 params['volume'],
             )
