@@ -62,6 +62,10 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    async def get_vfolder_mount(self, vfid: UUID) -> Path:
+        pass
+
+    @abstractmethod
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         pass
 

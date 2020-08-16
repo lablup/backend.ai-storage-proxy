@@ -74,6 +74,9 @@ class BaseVolume(AbstractVolume):
     async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
         raise NotImplementedError
 
+    async def get_vfolder_mount(self, vfid: UUID) -> Path:
+        return self._mangle_vfpath(vfid)
+
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self._mangle_vfpath(vfid)
         metadata_path = (vfpath / 'metadata.json')

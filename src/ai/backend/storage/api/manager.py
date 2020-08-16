@@ -91,6 +91,20 @@ async def clone_vfolder(request: web.Request) -> web.Response:
             return web.Response(status=204)
 
 
+async def get_vfolder_mount(request: web.Request) -> web.Response:
+    async with check_params(request, t.Dict({
+        t.Key('volume'): t.String(),
+        t.Key('vfid'): t.UUID(),
+    })) as params:
+        await log_manager_api_entry(log, 'get_container_mount', params)
+        ctx: Context = request.app['ctx']
+        async with ctx.get_volume(params['volume']) as volume:
+            mount_path = await volume.get_vfolder_mount(params['vfid'])
+            return web.json_response({
+                'path': str(mount_path),
+            })
+
+
 async def get_performance_metric(request: web.Request) -> web.Response:
     async with check_params(request, t.Dict({
         t.Key('volume'): t.String(),
@@ -170,6 +184,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route('POST', '/folder/create', create_vfolder)
     app.router.add_route('POST', '/folder/delete', delete_vfolder)
     app.router.add_route('POST', '/folder/clone', clone_vfolder)
+    app.router.add_route('GET', '/folder/mount', get_vfolder_mount)
     app.router.add_route('GET', '/volume/performance-metric', get_performance_metric)
     app.router.add_route('GET', '/folder/metadata', get_metadata)
     app.router.add_route('POST', '/folder/metadata', set_metadata)
