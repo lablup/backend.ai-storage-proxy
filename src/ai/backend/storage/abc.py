@@ -120,6 +120,14 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    async def prepare_upload(self, vfid: UUID) -> str:
+        """
+        Prepare an upload session by creating a dedicated temporary directory.
+        Returns a unique session identifier.
+        """
+        pass
+
+    @abstractmethod
     async def add_file(self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]) -> None:
         pass
 

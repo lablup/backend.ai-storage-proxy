@@ -18,6 +18,12 @@ event-loop = "uvloop"
 # Settings it zero means no limit.
 scandir-limit = 1000
 
+# Used to generate JWT tokens for download/upload sessions
+secret = "0000000000000000000000000000000000000000000"
+
+# The download/upload session tokens are valid for:
+session-expire = "1d"
+
 
 [api.client]
 # Client-facing API
@@ -32,6 +38,9 @@ service-addr = { host = "127.0.0.1", port = 6022 }
 ssl-enabled = true
 ssl-cert = "config/ssl/manager-api-selfsigned.cert.pem"
 ssl-privkey = "config/ssl/manager-api-selfsigned.key.pem"
+
+# Used to authenticate managers
+secret = "0000000000000000000000000000000000000000000"
 
 
 [debug]

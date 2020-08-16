@@ -20,6 +20,8 @@ local_config_iv = t.Dict({
                                                        allow_devnull=True),
         t.Key('event-loop', default='asyncio'): t.Enum('asyncio', 'uvloop'),
         t.Key('scandir-limit', default=1000): t.Int[0:],
+        t.Key('secret'): t.String,  # used to generate JWT tokens
+        t.Key('session-expire'): tx.TimeDuration,
     }),
     t.Key('logging'): logging_config_iv,
     t.Key('api'): t.Dict({
@@ -34,6 +36,7 @@ local_config_iv = t.Dict({
             t.Key('ssl-enabled'): t.ToBool,
             t.Key('ssl-cert', default=None): t.Null | tx.Path(type='file'),
             t.Key('ssl-privkey', default=None): t.Null | tx.Path(type='file'),
+            t.Key('secret'): t.String,  # used to authenticate managers
         }),
     }),
     t.Key('volume'): t.Mapping(

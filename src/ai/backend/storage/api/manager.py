@@ -2,6 +2,7 @@
 Manager-facing API
 """
 
+from datetime import datetime, timedelta
 import logging
 from typing import (
     List,
@@ -221,9 +222,21 @@ async def create_download_session(request: web.Request) -> web.Response:
         t.Key('relpath'): tx.PurePath(relative_only=True),
     })) as params:
         await log_manager_api_entry(log, 'create_download_session', params)
+        ctx: Context = request.app['ctx']
+        token_data = {
+            'op': 'download',
+            'volume': params['volume'],
+            'folder': str(params['vfid']),
+            'relpath': str(params['relpath']),
+            'exp': datetime.utcnow() + ctx.local_config['storage-proxy']['session-expire'],
+        }
+        token = jwt.encode(
+            token_data,
+            ctx.local_config['storage-proxy']['secret'],
+            algorithm='HS256',
+        ).decode('UTF-8')
         return web.json_response({
-            'status': 'ok',
-            'token': '<JWT>',
+            'token': token,
         })
 
 
@@ -234,9 +247,24 @@ async def create_upload_session(request: web.Request) -> web.Response:
         t.Key('relpath'): tx.PurePath(relative_only=True),
     })) as params:
         await log_manager_api_entry(log, 'create_upload_session', params)
+        ctx: Context = request.app['ctx']
+        async with ctx.get_volume(params['volume']) as volume:
+            session_id = await volume.prepare_upload(params['vfid'])
+        token_data = {
+            'op': 'upload',
+            'volume': params['volume'],
+            'folder': str(params['vfid']),
+            'relpath': str(params['relpath']),
+            'session': session_id,
+            'exp': datetime.utcnow() + ctx.local_config['storage-proxy']['session-expire'],
+        }
+        token = jwt.encode(
+            token_data,
+            ctx.local_config['storage-proxy']['secret'],
+            algorithm='HS256',
+        ).decode('UTF-8')
         return web.json_response({
-            'status': 'ok',
-            'token': '<JWT>',
+            'token': token,
         })
 
 

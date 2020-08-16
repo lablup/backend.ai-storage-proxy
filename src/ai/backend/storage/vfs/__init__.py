@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path, PurePosixPath
 import os
+import secrets
 import shutil
 from typing import (
     AsyncIterator,
@@ -215,6 +216,20 @@ class BaseVolume(AbstractVolume):
 
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
         raise NotImplementedError
+
+    async def prepare_upload(self, vfid: UUID) -> str:
+        vfpath = self._mangle_vfpath(vfid)
+        session_id = secrets.token_hex(16)
+
+        def _create_target():
+            upload_base_path = vfpath / ".upload"
+            upload_base_path.mkdir(exist_ok=True)
+            upload_target_path = upload_base_path / session_id
+            upload_target_path.touch()
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _create_target)
+        return session_id
 
     async def add_file(self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]) -> None:
         target_path = self._sanitize_vfpath(vfid, relpath)
