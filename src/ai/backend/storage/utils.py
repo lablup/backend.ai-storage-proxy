@@ -51,7 +51,7 @@ async def check_params(
         }), content_type='application/problem+json')
 
 
-async def log_api_entry(
+async def log_manager_api_entry(
     log: Union[logging.Logger, BraceStyleAdapter],
     name: str,
     params: Any,
