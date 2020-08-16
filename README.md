@@ -6,14 +6,18 @@ storage-specific optimization support.
 ## Package Structure
 * `ai.backend.storage`
   - `server`: The agent daemon which communicates between Backend.AI Manager
+  - `api.client`: The client-facing API to handle tus.io server-side protocol for uploads and ranged HTTP
+    queries for downloads.
+  - `api.manager`: The manager-facing (internal) API to provide abstraction of volumes and separation of
+    the hardware resources for volume and file operations.
   - `vfs`
     - The minimal fallback backend which only uses the standard Linux filesystem interfaces
   - `xfs`
     - XFS-optimized backend with a small daemon to manage XFS project IDs for quota limits
     - `agent`: Implementation of `AbstractVolumeAgent` with XFS support
   - `purestorage`
-    - PureStorage-optimized backend with RapidFile Toolkit (formerly PureTools)
-  - `cephfs`
+    - PureStorage's FlashBlade-optimized backend with RapidFile Toolkit (formerly PureTools)
+  - `cephfs` (TODO)
     - CephFS-optimized backend with quota limit support
 
 
@@ -48,7 +52,8 @@ When done, start storage server:
 # python -m ai.backend.storage.server
 ```
 
-It will start Storage Agent daemon binded to `127.0.0.1:6020`.
+It will start Storage Proxy daemon bound at `127.0.0.1:6021` (client API) and
+`127.0.0.1:6022` (manager API).
 
 NOTE: Depending on the backend, the server may require to be run as root.
 
