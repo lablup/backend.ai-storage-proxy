@@ -51,7 +51,7 @@ class BaseVolume(AbstractVolume):
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER])
 
-    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions) -> None:
+    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
         vfpath = self._mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(

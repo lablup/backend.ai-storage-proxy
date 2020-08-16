@@ -50,7 +50,7 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions) -> None:
+    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
         pass
 
     @abstractmethod
