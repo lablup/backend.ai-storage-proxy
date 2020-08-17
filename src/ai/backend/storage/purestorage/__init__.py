@@ -20,6 +20,7 @@ from ..types import (
     Stat,
 )
 from ..utils import fstime2datetime
+from .purity import PurityClient
 
 
 class FlashBladeVolume(BaseVolume):
@@ -64,8 +65,19 @@ class FlashBladeVolume(BaseVolume):
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:
-        # TODO: use FlashBlade API
-        raise NotImplementedError
+        client = PurityClient(self.config['purity_endpoint'], self.config['purity_api_token'])
+        async with client:
+            async for item in client.get_nfs_metric(self.config['purity_fs_name']):
+                return FSPerfMetric(
+                    iops_read=item['reads_per_sec'],
+                    iops_write=item['writes_per_sec'],
+                    io_bytes_read=item['read_bytes_per_sec'],
+                    io_bytes_write=item['write_bytes_per_sec'],
+                    io_usec_read=item['usec_per_read_op'],
+                    io_usec_write=item['usec_per_write_op'],
+                )
+            else:
+                raise RuntimeError('no metric found for the configured flashblade filesystem')
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)

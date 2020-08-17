@@ -2,13 +2,14 @@
 Manager-facing API
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 from typing import (
     List,
 )
 
 from aiohttp import web
+import attr
 import jwt
 import trafaret as t
 
@@ -111,9 +112,12 @@ async def get_performance_metric(request: web.Request) -> web.Response:
         t.Key('volume'): t.String(),
     })) as params:
         await log_manager_api_entry(log, 'get_performance_metric', params)
-        return web.json_response({
-            'status': 'ok',
-        })
+        ctx: Context = request.app['ctx']
+        async with ctx.get_volume(params['volume']) as volume:
+            metric = await volume.get_performance_metric()
+            return web.json_response({
+                'metric': attr.asdict(metric),
+            })
 
 
 async def get_metadata(request: web.Request) -> web.Response:

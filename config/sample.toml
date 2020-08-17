@@ -105,10 +105,10 @@ backend = "purestorage"
 path = "/vfroot/fb1"
 
 [volume.mypure.options]
-purity_endpoint = "192.168.0.10:443"
+purity_endpoint = "https://pure01.example.com"
 purity_ssl_verify = false
-purity_api_token = "xxxxxx"
-purity_fs_name = "mypure"  # the name of filesystem used by the filesystem API
+purity_api_token = "T-11111111-2222-3333-4444-000000000000"
+purity_fs_name = "FB-NFS1"  # the name of filesystem used by the filesystem API
 
 
 [volume.myceph]

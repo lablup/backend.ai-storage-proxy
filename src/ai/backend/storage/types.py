@@ -25,10 +25,15 @@ SENTINEL: Final = Sentinel.token
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
 class FSPerfMetric:
+    # iops
     iops_read: int
     iops_write: int
-    iobytes_read: int
-    iobytes_write: int
+    # thruput
+    io_bytes_read: int
+    io_bytes_write: int
+    # latency
+    io_usec_read: float
+    io_usec_write: float
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
