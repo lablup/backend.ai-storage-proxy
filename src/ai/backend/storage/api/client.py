@@ -72,7 +72,7 @@ async def download(request: web.Request) -> web.StreamResponse:
                 vfpath = volume.mangle_vfpath(token_data['vfid'])
             try:
                 file_path = (vfpath / token_data['relpath']).resolve()
-                file_path.relative_to()
+                file_path.relative_to(vfpath)
                 if not file_path.exists():
                     raise FileNotFoundError
             except (ValueError, FileNotFoundError):
