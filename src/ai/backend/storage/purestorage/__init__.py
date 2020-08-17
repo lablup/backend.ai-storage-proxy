@@ -68,7 +68,7 @@ class FlashBladeVolume(BaseVolume):
         raise NotImplementedError
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
         total_count = 0
         raw_target_path = bytes(target_path)
@@ -98,7 +98,7 @@ class FlashBladeVolume(BaseVolume):
     # ------ vfolder internal operations -------
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         raw_target_path = bytes(target_path)
 
         async def _aiter() -> AsyncIterator[DirEntry]:
@@ -145,7 +145,7 @@ class FlashBladeVolume(BaseVolume):
         raise NotImplementedError
 
     async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
-        target_paths = [bytes(self._sanitize_vfpath(vfid, p)) for p in relpaths]
+        target_paths = [bytes(self.sanitize_vfpath(vfid, p)) for p in relpaths]
         proc = await asyncio.create_subprocess_exec(
             b'prm', *target_paths,
             stdout=asyncio.subprocess.PIPE,

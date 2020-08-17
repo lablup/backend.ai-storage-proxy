@@ -42,7 +42,7 @@ async def check_params(
         if read_from == CheckParamSource.BODY:
             raw_params = await request.json()
         elif read_from == CheckParamSource.QUERY:
-            raw_params = await request.query()
+            raw_params = request.query
         else:
             raise ValueError('Invalid source for check_params() helper')
     try:

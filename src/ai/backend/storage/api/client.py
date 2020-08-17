@@ -53,13 +53,14 @@ upload_token_data_iv = t.Dict({
     t.Key('volume'): t.String,
     t.Key('vfid'): tx.UUID,
     t.Key('relpath'): t.String,
+    t.Key('session'): t.String,
     t.Key('size'): t.Int,
 }).allow_extra('*')  # allow JWT-intrinsic keys
 
 
 async def download(request: web.Request) -> web.StreamResponse:
     ctx: Context = request.app['ctx']
-    secret = ctx.local_config['api']['manager']['secret']
+    secret = ctx.local_config['storage-proxy']['secret']
     async with check_params(request, t.Dict({
         t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=download_token_data_iv),
     }), read_from=CheckParamSource.QUERY) as params:
@@ -70,7 +71,7 @@ async def download(request: web.Request) -> web.StreamResponse:
             else:
                 vfpath = volume.mangle_vfpath(token_data['vfid'])
             try:
-                file_path = (vfpath / token_data['path']).resolve()
+                file_path = (vfpath / token_data['relpath']).resolve()
                 file_path.relative_to()
                 if not file_path.exists():
                     raise FileNotFoundError
@@ -169,7 +170,7 @@ async def tus_check_session(request: web.Request) -> web.Response:
     Check the availability of an upload session.
     """
     ctx: Context = request.app['ctx']
-    secret = ctx.local_config['api']['manager']['secret']
+    secret = ctx.local_config['storage-proxy']['secret']
     async with check_params(request, t.Dict({
         t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=upload_token_data_iv),
     }), read_from=CheckParamSource.QUERY) as params:
@@ -184,7 +185,7 @@ async def tus_upload_part(request: web.Request) -> web.Response:
     Perform the chunk upload.
     """
     ctx: Context = request.app['ctx']
-    secret = ctx.local_config['api']['manager']['secret']
+    secret = ctx.local_config['storage-proxy']['secret']
     async with check_params(request, t.Dict({
         t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=upload_token_data_iv),
     }), read_from=CheckParamSource.QUERY) as params:
@@ -192,7 +193,7 @@ async def tus_upload_part(request: web.Request) -> web.Response:
         async with ctx.get_volume(token_data['volume']) as volume:
             headers = await prepare_tus_session_headers(request, token_data, volume)
             vfpath = volume.mangle_vfpath(token_data['vfid'])
-            upload_temp_path = vfpath / ".upload" / token_data['sessid']
+            upload_temp_path = vfpath / ".upload" / token_data['session']
 
             async with AsyncFileWriter(
                     loop=asyncio.get_running_loop(),
@@ -204,8 +205,8 @@ async def tus_upload_part(request: web.Request) -> web.Response:
                     await writer.write(chunk)
 
             current_size = Path(upload_temp_path).stat().st_size
-            if current_size >= int(params['size']):
-                target_path = vfpath / params['path']
+            if current_size >= int(token_data['size']):
+                target_path = vfpath / token_data['relpath']
                 upload_temp_path.rename(target_path)
                 try:
                     loop = asyncio.get_running_loop()
@@ -241,7 +242,7 @@ async def prepare_tus_session_headers(
     volume: AbstractVolume,
 ) -> MutableMapping[str, str]:
     vfpath = volume.mangle_vfpath(token_data['vfid'])
-    upload_temp_path = vfpath / ".upload" / token_data['sessid']
+    upload_temp_path = vfpath / ".upload" / token_data['session']
     if not Path(upload_temp_path).exists():
         raise web.HTTPNotFound(
             body=json.dumps({

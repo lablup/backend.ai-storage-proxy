@@ -228,7 +228,7 @@ async def create_download_session(request: web.Request) -> web.Response:
         token_data = {
             'op': 'download',
             'volume': params['volume'],
-            'folder': str(params['vfid']),
+            'vfid': str(params['vfid']),
             'relpath': str(params['relpath']),
             'exp': datetime.utcnow() + ctx.local_config['storage-proxy']['session-expire'],
         }
@@ -247,6 +247,7 @@ async def create_upload_session(request: web.Request) -> web.Response:
         t.Key('volume'): t.String(),
         t.Key('vfid'): tx.UUID(),
         t.Key('relpath'): tx.PurePath(relative_only=True),
+        t.Key('size'): t.ToInt,
     })) as params:
         await log_manager_api_entry(log, 'create_upload_session', params)
         ctx: Context = request.app['ctx']
@@ -255,8 +256,9 @@ async def create_upload_session(request: web.Request) -> web.Response:
         token_data = {
             'op': 'upload',
             'volume': params['volume'],
-            'folder': str(params['vfid']),
+            'vfid': str(params['vfid']),
             'relpath': str(params['relpath']),
+            'size': params['size'],
             'session': session_id,
             'exp': datetime.utcnow() + ctx.local_config['storage-proxy']['session-expire'],
         }
@@ -300,5 +302,5 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route('POST', '/folder/file/rename', rename_file)
     app.router.add_route('POST', '/folder/file/download', create_download_session)
     app.router.add_route('POST', '/folder/file/upload', create_upload_session)
-    app.router.add_route('POST', '/folder/file/delete', create_upload_session)
+    app.router.add_route('POST', '/folder/file/delete', delete_files)
     return app
