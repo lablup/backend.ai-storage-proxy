@@ -140,9 +140,6 @@ class FlashBladeVolume(BaseVolume):
 
         return _aiter()
 
-    async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        raise NotImplementedError
-
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
         # TODO: pcp ...
         raise NotImplementedError

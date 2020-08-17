@@ -6,6 +6,7 @@ from typing import (
     Final,
     FrozenSet,
     Mapping,
+    Optional,
     Sequence,
 )
 from uuid import UUID
@@ -46,6 +47,23 @@ class AbstractVolume(metaclass=ABCMeta):
 
     async def shutdown(self) -> None:
         pass
+
+    def mangle_vfpath(self, vfid: UUID) -> Path:
+        prefix1 = vfid.hex[0:2]
+        prefix2 = vfid.hex[2:4]
+        rest = vfid.hex[4:]
+        return Path(self.mount_path, prefix1, prefix2, rest)
+
+    def sanitize_vfpath(self, vfid: UUID, relpath: Optional[PurePosixPath]) -> Path:
+        if relpath is None:
+            relpath = PurePosixPath('.')
+        vfpath = self.mangle_vfpath(vfid)
+        target_path = (vfpath / relpath).resolve()
+        try:
+            target_path.relative_to(vfpath)
+        except ValueError:
+            raise PermissionError("cannot acess outside of the given vfolder")
+        return target_path
 
     # ------ volume operations -------
 

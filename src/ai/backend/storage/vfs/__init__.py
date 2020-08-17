@@ -18,7 +18,6 @@ import janus
 
 from ..abc import AbstractVolume, CAP_VFOLDER
 from ..types import (
-    EOQ,
     FSPerfMetric,
     FSUsage,
     VFolderCreationOptions,
@@ -26,43 +25,27 @@ from ..types import (
     DirEntry,
     DirEntryType,
     Stat,
-    QueueSentinel,
+    SENTINEL,
+    Sentinel,
 )
 from ..utils import fstime2datetime
 
 
 class BaseVolume(AbstractVolume):
 
-    def _mangle_vfpath(self, vfid: UUID) -> Path:
-        prefix1 = vfid.hex[0:2]
-        prefix2 = vfid.hex[2:4]
-        rest = vfid.hex[4:]
-        return Path(self.mount_path, prefix1, prefix2, rest)
-
-    def _sanitize_vfpath(self, vfid: UUID, relpath: Optional[PurePosixPath]) -> Path:
-        if relpath is None:
-            relpath = PurePosixPath('.')
-        vfpath = self._mangle_vfpath(vfid)
-        target_path = (vfpath / relpath).resolve()
-        try:
-            target_path.relative_to(vfpath)
-        except ValueError:
-            raise PermissionError("cannot acess outside of the given vfolder")
-        return target_path
-
     # ------ volume operations -------
-    #
+
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER])
 
     async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
-        vfpath = self._mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
 
     async def delete_vfolder(self, vfid: UUID) -> None:
-        vfpath = self._mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
 
         def _delete_vfolder():
@@ -79,16 +62,16 @@ class BaseVolume(AbstractVolume):
         raise NotImplementedError
 
     async def get_vfolder_mount(self, vfid: UUID) -> Path:
-        return self._mangle_vfpath(vfid)
+        return self.mangle_vfpath(vfid)
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
-        vfpath = self._mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid)
         metadata_path = (vfpath / 'metadata.json')
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, metadata_path.write_bytes, payload)
 
     async def get_metadata(self, vfid: UUID) -> bytes:
-        vfpath = self._mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid)
         metadata_path = (vfpath / 'metadata.json')
         loop = asyncio.get_running_loop()
         try:
@@ -119,7 +102,7 @@ class BaseVolume(AbstractVolume):
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
         total_count = 0
 
@@ -142,11 +125,11 @@ class BaseVolume(AbstractVolume):
     # ------ vfolder internal operations -------
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
-        target_path = self._sanitize_vfpath(vfid, relpath)
-        q: janus.Queue[Union[QueueSentinel, DirEntry]] = janus.Queue()
+        target_path = self.sanitize_vfpath(vfid, relpath)
+        q: janus.Queue[Union[Sentinel, DirEntry]] = janus.Queue()
         loop = asyncio.get_running_loop()
 
-        def _scandir(q: janus._SyncQueueProxy[Union[QueueSentinel, DirEntry]]) -> None:
+        def _scandir(q: janus._SyncQueueProxy[Union[Sentinel, DirEntry]]) -> None:
             count = 0
             limit = self.local_config['storage-proxy']['scandir-limit']
             try:
@@ -173,7 +156,7 @@ class BaseVolume(AbstractVolume):
                         if limit > 0 and count == limit:
                             break
             finally:
-                q.put(EOQ)
+                q.put(SENTINEL)
 
         async def _scan_task(_scandir, q) -> None:
             await loop.run_in_executor(None, _scandir, q.sync_q)
@@ -184,7 +167,7 @@ class BaseVolume(AbstractVolume):
             try:
                 while True:
                     item = await q.async_q.get()
-                    if item is EOQ:
+                    if item is SENTINEL:
                         break
                     yield item
                     q.async_q.task_done()
@@ -196,7 +179,7 @@ class BaseVolume(AbstractVolume):
         return _aiter()
 
     async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
@@ -204,13 +187,13 @@ class BaseVolume(AbstractVolume):
         )
 
     async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False) -> None:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, target_path.rmdir)
 
     async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        src_path = self._sanitize_vfpath(vfid, src)
-        dst_path = self._sanitize_vfpath(vfid, dst)
+        src_path = self.sanitize_vfpath(vfid, src)
+        dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, src_path.rename, dst_path)
 
@@ -218,7 +201,7 @@ class BaseVolume(AbstractVolume):
         raise NotImplementedError
 
     async def prepare_upload(self, vfid: UUID) -> str:
-        vfpath = self._mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid)
         session_id = secrets.token_hex(16)
 
         def _create_target():
@@ -232,7 +215,7 @@ class BaseVolume(AbstractVolume):
         return session_id
 
     async def add_file(self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]) -> None:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         q: janus.Queue[bytes] = janus.Queue()
 
         def _write(q: janus._SyncQueueProxy[bytes]) -> None:
@@ -263,7 +246,7 @@ class BaseVolume(AbstractVolume):
         *,
         chunk_size: int = 0,
     ) -> AsyncIterator[bytes]:
-        target_path = self._sanitize_vfpath(vfid, relpath)
+        target_path = self.sanitize_vfpath(vfid, relpath)
         q: janus.Queue[bytes] = janus.Queue()
         loop = asyncio.get_running_loop()
 
@@ -294,7 +277,7 @@ class BaseVolume(AbstractVolume):
         return _aiter()
 
     async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
-        target_paths = [self._sanitize_vfpath(vfid, p) for p in relpaths]
+        target_paths = [self.sanitize_vfpath(vfid, p) for p in relpaths]
 
         def _delete() -> None:
             for p in target_paths:

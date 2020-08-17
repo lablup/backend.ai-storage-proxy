@@ -20,6 +20,7 @@ local_config_iv = t.Dict({
                                                        allow_devnull=True),
         t.Key('event-loop', default='asyncio'): t.Enum('asyncio', 'uvloop'),
         t.Key('scandir-limit', default=1000): t.Int[0:],
+        t.Key('max-upload-size', default="100g"): tx.BinarySize,
         t.Key('secret'): t.String,  # used to generate JWT tokens
         t.Key('session-expire'): tx.TimeDuration,
     }),

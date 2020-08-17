@@ -18,6 +18,9 @@ event-loop = "uvloop"
 # Settings it zero means no limit.
 scandir-limit = 1000
 
+# The maximum allowed size of a single upload session.
+max-upload-size = "100g"
+
 # Used to generate JWT tokens for download/upload sessions
 secret = "0000000000000000000000000000000000000000000"
 

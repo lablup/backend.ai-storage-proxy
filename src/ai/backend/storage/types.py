@@ -5,6 +5,7 @@ import enum
 from pathlib import Path, PurePath
 from typing import (
     Any,
+    Final,
     Mapping,
     Optional,
 )
@@ -15,11 +16,11 @@ import trafaret as t
 from ai.backend.common import validators as tx
 
 
-class QueueSentinel(enum.Enum):
+class Sentinel(enum.Enum):
     token = 0
 
 
-EOQ = QueueSentinel.token
+SENTINEL: Final = Sentinel.token
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)

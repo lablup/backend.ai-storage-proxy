@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager as actxmgr
 from datetime import datetime, timezone as tz
+import enum
 import logging
 import json
 from typing import (
@@ -14,6 +15,11 @@ import trafaret as t
 from ai.backend.common.logging import BraceStyleAdapter
 
 
+class CheckParamSource(enum.Enum):
+    BODY = 0
+    QUERY = 1
+
+
 def fstime2datetime(t: Union[float, int]) -> datetime:
     return datetime.utcfromtimestamp(t).replace(tzinfo=tz.utc)
 
@@ -23,6 +29,7 @@ async def check_params(
     request: web.Request,
     checker: Optional[t.Trafaret],
     *,
+    read_from: CheckParamSource = CheckParamSource.BODY,
     auth_required: bool = True,
 ) -> Any:
     if checker is None:
@@ -32,12 +39,17 @@ async def check_params(
                 'title': 'Malformed request (request body should be empty)',
             }), content_type='application/problem+json')
     else:
-        body = await request.json()
+        if read_from == CheckParamSource.BODY:
+            raw_params = await request.json()
+        elif read_from == CheckParamSource.QUERY:
+            raw_params = await request.query()
+        else:
+            raise ValueError('Invalid source for check_params() helper')
     try:
         if checker is None:
             yield None
         else:
-            yield checker.check(body)
+            yield checker.check(raw_params)
     except t.DataError as e:
         raise web.HTTPBadRequest(text=json.dumps({
             'type': 'https://api.backend.ai/probs/storage/invalid-api-params',

@@ -220,6 +220,8 @@ async def create_download_session(request: web.Request) -> web.Response:
         t.Key('volume'): t.String(),
         t.Key('vfid'): tx.UUID(),
         t.Key('relpath'): tx.PurePath(relative_only=True),
+        t.Key('archive', default=False): t.ToBool,
+        t.Key('unmanaged_path', default=None): t.Null | t.String,
     })) as params:
         await log_manager_api_entry(log, 'create_download_session', params)
         ctx: Context = request.app['ctx']

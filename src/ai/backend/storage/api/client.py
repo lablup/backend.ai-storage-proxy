@@ -3,93 +3,224 @@ Client-facing API
 """
 
 import asyncio
+import json
 import logging
+import os
 from pathlib import Path
 from typing import (
+    Any,
     Final,
+    Mapping,
+    MutableMapping,
 )
+import urllib.parse
 
-from aiohttp import web
-import aiohttp_cors
-import jwt
+from aiohttp import hdrs, web
+import janus
+import trafaret as t
+import zipstream
 
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.utils import AsyncFileWriter
+from ai.backend.common import validators as tx
 
+from ..abc import AbstractVolume
 from ..context import Context
 from ..exception import InvalidAPIParameters
+from ..utils import (
+    CheckParamSource,
+    check_params,
+)
+from ..types import SENTINEL
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
 DEFAULT_CHUNK_SIZE: Final = 256 * 1024  # 256 KiB
 DEFAULT_INFLIGHT_CHUNKS: Final = 8
 
-# TODO: migrate vfolder operations here
+
+download_token_data_iv = t.Dict({
+    t.Key('op'): t.Atom('download'),
+    t.Key('volume'): t.String,
+    t.Key('vfid'): tx.UUID,
+    t.Key('relpath'): t.String,
+    t.Key('archive', default=False): t.Bool,
+    t.Key('unmanaged_path', default=None): t.Null | t.String,
+}).allow_extra('*')  # allow JWT-intrinsic keys
+
+upload_token_data_iv = t.Dict({
+    t.Key('op'): t.Atom('upload'),
+    t.Key('volume'): t.String,
+    t.Key('vfid'): tx.UUID,
+    t.Key('relpath'): t.String,
+    t.Key('size'): t.Int,
+}).allow_extra('*')  # allow JWT-intrinsic keys
 
 
 async def download(request: web.Request) -> web.StreamResponse:
-    # accept JWT token and reply using web.FileRespnose
-    pass
+    ctx: Context = request.app['ctx']
+    secret = ctx.local_config['api']['manager']['secret']
+    async with check_params(request, t.Dict({
+        t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=download_token_data_iv),
+    }), read_from=CheckParamSource.QUERY) as params:
+        async with ctx.get_volume(params['token']['volume']) as volume:
+            token_data = params['token']
+            if token_data['unmanaged_path'] is not None:
+                vfpath = Path(token_data['unmanaged_path'])
+            else:
+                vfpath = volume.mangle_vfpath(token_data['vfid'])
+            try:
+                file_path = (vfpath / token_data['path']).resolve()
+                file_path.relative_to()
+                if not file_path.exists():
+                    raise FileNotFoundError
+            except (ValueError, FileNotFoundError):
+                raise web.HTTPNotFound(
+                    body=json.dumps({
+                        'title': 'File not found',
+                        'type': 'https://api.backend.ai/probs/storage/file-not-found',
+                    }),
+                    content_type='application/problem+json',
+                )
+            if not file_path.is_file():
+                if params['archive']:
+                    # Download directory as an archive when archive param is set.
+                    return await download_directory_as_archive(request, file_path)
+                else:
+                    raise InvalidAPIParameters('The file is not a regular file.')
+            if request.method == 'HEAD':
+                return web.Response(status=200, headers={
+                    hdrs.ACCEPT_RANGES: 'bytes',
+                    hdrs.CONTENT_LENGTH: str(file_path.stat().st_size),
+                })
+    ascii_filename = file_path.name.encode('ascii', errors='ignore').decode('ascii').replace('"', r'\"')
+    encoded_filename = urllib.parse.quote(file_path.name, encoding='utf-8')
+    return web.FileResponse(file_path, headers={
+        hdrs.CONTENT_TYPE: "application/octet-stream",
+        hdrs.CONTENT_DISPOSITION: " ".join([
+            "attachment;"
+            f"filename=\"{ascii_filename}\";",       # RFC-2616 sec2.2
+            f"filename*=UTF-8''{encoded_filename}",  # RFC-5987
+        ])
+    })
 
 
-async def upload(request: web.Request) -> web.StreamResponse:
-    # accept JWT token and implement tus.io server-side protocol
-    pass
+async def download_directory_as_archive(
+    request: web.Request,
+    file_path: Path,
+    zip_filename: str = None,
+) -> web.StreamResponse:
+    """
+    Serve a directory as a zip archive on the fly.
+    """
+
+    def _iter2aiter(iter):
+        """Iterable to async iterable"""
+        def _consume(loop, iter, q):
+            for item in iter:
+                q.put(item)
+            q.put(SENTINEL)
+
+        async def _aiter():
+            loop = asyncio.get_running_loop()
+            q = janus.Queue(maxsize=DEFAULT_INFLIGHT_CHUNKS)
+            try:
+                fut = loop.run_in_executor(None, lambda: _consume(loop, iter, q.sync_q))
+                while True:
+                    item = await q.async_q.get()
+                    if item is SENTINEL:
+                        break
+                    yield item
+                    q.async_q.task_done()
+                await fut
+            finally:
+                q.close()
+                await q.wait_closed()
+
+        return _aiter()
+
+    if zip_filename is None:
+        zip_filename = file_path.name + '.zip'
+    zf = zipstream.ZipFile(compression=zipstream.ZIP_DEFLATED)
+    async for root, dirs, files in _iter2aiter(os.walk(file_path)):
+        for file in files:
+            zf.write(Path(root) / file, Path(root).relative_to(file_path) / file)
+        if len(dirs) == 0 and len(files) == 0:
+            # Include an empty directory in the archive as well.
+            zf.write(root, Path(root).relative_to(file_path))
+    ascii_filename = zip_filename.encode('ascii', errors='ignore').decode('ascii').replace('"', r'\"')
+    encoded_filename = urllib.parse.quote(zip_filename, encoding='utf-8')
+    response = web.StreamResponse(headers={
+        hdrs.CONTENT_TYPE: 'application/zip',
+        hdrs.CONTENT_DISPOSITION: " ".join([
+            "attachment;"
+            f"filename=\"{ascii_filename}\";",       # RFC-2616 sec2.2
+            f"filename*=UTF-8''{encoded_filename}",  # RFC-5987
+        ])
+    })
+    await response.prepare(request)
+    async for chunk in _iter2aiter(zf):
+        await response.write(chunk)
+    return response
 
 
 async def tus_check_session(request: web.Request) -> web.Response:
-    try:
-        secret = request.app['config']['manager']['secret']
-        token = request.match_info['session']
-        params = jwt.decode(token, secret, algorithms=['HS256'])
-    except jwt.PyJWTError:
-        log.exception('jwt error while parsing "{}"', token)
-        raise InvalidAPIParameters(msg="Could not validate the upload session token.")
-
-    headers = await tus_session_headers(request, params)
+    """
+    Check the availability of an upload session.
+    """
+    ctx: Context = request.app['ctx']
+    secret = ctx.local_config['api']['manager']['secret']
+    async with check_params(request, t.Dict({
+        t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=upload_token_data_iv),
+    }), read_from=CheckParamSource.QUERY) as params:
+        token_data = params['token']
+        async with ctx.get_volume(token_data['volume']) as volume:
+            headers = await prepare_tus_session_headers(request, token_data, volume)
     return web.Response(headers=headers)
 
 
 async def tus_upload_part(request: web.Request) -> web.Response:
-    try:
-        secret = request.app['config']['manager']['secret']
-        token = request.match_info['session']
-        params = jwt.decode(token, secret, algorithms=['HS256'])
-    except jwt.PyJWTError:
-        log.exception('jwt error while parsing "{}"', token)
-        raise InvalidAPIParameters(msg="Could not validate the upload session token.")
+    """
+    Perform the chunk upload.
+    """
+    ctx: Context = request.app['ctx']
+    secret = ctx.local_config['api']['manager']['secret']
+    async with check_params(request, t.Dict({
+        t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=upload_token_data_iv),
+    }), read_from=CheckParamSource.QUERY) as params:
+        token_data = params['token']
+        async with ctx.get_volume(token_data['volume']) as volume:
+            headers = await prepare_tus_session_headers(request, token_data, volume)
+            vfpath = volume.mangle_vfpath(token_data['vfid'])
+            upload_temp_path = vfpath / ".upload" / token_data['sessid']
 
-    headers = await tus_session_headers(request, params)
+            async with AsyncFileWriter(
+                    loop=asyncio.get_running_loop(),
+                    target_filename=upload_temp_path,
+                    access_mode='ab',
+                    max_chunks=DEFAULT_INFLIGHT_CHUNKS) as writer:
+                while not request.content.at_eof():
+                    chunk = await request.content.read(DEFAULT_CHUNK_SIZE)
+                    await writer.write(chunk)
 
-    folder_path = (request.app['VFOLDER_MOUNT'] / params['host'] /
-                   request.app['VFOLDER_FSPREFIX'] / params['folder'])
-    upload_base = folder_path / ".upload"
-    target_filename = upload_base / params['session_id']
-
-    async with AsyncFileWriter(
-            loop=asyncio.get_running_loop(),
-            target_filename=target_filename,
-            access_mode='ab',
-            max_chunks=DEFAULT_INFLIGHT_CHUNKS) as writer:
-        while not request.content.at_eof():
-            chunk = await request.content.read(DEFAULT_CHUNK_SIZE)
-            await writer.write(chunk)
-
-    fs = Path(target_filename).stat().st_size
-    if fs >= int(params['size']):
-        target_path = folder_path / params['path']
-        Path(target_filename).rename(target_path)
-        try:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: upload_base.rmdir())
-        except OSError:
-            pass
-
-    headers['Upload-Offset'] = str(fs)
+            current_size = Path(upload_temp_path).stat().st_size
+            if current_size >= int(params['size']):
+                target_path = vfpath / params['path']
+                upload_temp_path.rename(target_path)
+                try:
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, lambda: upload_temp_path.parent.rmdir())
+                except OSError:
+                    pass
+            headers['Upload-Offset'] = str(current_size)
     return web.Response(status=204, headers=headers)
 
 
 async def tus_options(request: web.Request) -> web.Response:
+    """
+    Let clients discover the supported features of our tus.io server-side implementation.
+    """
+    ctx: Context = request.app['ctx']
     headers = {}
     headers["Access-Control-Allow-Origin"] = "*"
     headers["Access-Control-Allow-Headers"] = \
@@ -99,18 +230,26 @@ async def tus_options(request: web.Request) -> web.Response:
     headers["Access-Control-Allow-Methods"] = "*"
     headers["Tus-Resumable"] = "1.0.0"
     headers["Tus-Version"] = "1.0.0"
-    headers["Tus-Max-Size"] = "107374182400"  # 100G TODO: move to settings
+    headers["Tus-Max-Size"] = ctx.local_config['storage-proxy']['max-upload-size']
     headers["X-Content-Type-Options"] = "nosniff"
     return web.Response(headers=headers)
 
 
-async def tus_session_headers(request: web.Request, params) -> web.Response:
-    folder_path = (request.app['VFOLDER_MOUNT'] / params['host'] /
-                   request.app['VFOLDER_FSPREFIX'] / params['folder'])
-    upload_base = folder_path / ".upload"
-    base_file = upload_base / params['session_id']
-    if not Path(base_file).exists():
-        raise web.HTTPNotFound()
+async def prepare_tus_session_headers(
+    request: web.Request,
+    token_data: Mapping[str, Any],
+    volume: AbstractVolume,
+) -> MutableMapping[str, str]:
+    vfpath = volume.mangle_vfpath(token_data['vfid'])
+    upload_temp_path = vfpath / ".upload" / token_data['sessid']
+    if not Path(upload_temp_path).exists():
+        raise web.HTTPNotFound(
+            body=json.dumps({
+                'title': 'No such upload session',
+                'type': 'https://api.backend.ai/probs/storage/no-such-upload-session'
+            }),
+            content_type='application/problem+json',
+        )
     headers = {}
     headers["Access-Control-Allow-Origin"] = "*"
     headers["Access-Control-Allow-Headers"] = \
@@ -120,24 +259,17 @@ async def tus_session_headers(request: web.Request, params) -> web.Response:
     headers["Access-Control-Allow-Methods"] = "*"
     headers["Cache-Control"] = "no-store"
     headers["Tus-Resumable"] = "1.0.0"
-    headers['Upload-Offset'] = str(Path(base_file).stat().st_size)
-    headers['Upload-Length'] = str(params['size'])
+    headers['Upload-Offset'] = str(Path(upload_temp_path).stat().st_size)
+    headers['Upload-Length'] = str(token_data['size'])
     return headers
 
 
 async def init_client_app(ctx: Context) -> web.Application:
     app = web.Application()
     app['ctx'] = ctx
-    default_cors_options = {
-        '*': aiohttp_cors.ResourceOptions(
-            allow_credentials=False,
-            expose_headers="*", allow_headers="*"),
-    }
-    cors = aiohttp_cors.setup(app, defaults=default_cors_options)
     add_route = app.router.add_route
-    cors.add(add_route('POST', '/download', download))
-    cors.add(add_route('POST', '/upload', upload))
-    add_route('OPTIONS', r'/upload/{session}', tus_options)
-    add_route('HEAD',    r'/upload/{session}', tus_check_session)
-    add_route('PATCH',   r'/upload/{session}', tus_upload_part)
+    add_route('GET',     '/download', download)
+    add_route('OPTIONS', '/upload', tus_options)
+    add_route('HEAD',    '/upload', tus_check_session)
+    add_route('PATCH',   '/upload', tus_upload_part)
     return app
