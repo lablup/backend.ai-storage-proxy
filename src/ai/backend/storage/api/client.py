@@ -196,10 +196,11 @@ async def tus_upload_part(request: web.Request) -> web.Response:
             upload_temp_path = vfpath / ".upload" / token_data['session']
 
             async with AsyncFileWriter(
-                    loop=asyncio.get_running_loop(),
-                    target_filename=upload_temp_path,
-                    access_mode='ab',
-                    max_chunks=DEFAULT_INFLIGHT_CHUNKS) as writer:
+                loop=asyncio.get_running_loop(),
+                target_filename=upload_temp_path,
+                access_mode='ab',
+                max_chunks=DEFAULT_INFLIGHT_CHUNKS,
+            ) as writer:
                 while not request.content.at_eof():
                     chunk = await request.content.read(DEFAULT_CHUNK_SIZE)
                     await writer.write(chunk)
