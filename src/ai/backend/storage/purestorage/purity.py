@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+from contextvars import ContextVar, Token
 from typing import (
     Any,
     AsyncGenerator,
@@ -13,25 +13,44 @@ from yarl import URL
 
 class PurityClient:
 
-    def __init__(self, endpoint: str, api_token: str) -> None:
+    endpoint: URL
+    api_token: str
+    api_version: str
+    auth_token: ContextVar[str]
+
+    _session: aiohttp.ClientSession
+    _auth_token_cvtoken: Token
+
+    def __init__(
+        self,
+        endpoint: str,
+        api_token: str,
+        *,
+        api_version: str = '1.8',
+    ) -> None:
         self.endpoint = URL(endpoint)
         self.api_token = api_token
-        self.auth_token = None
+        self.api_version = api_version
+        self.auth_token = ContextVar('auth_token')
+        self._session = aiohttp.ClientSession()
+
+    async def close(self) -> None:
+        await self._session.close()
 
     async def __aenter__(self) -> PurityClient:
-        self._session = aiohttp.ClientSession()
         async with self._session.post(
             self.endpoint / 'api' / 'login',
             headers={'api-token': self.api_token},
             ssl=False,
             raise_for_status=True,
         ) as resp:
-            self.auth_token = resp.headers['x-auth-token']
+            auth_token = resp.headers['x-auth-token']
+            self._auth_token_cvtoken = self.auth_token.set(auth_token)
             _ = await resp.json()
         return self
 
     async def __aexit__(self, *exc_info) -> None:
-        await self._session.close()
+        self.auth_token.reset(self._auth_token_cvtoken)
 
     async def get_nfs_metric(self, fs_name: str) -> AsyncGenerator[Mapping[str, Any], None]:
         if self.auth_token is None:
@@ -39,8 +58,9 @@ class PurityClient:
         pagination_token = ''
         while True:
             async with self._session.get(
-                self.endpoint / 'api' / '1.8' / 'file-systems' / 'performance',
-                headers={'x-auth-token': self.auth_token},
+                (self.endpoint / 'api' / self.api_version
+                 / 'file-systems' / 'performance'),
+                headers={'x-auth-token': self.auth_token.get()},
                 params={
                     'names': fs_name,
                     'protocol': 'NFS',
