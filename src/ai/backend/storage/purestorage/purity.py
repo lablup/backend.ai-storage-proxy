@@ -34,7 +34,7 @@ class PurityClient:
         self.auth_token = ContextVar('auth_token')
         self._session = aiohttp.ClientSession()
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         await self._session.close()
 
     async def __aenter__(self) -> PurityClient:

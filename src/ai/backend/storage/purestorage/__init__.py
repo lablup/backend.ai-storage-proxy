@@ -46,6 +46,14 @@ class FlashBladeVolume(BaseVolume):
             raise RuntimeError(
                 "PureStorage RapidFile Toolkit is not installed. "
                 "You cannot use the PureStorage backend for the stroage proxy.")
+        self.purity_client = PurityClient(
+            self.config['purity_endpoint'],
+            self.config['purity_api_token'],
+            api_version=self.config['purity_api_version'],
+        )
+
+    async def shutdown(self) -> None:
+        await self.purity_client.aclose()
 
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([
@@ -65,8 +73,7 @@ class FlashBladeVolume(BaseVolume):
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:
-        client = PurityClient(self.config['purity_endpoint'], self.config['purity_api_token'])
-        async with client:
+        async with self.purity_client as client:
             async for item in client.get_nfs_metric(self.config['purity_fs_name']):
                 return FSPerfMetric(
                     iops_read=item['reads_per_sec'],
