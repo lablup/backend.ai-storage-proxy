@@ -14,6 +14,8 @@ import trafaret as t
 
 from ai.backend.common.logging import BraceStyleAdapter
 
+log = BraceStyleAdapter(logging.getLogger(__name__))
+
 
 class CheckParamSource(enum.Enum):
     BODY = 0
@@ -51,6 +53,7 @@ async def check_params(
         else:
             yield checker.check(raw_params)
     except t.DataError as e:
+        log.debug('check_params IV error', exc_info=e)
         raise web.HTTPBadRequest(text=json.dumps({
             'type': 'https://api.backend.ai/probs/storage/invalid-api-params',
             'title': 'Invalid API parameters',
