@@ -8,7 +8,7 @@ from ai.backend.storage.vfs import BaseVolume
 
 @pytest.fixture
 async def vfs(local_volume):
-    vfs = BaseVolume(local_volume, fsprefix=PurePath('fsprefix'), options={})
+    vfs = BaseVolume({}, local_volume, fsprefix=PurePath('fsprefix'), options={})
     await vfs.init()
     try:
         yield vfs
@@ -57,7 +57,7 @@ async def test_vfs_vfolder_mgmt(vfs):
 
 @pytest.mark.asyncio
 async def test_vfs_get_usage(vfs, empty_vfolder):
-    vfpath = vfs._mangle_vfpath(empty_vfolder)
+    vfpath = vfs.mangle_vfpath(empty_vfolder)
     (vfpath / 'test.txt').write_bytes(b'12345')
     (vfpath / 'inner').mkdir()
     (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
