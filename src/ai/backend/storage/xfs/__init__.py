@@ -99,7 +99,7 @@ class XfsVolume(BaseVolume):
         if vfid not in self.registry.keys():
             return
 
-        await run(f'xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}')
+        await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}')
 
         raw_projects = await read_file(self.loop, '/etc/projects')
         raw_projid = await read_file(self.loop, '/etc/projid')
@@ -110,38 +110,39 @@ class XfsVolume(BaseVolume):
                 continue
             new_projects += (line + '\n')
         for line in raw_projid.splitlines():
-            if line.startswith(vfid + ':'):
+            if line.startswith(str(vfid) + ':'):
                 continue
             new_projid += (line + '\n')
         await write_file(self.loop, '/etc/projects', new_projects)
         await write_file(self.loop, '/etc/projid', new_projid)
 
         vfpath = self.mangle_vfpath(vfid)
+
+        def _delete_vfolder():
+            shutil.rmtree(vfpath)
+            if not os.listdir(vfpath.parent):
+                vfpath.parent.rmdir()
+            if not os.listdir(vfpath.parent.parent):
+                vfpath.parent.parent.rmdir()
+
         await self.loop.run_in_executor(
-            None, lambda: shutil.rmtree(vfpath))
+            None, lambda: _delete_vfolder())
         self.project_id_pool.remove(self.registry[vfid])
         del self.registry[vfid]
-
-    async def get_capabilities(self) -> FrozenSet[str]:
-        pass
 
     async def clone_vfolder(self, src_vfid: UUID, new_vifd: UUID) -> None:
         raise NotImplementedError
 
     async def get_quota(self, vfid: UUID) -> int:
-        raise NotImplementedError
+        report = await run(f'sudo xfs_quota -x -c report {self.mount_path} | grep {str(vfid)[:-5]}')
+        proj_id, _, _, quota, _, _ = report.split()
+        if not str(vfid).startswith(proj_id):
+            raise ExecutionError('vfid and project id does not match in get_quota')
+        return int(quota)
 
-    async def set_quota(self, vfid: UUID, size_bytes: int) -> None:
-        raise NotImplementedError
+    async def set_quota(self, vfid: UUID, block_size: str) -> None:
+        await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={block_size} {vfid}" {self.mount_path}')
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
-        pass
-
-    # ----- vfolder operations -----
-
-    async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
-        pass
-
-    async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
         pass
 
