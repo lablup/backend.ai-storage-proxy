@@ -82,14 +82,20 @@ async def delete_vfolder(request: web.Request) -> web.Response:
 
 async def clone_vfolder(request: web.Request) -> web.Response:
     async with check_params(request, t.Dict({
-        t.Key('volume'): t.String(),
+        t.Key('src_volume'): t.String(),
         t.Key('src_vfid'): tx.UUID(),
+        t.Key('new_volume'): t.String(),
         t.Key('new_vfid'): tx.UUID(),
     })) as params:
         await log_manager_api_entry(log, 'clone_vfolder', params)
         ctx: Context = request.app['ctx']
-        async with ctx.get_volume(params['volume']) as volume:
-            await volume.clone_vfolder(params['src_vfid'], params['new_vfid'])
+        async with ctx.get_volume(params['src_volume']) as volume:
+            if params['src_volume'] == params['new_volume']:
+                target_path = await volume.get_vfolder_mount(params['new_vfid'])
+            else:
+                async with ctx.get_volume(params['new_volume']) as new_volume:
+                    target_path = await new_volume.get_vfolder_mount(params['new_vfid'])
+            await volume.clone_vfolder(params['src_vfid'], str(target_path))
             return web.Response(status=204)
 
 

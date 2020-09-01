@@ -8,7 +8,6 @@ import shutil
 from typing import (
     AsyncIterator,
     FrozenSet,
-    Optional,
     Sequence,
     Union,
 )
@@ -58,8 +57,12 @@ class BaseVolume(AbstractVolume):
 
         await loop.run_in_executor(None, _delete_vfolder)
 
-    async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
-        raise NotImplementedError
+    async def clone_vfolder(self, src_vfid: UUID, target_path: str) -> None:
+        src_vfpath = self.mangle_vfpath(src_vfid)
+        target_vfpath = Path(target_path)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, lambda: shutil.copytree(str(src_vfpath), str(target_vfpath)))
 
     async def get_vfolder_mount(self, vfid: UUID) -> Path:
         return self.mangle_vfpath(vfid)
