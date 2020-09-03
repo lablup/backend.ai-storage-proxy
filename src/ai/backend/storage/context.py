@@ -19,7 +19,7 @@ from .types import VolumeInfo
 
 
 BACKENDS: Mapping[str, Type[AbstractVolume]] = {
-    'purestorage': FlashBladeVolume,
+    # 'purestorage': FlashBladeVolume,
     'vfs': BaseVolume,
 }
 
