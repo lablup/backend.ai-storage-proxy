@@ -31,7 +31,7 @@ session-expire = "1d"
 [api.client]
 # Client-facing API
 service-addr = { host = "0.0.0.0", port = 6021 }
-ssl-enabeld = false
+ssl-enabled = false
 
 
 [api.manager]
