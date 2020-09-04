@@ -3,7 +3,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 import os
 from typing import (
-    FrozenSet
+    FrozenSet, Mapping, List
 )
 from uuid import UUID
 
@@ -12,7 +12,11 @@ from ..types import (
     VFolderUsage,
     VFolderCreationOptions
 )
-from ..exception import ExecutionError
+from ..exception import (
+    ExecutionError,
+    VFolderCreationError,
+    VFolderNotFoundError
+)
 
 
 async def read_file(loop: asyncio.BaseEventLoop, filename: str) -> str:
@@ -43,8 +47,8 @@ class XfsVolume(BaseVolume):
     loop: asyncio.BaseEventLoop
 
     async def init(self, uid, gid, loop=None) -> None:
-        self.registry = {}
-        self.project_id_pool = []
+        self.registry: Mapping[UUID, int] = {}
+        self.project_id_pool: List[int] = []
         self.uid = uid
         self.gid = gid
         self.loop = loop or asyncio.get_running_loop()
@@ -54,6 +58,8 @@ class XfsVolume(BaseVolume):
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(':')[:2]
                 self.project_id_pool.append(int(proj_id))
+                print(proj_name)
+                self.registry[proj_name] = UUID(proj_name)
         else:
             await self.loop.run_in_executor(
                 None, lambda: Path('/etc/projid').touch())
@@ -65,9 +71,9 @@ class XfsVolume(BaseVolume):
     # ----- volume opeartions -----
     async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
         if vfid in self.registry.keys():
-            return
+            raise VFolderCreationError('VFolder id {} already exists'.format(str(vfid)))
         if options is None or options['bsize'] == '':
-            return
+            raise VFolderCreationError('VFolder bsize must be specified')
 
         project_id = -1
         # set project_id to the smallest integer not being used
@@ -97,7 +103,7 @@ class XfsVolume(BaseVolume):
 
     async def delete_vfolder(self, vfid: UUID) -> None:
         if vfid not in self.registry.keys():
-            return
+            raise VFolderNotFoundError('VFolder with id {} does not exist'.format(vfid))
 
         await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}')
 

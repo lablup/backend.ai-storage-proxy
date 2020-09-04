@@ -14,7 +14,7 @@ import attr
 import trafaret as t
 
 from ai.backend.common import validators as tx
-
+from ai.backend.common.types import BinarySize
 
 class Sentinel(enum.Enum):
     token = 0
@@ -62,13 +62,13 @@ class VolumeInfo:
 @attr.s(auto_attribs=True, slots=True, frozen=True)
 class VFolderCreationOptions:
     quota: int
-    bsize: str
+    bsize: BinarySize
 
     @classmethod
     def as_trafaret(cls) -> t.Trafaret:
         return t.Dict({
             t.Key('quota', default=0): t.ToInt[0:],
-            t.Key('bsize', default=''): t.String,
+            t.Key('bsize', default=''): tx.BinarySize
         })
 
 
