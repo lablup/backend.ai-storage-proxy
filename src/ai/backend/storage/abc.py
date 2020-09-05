@@ -18,6 +18,7 @@ from .types import (
     VFolderUsage,
     DirEntry,
 )
+from ai.backend.common.types import BinarySize
 
 
 # Available capabilities of a volume implementation
@@ -96,11 +97,11 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def get_quota(self, vfid: UUID) -> int:
+    async def get_quota(self, vfid: UUID) -> BinarySize:
         pass
 
     @abstractmethod
-    async def set_quota(self, vfid: UUID, size_bytes: int) -> None:
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         pass
 
     @abstractmethod

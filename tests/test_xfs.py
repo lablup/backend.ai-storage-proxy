@@ -5,6 +5,7 @@ import os
 import pytest
 
 from ai.backend.storage.xfs import XfsVolume
+from ai.backend.common.types import BinarySize
 
 
 def read_etc_projid():
@@ -35,6 +36,14 @@ async def xfs():
         yield xfs
     finally:
         await xfs.shutdown()
+
+
+@pytest.fixture
+async def empty_vfolder(xfs):
+    vfid = uuid.uuid4()
+    await xfs.create_vfolder(vfid, options={'quota': '10m'})
+    yield vfid
+    await xfs.delete_vfolder(vfid)
 
 
 @pytest.mark.asyncio
@@ -90,9 +99,31 @@ async def test_xfs_quota(xfs):
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
     assert vfpath.is_dir()
-    assert await xfs.get_quota(vfid) == 10240
-    await xfs.set_quota(vfid, '1m')
-    assert await xfs.get_quota(vfid) == 1024
+    assert await xfs.get_quota(vfid) == BinarySize.from_str('10m')
+    await xfs.set_quota(vfid, BinarySize.from_str('1m'))
+    assert await xfs.get_quota(vfid) == BinarySize.from_str('1m')
     await xfs.delete_vfolder(vfid)
     assert not vfpath.is_dir()
+
+
+@pytest.mark.asyncio
+async def test_xfs_get_usage(xfs, empty_vfolder):
+    vfpath = xfs.mangle_vfpath(empty_vfolder)
+    (vfpath / 'test.txt').write_bytes(b'12345')
+    (vfpath / 'inner').mkdir()
+    (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
+    (vfpath / 'inner' / 'world.txt').write_bytes(b'901')
+    usage = await xfs.get_usage(empty_vfolder)
+    assert usage.file_count == 3
+    assert usage.used_bytes == 11
+
+
+@pytest.mark.asyncio
+async def test_xfs_mkdir_rmdir(xfs, empty_vfolder):
+    vfpath = xfs.mangle_vfpath(empty_vfolder)
+    test_rel_path = 'test/abc'
+    await xfs.mkdir(empty_vfolder, Path(test_rel_path), parents=True)
+    assert Path(vfpath, test_rel_path).is_dir()
+    await xfs.rmdir(empty_vfolder, Path(test_rel_path), recursive=True)
+    assert not Path(vfpath, test_rel_path).is_dir()
 

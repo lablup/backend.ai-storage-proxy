@@ -20,6 +20,7 @@ from ..exception import (
     VFolderCreationError,
     VFolderNotFoundError
 )
+from ai.backend.common.types import BinarySize
 
 
 async def read_file(loop: asyncio.BaseEventLoop, filename: str) -> str:
@@ -141,18 +142,35 @@ class XfsVolume(BaseVolume):
     async def clone_vfolder(self, src_vfid: UUID, new_vifd: UUID) -> None:
         raise NotImplementedError
 
-    async def get_quota(self, vfid: UUID) -> int:
-        report = await run(f'sudo xfs_quota -x -c report {self.mount_path} | grep {str(vfid)[:-5]}')
-        proj_id, _, _, quota, _, _ = report.split()
-        if not str(vfid).startswith(proj_id):
-            raise ExecutionError('vfid and project id does not match in get_quota')
-        return int(quota)
+    async def get_quota(self, vfid: UUID) -> BinarySize:
+        report = await run(f'sudo xfs_quota -x -c \'report -h\' {self.mount_path} | grep {str(vfid)[:-5]}')
+        proj_name, _, _, quota, _, _ = report.split()
+        if not str(vfid).startswith(proj_name):
+            raise ExecutionError('vfid and project name does not match')
+        return BinarySize.from_str(quota)
 
-    async def set_quota(self, vfid: UUID, block_size: str) -> None:
-        await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={block_size} {vfid}" {self.mount_path}')
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
+        await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}" {self.mount_path}')
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
-        pass
+        target_path = self.sanitize_vfpath(vfid, relpath)
+        total_size = 0
+        total_count = 0
+
+        def _calc_usage(target_path: os.PathLike) -> None:
+            nonlocal total_size, total_count
+            with os.scandir(target_path) as scanner:
+                for entry in scanner:
+                    if entry.is_dir():
+                        _calc_usage(entry)
+                        continue
+                    if entry.is_file() or entry.is_symlink():
+                        stat = entry.stat(follow_symlinks=False)
+                        total_size += stat.st_size
+                        total_count += 1
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _calc_usage, target_path)
+        return VFolderUsage(file_count=total_count, used_bytes=total_size)
 
     # ----- vfolder internal operations -----
 
@@ -160,13 +178,23 @@ class XfsVolume(BaseVolume):
         raise NotImplementedError
 
     async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
-        raise NotImplementedError
+        target_path = self.sanitize_vfpath(vfid, relpath)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: target_path.mkdir(0o755, parents=parents, exist_ok=False),
+        )
 
     async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False) -> None:
-        raise NotImplementedError
+        target_path = self.sanitize_vfpath(vfid, relpath)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, target_path.rmdir)
 
     async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        raise NotImplementedError
+        src_path = self.sanitize_vfpath(vfid, src)
+        dst_path = self.sanitize_vfpath(vfid, dst)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, src_path.rename, dst_path)
 
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
         raise NotImplementedError

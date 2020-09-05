@@ -16,6 +16,7 @@ import trafaret as t
 from ai.backend.common import validators as tx
 from ai.backend.common.types import BinarySize
 
+
 class Sentinel(enum.Enum):
     token = 0
 
