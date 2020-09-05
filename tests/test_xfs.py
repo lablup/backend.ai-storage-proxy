@@ -40,7 +40,7 @@ async def xfs():
 @pytest.mark.asyncio
 async def test_xfs_single_vfolder_mgmt(xfs):
     vfid = uuid.uuid4()
-    options = {'bsize': '10m'}
+    options = {'quota': '10m'}
     # vfolder create test
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
@@ -65,7 +65,7 @@ async def test_xfs_single_vfolder_mgmt(xfs):
 async def test_xfs_multiple_vfolder_mgmt(xfs):
     vfid1 = uuid.UUID(hex='82a6ba2b7b8e41deb5ee2c909ce34bcb')
     vfid2 = uuid.UUID(hex='82a6ba2b7b8e41deb5ee2c909ce34bcc')
-    options = {'bsize': '10m'}
+    options = {'quota': '10m'}
     await xfs.create_vfolder(vfid1, options=options)
     await xfs.create_vfolder(vfid2, options=options)
     vfpath1 = xfs.mount_path / vfid1.hex[0:2] / vfid1.hex[2:4] / vfid1.hex[4:]
@@ -86,7 +86,7 @@ async def test_xfs_multiple_vfolder_mgmt(xfs):
 @pytest.mark.asyncio
 async def test_xfs_quota(xfs):
     vfid = uuid.uuid4()
-    options = {'bsize': '10m'}
+    options = {'quota': '10m'}
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
     assert vfpath.is_dir()

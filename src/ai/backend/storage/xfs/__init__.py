@@ -3,12 +3,15 @@ from pathlib import Path, PurePosixPath
 import shutil
 import os
 from typing import (
-    FrozenSet, Mapping, List
+    Mapping,
+    List,
+    AsyncIterator
 )
 from uuid import UUID
 
 from ..vfs import BaseVolume
 from ..types import (
+    DirEntry,
     VFolderUsage,
     VFolderCreationOptions
 )
@@ -58,7 +61,6 @@ class XfsVolume(BaseVolume):
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(':')[:2]
                 self.project_id_pool.append(int(proj_id))
-                print(proj_name)
                 self.registry[proj_name] = UUID(proj_name)
         else:
             await self.loop.run_in_executor(
@@ -72,8 +74,8 @@ class XfsVolume(BaseVolume):
     async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
         if vfid in self.registry.keys():
             raise VFolderCreationError('VFolder id {} already exists'.format(str(vfid)))
-        if options is None or options['bsize'] == '':
-            raise VFolderCreationError('VFolder bsize must be specified')
+        if options is None or options['quota'] == 0:
+            raise VFolderCreationError('VFolder quota must be specified')
 
         project_id = -1
         # set project_id to the smallest integer not being used
@@ -87,7 +89,7 @@ class XfsVolume(BaseVolume):
             project_id = self.project_id_pool[-1] + 1
 
         vfpath = self.mangle_vfpath(vfid)
-        bsize = options['bsize']
+        quota = options['quota']
         await self.loop.run_in_executor(
             None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
         await self.loop.run_in_executor(
@@ -96,7 +98,7 @@ class XfsVolume(BaseVolume):
         await write_file(self.loop, '/etc/projects', f'{project_id}:{vfpath}\n', perm='a')
         await write_file(self.loop, '/etc/projid', f'{vfid}:{project_id}\n', perm='a')
         await run(f'sudo xfs_quota -x -c "project -s {vfid}" {self.mount_path}')
-        await run(f'sudo xfs_quota -x -c "limit -p bhard={bsize} {vfid}" {self.mount_path}')
+        await run(f'sudo xfs_quota -x -c "limit -p bhard={quota} {vfid}" {self.mount_path}')
         self.registry[vfid] = project_id
         self.project_id_pool += [project_id]
         self.project_id_pool.sort()
@@ -151,4 +153,21 @@ class XfsVolume(BaseVolume):
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
         pass
+
+    # ----- vfolder internal operations -----
+
+    def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
+        raise NotImplementedError
+
+    async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
+        raise NotImplementedError
+
+    async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False) -> None:
+        raise NotImplementedError
+
+    async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
+        raise NotImplementedError
+
+    async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
+        raise NotImplementedError
 
