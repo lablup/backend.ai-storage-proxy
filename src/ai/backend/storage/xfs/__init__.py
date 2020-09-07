@@ -18,7 +18,8 @@ from ..types import (
 from ..exception import (
     ExecutionError,
     VFolderCreationError,
-    VFolderNotFoundError
+    VFolderNotFoundError,
+    InvalidAPIParameters
 )
 from ai.backend.common.types import BinarySize
 
@@ -172,6 +173,12 @@ class XfsVolume(BaseVolume):
         await loop.run_in_executor(None, _calc_usage, target_path)
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
 
+    async def get_used_bytes(self, vfid: UUID) -> BinarySize:
+        vfpath = self.mangle_vfpath(vfid)
+        info = await run(f'du -hs {vfpath}')
+        used_bytes, _ = info.split()
+        return BinarySize.from_str(used_bytes)
+
     # ----- vfolder internal operations -----
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
@@ -181,9 +188,7 @@ class XfsVolume(BaseVolume):
         target_path = self.sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None,
-            lambda: target_path.mkdir(0o755, parents=parents, exist_ok=False),
-        )
+            None, lambda: target_path.mkdir(0o755, parents=parents, exist_ok=False))
 
     async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False) -> None:
         target_path = self.sanitize_vfpath(vfid, relpath)
@@ -192,10 +197,19 @@ class XfsVolume(BaseVolume):
 
     async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_file():
+            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, src_path.rename, dst_path)
+        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
+        await loop.run_in_executor(None, lambda: src_path.rename(dst_path))
 
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        raise NotImplementedError
+        src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_file():
+            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
+        dst_path = self.sanitize_vfpath(vfid, dst)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
+        await loop.run_in_executor(None, lambda: shutil.copyfile(str(src_path), str(dst_path)))
 

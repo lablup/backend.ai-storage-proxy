@@ -116,6 +116,10 @@ class AbstractVolume(metaclass=ABCMeta):
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
         pass
 
+    @abstractmethod
+    async def get_used_bytes(self, vfid: UUID) -> BinarySize:
+        pass
+
     # ------ vfolder operations -------
 
     @abstractmethod
