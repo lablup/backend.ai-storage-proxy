@@ -51,11 +51,17 @@ async def run(cmd: str) -> str:
 class XfsVolume(BaseVolume):
     loop: asyncio.BaseEventLoop
 
-    async def init(self, uid, gid, loop=None) -> None:
+    async def init(self, uid = None, gid = None, loop = None) -> None:
         self.registry: Mapping[UUID, int] = {}
         self.project_id_pool: List[int] = []
-        self.uid = uid
-        self.gid = gid
+        if uid is not None:
+            self.uid = uid
+        else:
+            self.uid = os.getuid()
+        if gid is not None:
+            self.gid = gid
+        else:
+            self.gid = os.getgid()
         self.loop = loop or asyncio.get_running_loop()
 
         if os.path.isfile('/etc/projid'):
@@ -153,77 +159,8 @@ class XfsVolume(BaseVolume):
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}" {self.mount_path}')
 
-    async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
-        target_path = self.sanitize_vfpath(vfid, relpath)
-        total_size = 0
-        total_count = 0
-
-        def _calc_usage(target_path: os.PathLike) -> None:
-            nonlocal total_size, total_count
-            with os.scandir(target_path) as scanner:
-                for entry in scanner:
-                    if entry.is_dir():
-                        _calc_usage(entry)
-                        continue
-                    if entry.is_file() or entry.is_symlink():
-                        stat = entry.stat(follow_symlinks=False)
-                        total_size += stat.st_size
-                        total_count += 1
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _calc_usage, target_path)
-        return VFolderUsage(file_count=total_count, used_bytes=total_size)
-
-    async def get_used_bytes(self, vfid: UUID) -> BinarySize:
-        vfpath = self.mangle_vfpath(vfid)
-        info = await run(f'du -hs {vfpath}')
-        used_bytes, _ = info.split()
-        return BinarySize.from_str(used_bytes)
-
     # ----- vfolder internal operations -----
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
         raise NotImplementedError
-
-    async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
-        target_path = self.sanitize_vfpath(vfid, relpath)
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None, lambda: target_path.mkdir(0o755, parents=parents, exist_ok=False))
-
-    async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False) -> None:
-        target_path = self.sanitize_vfpath(vfid, relpath)
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, target_path.rmdir)
-
-    async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        src_path = self.sanitize_vfpath(vfid, src)
-        if not src_path.is_file():
-            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
-        dst_path = self.sanitize_vfpath(vfid, dst)
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
-        await loop.run_in_executor(None, lambda: src_path.rename(dst_path))
-
-    async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        src_path = self.sanitize_vfpath(vfid, src)
-        if not src_path.is_file():
-            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
-        dst_path = self.sanitize_vfpath(vfid, dst)
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
-        await loop.run_in_executor(None, lambda: shutil.copyfile(str(src_path), str(dst_path)))
-
-    async def prepare_upload(self, vfid: UUID) -> str:
-        vfpath = self.mangle_vfpath(vfid)
-        session_id = secrets.token_hex(16)
-
-        def _create_target():
-            upload_base_path = vfpath / ".upload"
-            upload_base_path.mkdir(exist_ok=True)
-            upload_target_path = upload_base_path / session_id
-            upload_target_path.touch()
-
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _create_target)
-        return session_id
 
