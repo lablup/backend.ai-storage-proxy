@@ -213,3 +213,17 @@ class XfsVolume(BaseVolume):
         await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
         await loop.run_in_executor(None, lambda: shutil.copyfile(str(src_path), str(dst_path)))
 
+    async def prepare_upload(self, vfid: UUID) -> str:
+        vfpath = self.mangle_vfpath(vfid)
+        session_id = secrets.token_hex(16)
+
+        def _create_target():
+            upload_base_path = vfpath / ".upload"
+            upload_base_path.mkdir(exist_ok=True)
+            upload_target_path = upload_base_path / session_id
+            upload_target_path.touch()
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _create_target)
+        return session_id
+
