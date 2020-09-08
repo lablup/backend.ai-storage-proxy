@@ -5,7 +5,6 @@ import asyncio
 
 import pytest
 
-from ai.backend.storage.exception import ExecutionError
 from ai.backend.storage.xfs import XfsVolume
 from ai.backend.common.types import BinarySize
 
@@ -52,7 +51,7 @@ async def xfs():
 @pytest.fixture
 async def empty_vfolder(xfs):
     vfid = uuid.uuid4()
-    await xfs.create_vfolder(vfid, options={'quota': '10m'})
+    await xfs.create_vfolder(vfid, options={'quota': BinarySize.from_str('10m')})
     yield vfid
     await xfs.delete_vfolder(vfid)
 
@@ -60,7 +59,7 @@ async def empty_vfolder(xfs):
 @pytest.mark.asyncio
 async def test_xfs_single_vfolder_mgmt(xfs):
     vfid = uuid.uuid4()
-    options = {'quota': '10m'}
+    options = {'quota': BinarySize.from_str('10m')}
     # vfolder create test
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
@@ -83,9 +82,9 @@ async def test_xfs_single_vfolder_mgmt(xfs):
 
 @pytest.mark.asyncio
 async def test_xfs_multiple_vfolder_mgmt(xfs):
-    vfid1 = uuid.UUID(hex='82a6ba2b7b8e41deb5ee2c909ce34bcb')
-    vfid2 = uuid.UUID(hex='82a6ba2b7b8e41deb5ee2c909ce34bcc')
-    options = {'quota': '10m'}
+    vfid1 = uuid.UUID(hex='83a6ba2b7b8e41deb5ee2c909ce34bcb')
+    vfid2 = uuid.UUID(hex='83a6ba2b7b8e41deb5ee2c909ce34bcc')
+    options = {'quota': BinarySize.from_str('10m')}
     await xfs.create_vfolder(vfid1, options=options)
     await xfs.create_vfolder(vfid2, options=options)
     vfpath1 = xfs.mount_path / vfid1.hex[0:2] / vfid1.hex[2:4] / vfid1.hex[4:]
@@ -106,7 +105,7 @@ async def test_xfs_multiple_vfolder_mgmt(xfs):
 @pytest.mark.asyncio
 async def test_xfs_quota(xfs):
     vfid = uuid.uuid4()
-    options = {'quota': '10m'}
+    options = {'quota': BinarySize.from_str('10m')}
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
     assert vfpath.is_dir()
@@ -132,7 +131,7 @@ async def test_xfs_get_usage(xfs, empty_vfolder):
 @pytest.mark.asyncio
 async def test_xfs_get_used_bytes(xfs):
     vfid = uuid.uuid4()
-    options = {'quota': '10m'}
+    options = {'quota': BinarySize.from_str('10m')}
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
     (vfpath / 'test.txt').write_bytes(b'12345')
