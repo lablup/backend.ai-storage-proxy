@@ -12,6 +12,7 @@ from uuid import UUID
 from ..vfs import BaseVolume
 from ..types import (
     DirEntry,
+    FSUsage,
     VFolderUsage,
     VFolderCreationOptions
 )
@@ -51,8 +52,8 @@ async def run(cmd: str) -> str:
 class XfsVolume(BaseVolume):
     loop: asyncio.BaseEventLoop
 
-    async def init(self, uid = None, gid = None, loop = None) -> None:
-        self.registry: Mapping[UUID, int] = {}
+    async def init(self, uid=None, gid=None, loop=None) -> None:
+        self.registry: Mapping[str, int] = {}
         self.project_id_pool: List[int] = []
         if uid is not None:
             self.uid = uid
@@ -69,7 +70,8 @@ class XfsVolume(BaseVolume):
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(':')[:2]
                 self.project_id_pool.append(int(proj_id))
-                self.registry[proj_name] = UUID(proj_name)
+                self.registry[proj_name] = int(proj_id)
+            self.project_id_pool = sorted(self.project_id_pool)
         else:
             await self.loop.run_in_executor(
                 None, lambda: Path('/etc/projid').touch())
@@ -80,10 +82,8 @@ class XfsVolume(BaseVolume):
 
     # ----- volume opeartions -----
     async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
-        if vfid in self.registry.keys():
+        if str(vfid) in self.registry.keys():
             raise VFolderCreationError('VFolder id {} already exists'.format(str(vfid)))
-        if options is None or options['quota'] == 0:
-            raise VFolderCreationError('VFolder quota must be specified')
 
         project_id = -1
         # set project_id to the smallest integer not being used
@@ -97,7 +97,11 @@ class XfsVolume(BaseVolume):
             project_id = self.project_id_pool[-1] + 1
 
         vfpath = self.mangle_vfpath(vfid)
-        quota = options['quota']
+        if options is None or options['quota'] is None:  # max quota i.e. the whole fs size
+            fs_usage = await self.get_fs_usage()
+            quota = fs_usage.capacity_bytes
+        else:
+            quota = options['quota']
         await self.loop.run_in_executor(
             None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
         await self.loop.run_in_executor(
@@ -106,13 +110,13 @@ class XfsVolume(BaseVolume):
         await write_file(self.loop, '/etc/projects', f'{project_id}:{vfpath}\n', perm='a')
         await write_file(self.loop, '/etc/projid', f'{vfid}:{project_id}\n', perm='a')
         await run(f'sudo xfs_quota -x -c "project -s {vfid}" {self.mount_path}')
-        await run(f'sudo xfs_quota -x -c "limit -p bhard={quota} {vfid}" {self.mount_path}')
-        self.registry[vfid] = project_id
+        await run(f'sudo xfs_quota -x -c "limit -p bhard={int(quota)} {vfid}" {self.mount_path}')
+        self.registry[str(vfid)] = project_id
         self.project_id_pool += [project_id]
         self.project_id_pool.sort()
 
     async def delete_vfolder(self, vfid: UUID) -> None:
-        if vfid not in self.registry.keys():
+        if str(vfid) not in self.registry.keys():
             raise VFolderNotFoundError('VFolder with id {} does not exist'.format(vfid))
 
         await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}')
@@ -122,7 +126,7 @@ class XfsVolume(BaseVolume):
         new_projects = ''
         new_projid = ''
         for line in raw_projects.splitlines():
-            if line.startswith(str(self.registry[vfid]) + ':'):
+            if line.startswith(str(self.registry[str(vfid)]) + ':'):
                 continue
             new_projects += (line + '\n')
         for line in raw_projid.splitlines():
@@ -143,14 +147,25 @@ class XfsVolume(BaseVolume):
 
         await self.loop.run_in_executor(
             None, lambda: _delete_vfolder())
-        self.project_id_pool.remove(self.registry[vfid])
-        del self.registry[vfid]
+        self.project_id_pool.remove(self.registry[str(vfid)])
+        del self.registry[str(vfid)]
 
-    async def clone_vfolder(self, src_vfid: UUID, new_vifd: UUID) -> None:
-        raise NotImplementedError
+    async def get_fs_usage(self) -> FSUsage:
+        stat = await run(f'df -h {self.mount_path} | grep {self.mount_path}')
+        if len(stat.split()) != 6:
+            raise ExecutionError('\'df -h\' stdout is in an unexpected format')
+        _, capacity, used, _, _, path = stat.split()
+        if str(self.mount_path) != path:
+            raise ExecutionError('\'df -h\' stdout is in an unexpected format')
+        return FSUsage(
+            capacity_bytes=BinarySize.from_str(capacity),
+            used_bytes=BinarySize.from_str(used)
+        )
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
         report = await run(f'sudo xfs_quota -x -c \'report -h\' {self.mount_path} | grep {str(vfid)[:-5]}')
+        if len(report.split()) != 6:
+            raise ExecutionError('xfs_quota report output is in unexpected format')
         proj_name, _, _, quota, _, _ = report.split()
         if not str(vfid).startswith(proj_name):
             raise ExecutionError('vfid and project name does not match')
@@ -161,6 +176,4 @@ class XfsVolume(BaseVolume):
 
     # ----- vfolder internal operations -----
 
-    def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
-        raise NotImplementedError
 

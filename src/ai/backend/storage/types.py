@@ -39,8 +39,8 @@ class FSPerfMetric:
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
 class FSUsage:
-    capacity_bytes: int
-    used_bytes: int
+    capacity_bytes: BinarySize
+    used_bytes: BinarySize
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
@@ -67,7 +67,7 @@ class VFolderCreationOptions:
     @classmethod
     def as_trafaret(cls) -> t.Trafaret:
         return t.Dict({
-            t.Key('quota', default=0): tx.BinarySize
+            t.Key('quota', default=None): t.Null | tx.BinarySize
         })
 
 

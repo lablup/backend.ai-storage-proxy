@@ -8,7 +8,6 @@ import shutil
 from typing import (
     AsyncIterator,
     FrozenSet,
-    Optional,
     Sequence,
     Union,
 )
@@ -111,8 +110,8 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
         stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
         return FSUsage(
-            capacity_bytes=stat.f_frsize * stat.f_blocks,
-            used_bytes=stat.f_frsize * (stat.f_blocks - stat.f_bavail),
+            capacity_bytes=BinarySize(stat.f_frsize * stat.f_blocks),
+            used_bytes=BinarySize(stat.f_frsize * (stat.f_blocks - stat.f_bavail)),
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
