@@ -71,12 +71,18 @@ class BaseVolume(AbstractVolume):
 
         await loop.run_in_executor(None, _delete_vfolder)
 
-    async def clone_vfolder(self, src_vfid: UUID, target_path: str) -> None:
+    async def clone_vfolder(self, src_vfid: UUID, dst_volume: AbstractVolume,
+                            dst_vfid: UUID, options: VFolderCreationOptions = None) -> None:
         src_vfpath = self.mangle_vfpath(src_vfid)
-        target_vfpath = Path(target_path)
+        await dst_volume.create_vfolder(dst_vfid, options=options)
+        dst_vfpath = dst_volume.mangle_vfpath(dst_vfid)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None, lambda: shutil.copytree(str(src_vfpath), str(target_vfpath)))
+        try:
+            await loop.run_in_executor(
+                None, lambda: shutil.copytree(str(src_vfpath), str(dst_vfpath), dirs_exist_ok=True))
+        except Exception:
+            dst_volume.delete_vfolder(dst_vfid)
+            raise RuntimeError("Copying files from source directories failed.")
 
     async def get_vfolder_mount(self, vfid: UUID) -> Path:
         return self.mangle_vfpath(vfid)

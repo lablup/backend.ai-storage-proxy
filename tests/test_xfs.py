@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePath
 import uuid
 import os
 import asyncio
@@ -6,6 +6,7 @@ import asyncio
 import pytest
 
 from ai.backend.storage.xfs import XfsVolume
+from ai.backend.storage.vfs import BaseVolume
 from ai.backend.common.types import BinarySize
 
 
@@ -38,6 +39,21 @@ async def run(cmd: str) -> str:
     return out.decode()
 
 
+def create_sample_dir_tree(vfpath: Path) -> int:
+    (vfpath / 'test.txt').write_bytes(b'12345')
+    (vfpath / 'inner').mkdir()
+    (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
+    return 8  # return number of bytes written
+
+
+def assert_sample_dir_tree(vfpath: Path) -> None:
+    assert (vfpath / 'test.txt').is_file()
+    assert (vfpath / 'test.txt').read_bytes() == b'12345'
+    assert (vfpath / 'inner').is_dir()
+    assert (vfpath / 'inner' / 'hello.txt').is_file()
+    assert (vfpath / 'inner' / 'hello.txt').read_bytes() == b'678'
+
+
 @pytest.fixture
 async def xfs():
     xfs = XfsVolume({}, Path('/vfroot/xfs'))
@@ -46,6 +62,16 @@ async def xfs():
         yield xfs
     finally:
         await xfs.shutdown()
+
+
+@pytest.fixture
+async def vfs(local_volume):
+    vfs = BaseVolume({}, local_volume, fsprefix=PurePath('fsprefix'), options={})
+    await vfs.init()
+    try:
+        yield vfs
+    finally:
+        await vfs.shutdown()
 
 
 @pytest.fixture
@@ -174,3 +200,53 @@ async def test_xfs_vfolder_operations(xfs, empty_vfolder):
     assert (vfpath / 'test2' / 'test.txt').is_file()
     assert (vfpath / 'test2' / 'test.txt').read_bytes() == b'12345'
 
+
+@pytest.mark.asyncio
+async def test_xfs_clone_to_vfs(xfs, vfs):
+    vfid_src = uuid.uuid4()
+    vfid_dst = uuid.uuid4()
+    vfpath_src = xfs.mangle_vfpath(vfid_src)
+    vfpath_dst = vfs.mangle_vfpath(vfid_dst)
+    await xfs.create_vfolder(vfid_src)
+    assert vfpath_src.is_dir()
+    create_sample_dir_tree(vfpath_src)
+
+    await xfs.clone_vfolder(vfid_src, vfs, vfid_dst)
+    assert_sample_dir_tree(vfpath_dst)
+
+    await xfs.delete_vfolder(vfid_src)
+    await vfs.delete_vfolder(vfid_dst)
+
+
+@pytest.mark.asyncio
+async def test_vfs_clone_to_xfs(xfs, vfs):
+    vfid_src = uuid.uuid4()
+    vfid_dst = uuid.uuid4()
+    vfpath_src = vfs.mangle_vfpath(vfid_src)
+    vfpath_dst = xfs.mangle_vfpath(vfid_dst)
+    await vfs.create_vfolder(vfid_src)
+    assert vfpath_src.is_dir()
+    create_sample_dir_tree(vfpath_src)
+
+    await vfs.clone_vfolder(vfid_src, xfs, vfid_dst)
+    assert_sample_dir_tree(vfpath_dst)
+
+    await vfs.delete_vfolder(vfid_src)
+    await xfs.delete_vfolder(vfid_dst)
+
+
+@pytest.mark.asyncio
+async def test_xfs_clone_to_xfs(xfs, vfs):
+    vfid_src = uuid.uuid4()
+    vfid_dst = uuid.uuid4()
+    vfpath_src = xfs.mangle_vfpath(vfid_src)
+    vfpath_dst = xfs.mangle_vfpath(vfid_dst)
+    await xfs.create_vfolder(vfid_src)
+    assert vfpath_src.is_dir()
+    create_sample_dir_tree(vfpath_src)
+
+    await xfs.clone_vfolder(vfid_src, xfs, vfid_dst)
+    assert_sample_dir_tree(vfpath_dst)
+
+    await xfs.delete_vfolder(vfid_src)
+    await xfs.delete_vfolder(vfid_dst)
