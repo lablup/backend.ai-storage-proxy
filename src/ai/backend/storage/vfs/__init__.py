@@ -29,7 +29,8 @@ from ..types import (
 )
 from ..exception import (
     ExecutionError,
-    InvalidAPIParameters
+    InvalidAPIParameters,
+    VFolderCreationError
 )
 from ..utils import fstime2datetime
 from ai.backend.common.types import BinarySize
@@ -73,6 +74,12 @@ class BaseVolume(AbstractVolume):
 
     async def clone_vfolder(self, src_vfid: UUID, dst_volume: AbstractVolume,
                             dst_vfid: UUID, options: VFolderCreationOptions = None) -> None:
+        # check if there is enough space in the destination
+        fs_usage = await dst_volume.get_fs_usage()
+        vfolder_usage = await self.get_usage(src_vfid)
+        if vfolder_usage.used_bytes > fs_usage.capacity_bytes - fs_usage.used_bytes:
+            raise VFolderCreationError('Not enough space available for clone')
+
         src_vfpath = self.mangle_vfpath(src_vfid)
         await dst_volume.create_vfolder(dst_vfid, options=options)
         dst_vfpath = dst_volume.mangle_vfpath(dst_vfid)

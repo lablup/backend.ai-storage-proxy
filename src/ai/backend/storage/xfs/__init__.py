@@ -161,7 +161,7 @@ class XfsVolume(BaseVolume):
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
         report = await run(f'sudo xfs_quota -x -c \'report -h\' {self.mount_path}'
-                            ' | grep {str(vfid)[:-5]}')
+                           f' | grep {str(vfid)[:-5]}')
         if len(report.split()) != 6:
             raise ExecutionError('xfs_quota report output is in unexpected format')
         proj_name, _, _, quota, _, _ = report.split()
@@ -171,4 +171,4 @@ class XfsVolume(BaseVolume):
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}"'
-                   ' {self.mount_path}')
+                  f' {self.mount_path}')

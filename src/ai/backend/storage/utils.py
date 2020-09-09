@@ -74,10 +74,11 @@ async def log_manager_api_entry(
     if params is not None:
         if 'src_vfid' in params and 'dst_vfid' in params:
             log.info(
-                "ManagerAPI::{}(v:{}, f:{} -> dst_f:{})",
+                "ManagerAPI::{}(v:{}, f:{} -> dst_v: {}, dst_f:{})",
                 name.upper(),
-                params['volume'],
+                params['src_volume'],
                 params['src_vfid'],
+                params['dst_volume'],
                 params['dst_vfid'],
             )
         elif 'relpaths' in params:
