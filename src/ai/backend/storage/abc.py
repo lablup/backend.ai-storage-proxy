@@ -81,7 +81,7 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
+    async def clone_vfolder(self, src_vfid: UUID, target_path: str) -> None:
         pass
 
     @abstractmethod
