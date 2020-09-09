@@ -5,6 +5,8 @@ Manager-facing API
 from datetime import datetime
 import logging
 from typing import (
+    Awaitable,
+    Callable,
     List,
 )
 
@@ -21,6 +23,20 @@ from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
+
+
+@web.middleware
+async def token_auth_middleware(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    token = request.headers.get('X-BackendAI-Storage-Auth-Token', None)
+    if not token:
+        raise web.HTTPForbidden()
+    ctx: Context = request.app['ctx']
+    if token != ctx.local_config['api']['manager']['secret']:
+        raise web.HTTPForbidden()
+    return await handler(request)
 
 
 async def get_status(request: web.Request) -> web.Response:
@@ -306,7 +322,9 @@ async def delete_files(request: web.Request) -> web.Response:
 
 
 async def init_manager_app(ctx: Context) -> web.Application:
-    app = web.Application()
+    app = web.Application(middlewares=[
+        token_auth_middleware,
+    ])
     app['ctx'] = ctx
     app.router.add_route('GET', '/', get_status)
     app.router.add_route('GET', '/volumes', get_volumes)
