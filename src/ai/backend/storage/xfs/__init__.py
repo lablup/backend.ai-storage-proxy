@@ -1,26 +1,22 @@
 import asyncio
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import shutil
 import os
 from typing import (
     Mapping,
     List,
-    AsyncIterator
 )
 from uuid import UUID
 
 from ..vfs import BaseVolume
 from ..types import (
-    DirEntry,
     FSUsage,
-    VFolderUsage,
     VFolderCreationOptions
 )
 from ..exception import (
     ExecutionError,
     VFolderCreationError,
     VFolderNotFoundError,
-    InvalidAPIParameters
 )
 from ai.backend.common.types import BinarySize
 
@@ -164,7 +160,8 @@ class XfsVolume(BaseVolume):
         )
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
-        report = await run(f'sudo xfs_quota -x -c \'report -h\' {self.mount_path} | grep {str(vfid)[:-5]}')
+        report = await run(f'sudo xfs_quota -x -c \'report -h\' {self.mount_path}'
+                            ' | grep {str(vfid)[:-5]}')
         if len(report.split()) != 6:
             raise ExecutionError('xfs_quota report output is in unexpected format')
         proj_name, _, _, quota, _, _ = report.split()
@@ -173,8 +170,5 @@ class XfsVolume(BaseVolume):
         return BinarySize.from_str(quota)
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
-        await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}" {self.mount_path}')
-
-    # ----- vfolder internal operations -----
-
-
+        await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}"'
+                   ' {self.mount_path}')
