@@ -8,7 +8,6 @@ import shutil
 from typing import (
     AsyncIterator,
     FrozenSet,
-    Optional,
     Sequence,
     Union,
 )
@@ -276,12 +275,20 @@ class BaseVolume(AbstractVolume):
 
         return _aiter()
 
-    async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
+    async def delete_files(
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False
+    ) -> None:
         target_paths = [self.sanitize_vfpath(vfid, p) for p in relpaths]
 
         def _delete() -> None:
             for p in target_paths:
-                p.unlink()
+                if p.is_dir() and recursive:
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _delete)
