@@ -21,6 +21,7 @@ import trafaret as t
 import zipstream
 
 from ai.backend.common.logging import BraceStyleAdapter
+from ai.backend.common.types import BinarySize
 from ai.backend.common.utils import AsyncFileWriter
 from ai.backend.common import validators as tx
 
@@ -232,7 +233,7 @@ async def tus_options(request: web.Request) -> web.Response:
     headers["Access-Control-Allow-Methods"] = "*"
     headers["Tus-Resumable"] = "1.0.0"
     headers["Tus-Version"] = "1.0.0"
-    headers["Tus-Max-Size"] = ctx.local_config['storage-proxy']['max-upload-size']
+    headers["Tus-Max-Size"] = str(int(ctx.local_config['storage-proxy']['max-upload-size']))
     headers["X-Content-Type-Options"] = "nosniff"
     return web.Response(headers=headers)
 
