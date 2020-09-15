@@ -64,7 +64,7 @@ async def download(request: web.Request) -> web.StreamResponse:
     secret = ctx.local_config['storage-proxy']['secret']
     async with check_params(request, t.Dict({
         t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=download_token_data_iv),
-        t.Key('archive', default=False): t.ToBool | t.Null,
+        t.Key('archive', default=False): t.ToBool,
     }), read_from=CheckParamSource.QUERY) as params:
         async with ctx.get_volume(params['token']['volume']) as volume:
             token_data = params['token']

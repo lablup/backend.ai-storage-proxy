@@ -297,7 +297,7 @@ async def delete_files(request: web.Request) -> web.Response:
         t.Key('volume'): t.String(),
         t.Key('vfid'): tx.UUID(),
         t.Key('relpaths'): t.List(tx.PurePath(relative_only=True)),
-        t.Key('recursive', default=False): t.Null | t.ToBool,
+        t.Key('recursive', default=False): t.ToBool,
     })) as params:
         await log_manager_api_entry(log, 'delete_files', params)
         ctx: Context = request.app['ctx']
