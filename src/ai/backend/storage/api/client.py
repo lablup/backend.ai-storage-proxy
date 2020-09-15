@@ -65,6 +65,7 @@ async def download(request: web.Request) -> web.StreamResponse:
     async with check_params(request, t.Dict({
         t.Key('token'): tx.JsonWebToken(secret=secret, inner_iv=download_token_data_iv),
         t.Key('archive', default=False): t.ToBool,
+        t.Key('no_cache', default=False): t.ToBool,
     }), read_from=CheckParamSource.QUERY) as params:
         async with ctx.get_volume(params['token']['volume']) as volume:
             token_data = params['token']
@@ -98,14 +99,17 @@ async def download(request: web.Request) -> web.StreamResponse:
                 })
     ascii_filename = file_path.name.encode('ascii', errors='ignore').decode('ascii').replace('"', r'\"')
     encoded_filename = urllib.parse.quote(file_path.name, encoding='utf-8')
-    return web.FileResponse(file_path, headers={
+    headers = {
         hdrs.CONTENT_TYPE: "application/octet-stream",
         hdrs.CONTENT_DISPOSITION: " ".join([
             "attachment;"
             f"filename=\"{ascii_filename}\";",       # RFC-2616 sec2.2
             f"filename*=UTF-8''{encoded_filename}",  # RFC-5987
         ])
-    })
+    }
+    if params['no_cache']:
+        headers[hdrs.CACHE_CONTROL] = "no-store"
+    return web.FileResponse(file_path, headers=headers)
 
 
 async def download_directory_as_archive(
