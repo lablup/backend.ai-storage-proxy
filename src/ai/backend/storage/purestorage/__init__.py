@@ -10,7 +10,11 @@ from typing import (
 )
 from uuid import UUID
 
-from ..abc import CAP_VFOLDER, CAP_METRIC, CAP_FAST_SCAN
+from ai.backend.common.types import BinarySize
+from ..abc import (
+    CAP_VFOLDER, CAP_METRIC, CAP_FAST_SCAN,
+    AbstractVolume,
+)
 from ..vfs import BaseVolume
 from ..types import (
     FSPerfMetric,
@@ -18,6 +22,7 @@ from ..types import (
     DirEntry,
     DirEntryType,
     Stat,
+    VFolderCreationOptions,
 )
 from ..utils import fstime2datetime
 from .purity import PurityClient
@@ -62,14 +67,20 @@ class FlashBladeVolume(BaseVolume):
             CAP_FAST_SCAN,
         ])
 
-    async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
+    async def clone_vfolder(
+        self,
+        src_vfid: UUID,
+        dst_volume: AbstractVolume,
+        dst_vfid: UUID,
+        options: VFolderCreationOptions = None,
+    ) -> None:
         # TODO: pcp -r -p <src_vfpath>/. <new_vfpath>
         raise NotImplementedError
 
-    async def get_quota(self, vfid: UUID) -> int:
+    async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
 
-    async def set_quota(self, vfid: UUID, size_bytes: int) -> None:
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:
@@ -163,7 +174,12 @@ class FlashBladeVolume(BaseVolume):
         # TODO: pcp ...
         raise NotImplementedError
 
-    async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
+    async def delete_files(
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False
+    ) -> None:
         target_paths = [bytes(self.sanitize_vfpath(vfid, p)) for p in relpaths]
         proc = await asyncio.create_subprocess_exec(
             b'prm', *target_paths,

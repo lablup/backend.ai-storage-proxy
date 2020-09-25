@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 import os
 from typing import (
-    Mapping,
+    Dict,
     List,
 )
 from uuid import UUID
@@ -21,14 +21,14 @@ from ..exception import (
 from ai.backend.common.types import BinarySize
 
 
-async def read_file(loop: asyncio.BaseEventLoop, filename: str) -> str:
+async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
     def _read():
         with open(filename, 'r') as fr:
             return fr.read()
     return await loop.run_in_executor(None, lambda: _read())
 
 
-async def write_file(loop: asyncio.BaseEventLoop, filename: str, contents: str, perm='w'):
+async def write_file(loop: asyncio.AbstractEventLoop, filename: str, contents: str, perm='w'):
     def _write():
         with open(filename, perm) as fw:
             fw.write(contents)
@@ -46,11 +46,13 @@ async def run(cmd: str) -> str:
 
 
 class XfsVolume(BaseVolume):
-    loop: asyncio.BaseEventLoop
+    loop: asyncio.AbstractEventLoop
+    registry: Dict[str, int]
+    project_id_pool: List[int]
 
     async def init(self, uid=None, gid=None, loop=None) -> None:
-        self.registry: Mapping[str, int] = {}
-        self.project_id_pool: List[int] = []
+        self.registry = {}
+        self.project_id_pool = []
         if uid is not None:
             self.uid = uid
         else:
@@ -93,12 +95,14 @@ class XfsVolume(BaseVolume):
             project_id = self.project_id_pool[-1] + 1
 
         vfpath = self.mangle_vfpath(vfid)
-        if options is None or 'quota' not in options or \
-                options['quota'] is None:  # max quota i.e. the whole fs size
+        if (
+            options is None or
+            options.quota is None
+        ):  # max quota i.e. the whole fs size
             fs_usage = await self.get_fs_usage()
             quota = fs_usage.capacity_bytes
         else:
-            quota = options['quota']
+            quota = options.quota
         await self.loop.run_in_executor(
             None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
         await self.loop.run_in_executor(

@@ -72,8 +72,13 @@ class BaseVolume(AbstractVolume):
 
         await loop.run_in_executor(None, _delete_vfolder)
 
-    async def clone_vfolder(self, src_vfid: UUID, dst_volume: AbstractVolume,
-                            dst_vfid: UUID, options: VFolderCreationOptions = None) -> None:
+    async def clone_vfolder(
+        self,
+        src_vfid: UUID,
+        dst_volume: AbstractVolume,
+        dst_vfid: UUID,
+        options: VFolderCreationOptions = None,
+    ) -> None:
         # check if there is enough space in the destination
         fs_usage = await dst_volume.get_fs_usage()
         vfolder_usage = await self.get_usage(src_vfid)
@@ -114,10 +119,10 @@ class BaseVolume(AbstractVolume):
             return b''
         # Other IO errors should be bubbled up.
 
-    async def get_quota(self, vfid: UUID) -> int:
+    async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
 
-    async def set_quota(self, vfid: UUID, size_bytes: int) -> None:
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:
@@ -321,12 +326,20 @@ class BaseVolume(AbstractVolume):
 
         return _aiter()
 
-    async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
+    async def delete_files(
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False
+    ) -> None:
         target_paths = [self.sanitize_vfpath(vfid, p) for p in relpaths]
 
         def _delete() -> None:
             for p in target_paths:
-                p.unlink()
+                if p.is_dir() and recursive:
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _delete)

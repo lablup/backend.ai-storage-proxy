@@ -62,7 +62,7 @@ class VolumeInfo:
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
 class VFolderCreationOptions:
-    quota: BinarySize
+    quota: Optional[BinarySize]
 
     @classmethod
     def as_trafaret(cls) -> t.Trafaret:

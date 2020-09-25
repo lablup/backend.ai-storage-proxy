@@ -85,4 +85,3 @@ async def test_vfs_clone(vfs):
     assert (vfpath2 / 'inner' / 'hello.txt').is_file()
     await vfs.delete_vfolder(vfid1)
     await vfs.delete_vfolder(vfid2)
-
