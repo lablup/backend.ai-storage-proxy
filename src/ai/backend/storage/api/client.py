@@ -12,6 +12,7 @@ from typing import (
     Final,
     Mapping,
     MutableMapping,
+    cast,
 )
 import urllib.parse
 
@@ -21,7 +22,6 @@ import trafaret as t
 import zipstream
 
 from ai.backend.common.logging import BraceStyleAdapter
-from ai.backend.common.types import BinarySize
 from ai.backend.common.utils import AsyncFileWriter
 from ai.backend.common import validators as tx
 
@@ -105,11 +105,11 @@ async def download(request: web.Request) -> web.StreamResponse:
             "attachment;"
             f"filename=\"{ascii_filename}\";",       # RFC-2616 sec2.2
             f"filename*=UTF-8''{encoded_filename}",  # RFC-5987
-        ])
+        ]),
     }
     if params['no_cache']:
         headers[hdrs.CACHE_CONTROL] = "no-store"
-    return web.FileResponse(file_path, headers=headers)
+    return web.FileResponse(file_path, headers=cast(Mapping[str, str], headers))
 
 
 async def download_directory_as_archive(

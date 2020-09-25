@@ -27,7 +27,22 @@ from ..types import (
     SENTINEL,
     Sentinel,
 )
+from ..exception import (
+    ExecutionError,
+    InvalidAPIParameters,
+    VFolderCreationError
+)
 from ..utils import fstime2datetime
+from ai.backend.common.types import BinarySize
+
+
+async def run(cmd: str) -> str:
+    proc = await asyncio.create_subprocess_shell(
+        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    out, err = await proc.communicate()
+    if err:
+        raise ExecutionError(err.decode())
+    return out.decode()
 
 
 class BaseVolume(AbstractVolume):
@@ -57,8 +72,29 @@ class BaseVolume(AbstractVolume):
 
         await loop.run_in_executor(None, _delete_vfolder)
 
-    async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
-        raise NotImplementedError
+    async def clone_vfolder(
+        self,
+        src_vfid: UUID,
+        dst_volume: AbstractVolume,
+        dst_vfid: UUID,
+        options: VFolderCreationOptions = None,
+    ) -> None:
+        # check if there is enough space in the destination
+        fs_usage = await dst_volume.get_fs_usage()
+        vfolder_usage = await self.get_usage(src_vfid)
+        if vfolder_usage.used_bytes > fs_usage.capacity_bytes - fs_usage.used_bytes:
+            raise VFolderCreationError('Not enough space available for clone')
+
+        src_vfpath = self.mangle_vfpath(src_vfid)
+        await dst_volume.create_vfolder(dst_vfid, options=options)
+        dst_vfpath = dst_volume.mangle_vfpath(dst_vfid)
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(
+                None, lambda: shutil.copytree(str(src_vfpath), str(dst_vfpath), dirs_exist_ok=True))
+        except Exception:
+            dst_volume.delete_vfolder(dst_vfid)
+            raise RuntimeError("Copying files from source directories failed.")
 
     async def get_vfolder_mount(self, vfid: UUID) -> Path:
         return self.mangle_vfpath(vfid)
@@ -83,10 +119,10 @@ class BaseVolume(AbstractVolume):
             return b''
         # Other IO errors should be bubbled up.
 
-    async def get_quota(self, vfid: UUID) -> int:
+    async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
 
-    async def set_quota(self, vfid: UUID, size_bytes: int) -> None:
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:
@@ -96,8 +132,8 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
         stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
         return FSUsage(
-            capacity_bytes=stat.f_frsize * stat.f_blocks,
-            used_bytes=stat.f_frsize * (stat.f_blocks - stat.f_bavail),
+            capacity_bytes=BinarySize(stat.f_frsize * stat.f_blocks),
+            used_bytes=BinarySize(stat.f_frsize * (stat.f_blocks - stat.f_bavail)),
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
@@ -120,6 +156,12 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _calc_usage, target_path)
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
+
+    async def get_used_bytes(self, vfid: UUID) -> BinarySize:
+        vfpath = self.mangle_vfpath(vfid)
+        info = await run(f'du -hs {vfpath}')
+        used_bytes, _ = info.split()
+        return BinarySize.from_str(used_bytes)
 
     # ------ vfolder internal operations -------
 
@@ -192,12 +234,21 @@ class BaseVolume(AbstractVolume):
 
     async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_file():
+            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
         await loop.run_in_executor(None, src_path.rename, dst_path)
 
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        raise NotImplementedError
+        src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_file():
+            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
+        dst_path = self.sanitize_vfpath(vfid, dst)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
+        await loop.run_in_executor(None, lambda: shutil.copyfile(str(src_path), str(dst_path)))
 
     async def prepare_upload(self, vfid: UUID) -> str:
         vfpath = self.mangle_vfpath(vfid)

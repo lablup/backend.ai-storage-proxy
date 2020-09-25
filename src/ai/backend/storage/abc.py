@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from pathlib import Path, PurePath, PurePosixPath
 from typing import (
@@ -18,6 +20,7 @@ from .types import (
     VFolderUsage,
     DirEntry,
 )
+from ai.backend.common.types import BinarySize
 
 
 # Available capabilities of a volume implementation
@@ -80,7 +83,13 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def clone_vfolder(self, src_vfid: UUID, new_vfid: UUID) -> None:
+    async def clone_vfolder(
+        self,
+        src_vfid: UUID,
+        dst_volume: AbstractVolume,
+        dst_vfid: UUID,
+        options: VFolderCreationOptions = None,
+    ) -> None:
         pass
 
     @abstractmethod
@@ -96,11 +105,11 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def get_quota(self, vfid: UUID) -> int:
+    async def get_quota(self, vfid: UUID) -> BinarySize:
         pass
 
     @abstractmethod
-    async def set_quota(self, vfid: UUID, size_bytes: int) -> None:
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         pass
 
     @abstractmethod
@@ -113,6 +122,10 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
+        pass
+
+    @abstractmethod
+    async def get_used_bytes(self, vfid: UUID) -> BinarySize:
         pass
 
     # ------ vfolder operations -------

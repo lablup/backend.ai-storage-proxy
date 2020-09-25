@@ -98,15 +98,18 @@ async def delete_vfolder(request: web.Request) -> web.Response:
 
 async def clone_vfolder(request: web.Request) -> web.Response:
     async with check_params(request, t.Dict({
-        t.Key('volume'): t.String(),
+        t.Key('src_volume'): t.String(),
         t.Key('src_vfid'): tx.UUID(),
-        t.Key('new_vfid'): tx.UUID(),
+        t.Key('dst_volume'): t.String(),
+        t.Key('dst_vfid'): tx.UUID(),
+        t.Key('options', default=None): t.Null | VFolderCreationOptions.as_trafaret(),
     })) as params:
         await log_manager_api_entry(log, 'clone_vfolder', params)
         ctx: Context = request.app['ctx']
-        async with ctx.get_volume(params['volume']) as volume:
-            await volume.clone_vfolder(params['src_vfid'], params['new_vfid'])
-            return web.Response(status=204)
+        async with ctx.get_volume(params['src_volume']) as src_volume:
+            async with ctx.get_volume(params['dst_volume']) as dst_volume:
+                await src_volume.clone_vfolder(params['src_vfid'], dst_volume, params['dst_vfid'])
+        return web.Response(status=204)
 
 
 async def get_vfolder_mount(request: web.Request) -> web.Response:
@@ -157,6 +160,20 @@ async def set_metadata(request: web.Request) -> web.Response:
         return web.json_response({
             'status': 'ok',
         })
+
+
+async def get_vfolder_fs_usage(request: web.Request) -> web.Response:
+    async with check_params(request, t.Dict({
+        t.Key('volume'): t.String(),
+    })) as params:
+        await log_manager_api_entry(log, 'get_vfolder_fs_usage', params)
+        ctx: Context = request.app['ctx']
+        async with ctx.get_volume(params['volume']) as volume:
+            fs_usage = await volume.get_fs_usage()
+            return web.json_response({
+                'capacity_bytes': fs_usage.capacity_bytes,
+                'used_bytes': fs_usage.used_bytes
+            })
 
 
 async def get_vfolder_usage(request: web.Request) -> web.Response:
@@ -323,6 +340,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route('GET', '/folder/metadata', get_metadata)
     app.router.add_route('POST', '/folder/metadata', set_metadata)
     app.router.add_route('GET', '/folder/usage', get_vfolder_usage)
+    app.router.add_route('GET', '/folder/fs-usage', get_vfolder_fs_usage)
     app.router.add_route('POST', '/folder/file/mkdir', mkdir)
     app.router.add_route('POST', '/folder/file/list', list_files)
     app.router.add_route('POST', '/folder/file/rename', rename_file)

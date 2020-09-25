@@ -16,6 +16,18 @@ class StorageProxyError(Exception):
     pass
 
 
+class VFolderCreationError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+
+class VFolderNotFoundError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+
 class InvalidVolumeError(StorageProxyError):
     pass
 
