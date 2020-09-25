@@ -160,5 +160,10 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
+    async def delete_files(
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False
+    ) -> None:
         pass

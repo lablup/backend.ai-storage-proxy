@@ -163,7 +163,12 @@ class FlashBladeVolume(BaseVolume):
         # TODO: pcp ...
         raise NotImplementedError
 
-    async def delete_files(self, vfid: UUID, relpaths: Sequence[PurePosixPath]) -> None:
+    async def delete_files(
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False
+    ) -> None:
         target_paths = [bytes(self.sanitize_vfpath(vfid, p)) for p in relpaths]
         proc = await asyncio.create_subprocess_exec(
             b'prm', *target_paths,

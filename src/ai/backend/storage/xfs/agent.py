@@ -13,9 +13,12 @@ log = BraceStyleAdapter(logging.getLogger('ai.backend.storage.server'))
 
 async def read_file(loop: asyncio.BaseEventLoop, filename: str) -> str:
     content = ''
+
     def _read():
+        nonlocal content
         with open(filename, 'r') as fr:
             content = fr.read()
+
     await loop.run_in_executor(None, _read())
     return content
 
