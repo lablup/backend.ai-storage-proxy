@@ -17,6 +17,7 @@ from typing import (
 import urllib.parse
 
 from aiohttp import hdrs, web
+import aiohttp_cors
 import janus
 import trafaret as t
 import zipstream
@@ -275,8 +276,19 @@ async def prepare_tus_session_headers(
 async def init_client_app(ctx: Context) -> web.Application:
     app = web.Application()
     app['ctx'] = ctx
+
+    cors_options = {
+        '*': aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            allow_methods='*',
+            expose_headers="*",
+            allow_headers="*"
+        ),
+    }
+    cors = aiohttp_cors.setup(app, defaults=cors_options)
+
     add_route = app.router.add_route
-    add_route('GET',     '/download', download)
+    cors.add(add_route('GET',     '/download', download))
     add_route('OPTIONS', '/upload', tus_options)
     add_route('HEAD',    '/upload', tus_check_session)
     add_route('PATCH',   '/upload', tus_upload_part)
