@@ -196,11 +196,18 @@ async def mkdir(request: web.Request) -> web.Response:
         t.Key('volume'): t.String(),
         t.Key('vfid'): tx.UUID(),
         t.Key('relpath'): tx.PurePath(relative_only=True),
+        t.Key('parents', default=True): t.ToBool,
+        t.Key('exist_ok', default=False): t.ToBool,
     })) as params:
         await log_manager_api_entry(log, 'mkdir', params)
         ctx: Context = request.app['ctx']
         async with ctx.get_volume(params['volume']) as volume:
-            await volume.mkdir(params['vfid'], params['relpath'], parents=True)
+            await volume.mkdir(
+                params['vfid'],
+                params['relpath'],
+                parents=params['parents'],
+                exist_ok=params['exist_ok']
+            )
         return web.Response(status=204)
 
 
