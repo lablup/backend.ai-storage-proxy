@@ -287,7 +287,7 @@ async def init_client_app(ctx: Context) -> web.Application:
     cors = aiohttp_cors.setup(app, defaults=cors_options)
     r = cors.add(app.router.add_resource("/download"))
     r.add_route('GET', download)
-    r = cors.add(app.router.add_resource("/upload"))
+    r = app.router.add_resource("/upload")  # tus handlers handle CORS by themselves
     r.add_route('OPTIONS', tus_options)
     r.add_route('HEAD',    tus_check_session)
     r.add_route('PATCH',   tus_upload_part)
