@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path, PurePosixPath
+import logging
 import os
+from pathlib import Path, PurePosixPath
 import secrets
 import shutil
 from typing import (
@@ -14,6 +15,9 @@ from typing import (
 from uuid import UUID
 
 import janus
+
+from ai.backend.common.types import BinarySize
+from ai.backend.common.logging import BraceStyleAdapter
 
 from ..abc import AbstractVolume, CAP_VFOLDER
 from ..types import (
@@ -33,7 +37,8 @@ from ..exception import (
     VFolderCreationError
 )
 from ..utils import fstime2datetime
-from ai.backend.common.types import BinarySize
+
+log = BraceStyleAdapter(logging.getLogger(__name__))
 
 
 async def run(cmd: str) -> str:
@@ -304,32 +309,47 @@ class BaseVolume(AbstractVolume):
         chunk_size: int = 0,
     ) -> AsyncIterator[bytes]:
         target_path = self.sanitize_vfpath(vfid, relpath)
-        q: janus.Queue[bytes] = janus.Queue()
+        q: janus.Queue[Union[bytes, Exception]] = janus.Queue()
         loop = asyncio.get_running_loop()
 
-        def _read(q: janus._SyncQueueProxy[bytes]) -> None:
-            with open(target_path, 'rb') as f:
-                while True:
-                    buf = f.read(chunk_size)
-                    q.put(buf)
-                    if not buf:
-                        return
+        def _read(
+            q: janus._SyncQueueProxy[Union[bytes, Exception]],
+            chunk_size: int,
+        ) -> None:
+            try:
+                with open(target_path, 'rb') as f:
+                    while True:
+                        buf = f.read(chunk_size)
+                        if not buf:
+                            return
+                        q.put(buf)
+            except Exception as e:
+                q.put(e)
+            finally:
+                q.put(b'')
 
         async def _aiter() -> AsyncIterator[bytes]:
             nonlocal chunk_size
             if chunk_size == 0:
                 # get the preferred io block size
-                _vfs_stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
+                _vfs_stat = await loop.run_in_executor(
+                    None,
+                    os.statvfs, self.mount_path,
+                )
                 chunk_size = _vfs_stat.f_bsize
-            read_task = asyncio.create_task(loop.run_in_executor(None, _read, q.sync_q))
+            read_fut = loop.run_in_executor(None, _read, q.sync_q, chunk_size)
             await asyncio.sleep(0)
             try:
                 while True:
                     buf = await q.async_q.get()
+                    if isinstance(buf, Exception):
+                        raise buf
                     yield buf
                     q.async_q.task_done()
+                    if not buf:
+                        return
             finally:
-                await read_task
+                await read_fut
 
         return _aiter()
 
