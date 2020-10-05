@@ -135,7 +135,14 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *, parents: bool = False) -> None:
+    async def mkdir(
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath,
+        *,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ) -> None:
         pass
 
     @abstractmethod

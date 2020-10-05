@@ -219,8 +219,14 @@ class BaseVolume(AbstractVolume):
 
         return _aiter()
 
-    async def mkdir(self, vfid: UUID, relpath: PurePosixPath, *,
-                    parents: bool = False, exist_ok = False) -> None:
+    async def mkdir(
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath,
+        *,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ) -> None:
         target_path = self.sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
