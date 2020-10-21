@@ -13,7 +13,6 @@ from uuid import UUID
 from ai.backend.common.types import BinarySize
 from ..abc import (
     CAP_VFOLDER, CAP_METRIC, CAP_FAST_SCAN,
-    AbstractVolume,
 )
 from ..vfs import BaseVolume
 from ..types import (
@@ -22,7 +21,6 @@ from ..types import (
     DirEntry,
     DirEntryType,
     Stat,
-    VFolderCreationOptions,
 )
 from ..utils import fstime2datetime
 from .purity import PurityClient
@@ -67,15 +65,19 @@ class FlashBladeVolume(BaseVolume):
             CAP_FAST_SCAN,
         ])
 
-    async def clone_vfolder(
+    async def copy_tree(
         self,
-        src_vfid: UUID,
-        dst_volume: AbstractVolume,
-        dst_vfid: UUID,
-        options: VFolderCreationOptions = None,
+        src_vfpath: Path,
+        dst_vfpath: Path,
     ) -> None:
-        # TODO: pcp -r -p <src_vfpath>/. <new_vfpath>
-        raise NotImplementedError
+        proc = await asyncio.create_subprocess_exec(
+            b'pcp', b'-r', b'-p', bytes(src_vfpath / '.'), bytes(dst_vfpath),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f'"pcp" command failed: {stderr.decode()}')
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
@@ -125,6 +127,19 @@ class FlashBladeVolume(BaseVolume):
             await proc.wait()
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
 
+    async def get_used_bytes(self, vfid: UUID) -> BinarySize:
+        vfpath = self.mangle_vfpath(vfid)
+        proc = await asyncio.create_subprocess_exec(
+            b'pdu', b'-hs', bytes(vfpath),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"pdu command failed: {stderr.decode()}")
+        used_bytes, _ = stdout.decode().split()
+        return BinarySize.finite_from_str(used_bytes)
+
     # ------ vfolder internal operations -------
 
     def scandir(self, vfid: UUID, relpath: PurePosixPath) -> AsyncIterator[DirEntry]:
@@ -171,8 +186,16 @@ class FlashBladeVolume(BaseVolume):
         return _aiter()
 
     async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
-        # TODO: pcp ...
-        raise NotImplementedError
+        src_path = self.sanitize_vfpath(vfid, src)
+        dst_path = self.sanitize_vfpath(vfid, dst)
+        proc = await asyncio.create_subprocess_exec(
+            b'pcp', b'-p', bytes(src_path), bytes(dst_path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f'"pcp" command failed: {stderr.decode()}')
 
     async def delete_files(
         self,

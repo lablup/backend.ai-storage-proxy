@@ -90,6 +90,25 @@ class AbstractVolume(metaclass=ABCMeta):
         dst_vfid: UUID,
         options: VFolderCreationOptions = None,
     ) -> None:
+        """
+        Create a new vfolder on the destination volume
+        and copy all contents of the source vfolder into it,
+        preserving file permissions and timestamps.
+        """
+        pass
+
+    @abstractmethod
+    async def copy_tree(
+        self,
+        src_vfpath: Path,
+        dst_vfpath: Path,
+    ) -> None:
+        """
+        The actual backend-specific implementation of copying
+        files from a directory to another in an efficient way.
+        The source and destination are in the same filesystem namespace
+        but they may be on different physical media.
+        """
         pass
 
     @abstractmethod

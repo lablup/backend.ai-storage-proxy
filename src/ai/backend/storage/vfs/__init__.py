@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 from pathlib import Path, PurePosixPath
@@ -90,16 +91,31 @@ class BaseVolume(AbstractVolume):
         if vfolder_usage.used_bytes > fs_usage.capacity_bytes - fs_usage.used_bytes:
             raise VFolderCreationError('Not enough space available for clone')
 
+        # create the target vfolder
         src_vfpath = self.mangle_vfpath(src_vfid)
         await dst_volume.create_vfolder(dst_vfid, options=options)
         dst_vfpath = dst_volume.mangle_vfpath(dst_vfid)
-        loop = asyncio.get_running_loop()
+
+        # perform the file-tree copy
         try:
-            await loop.run_in_executor(
-                None, lambda: shutil.copytree(str(src_vfpath), str(dst_vfpath), dirs_exist_ok=True))
+            await self.copy_tree(src_vfpath, dst_vfpath)
         except Exception:
-            dst_volume.delete_vfolder(dst_vfid)
+            await dst_volume.delete_vfolder(dst_vfid)
             raise RuntimeError("Copying files from source directories failed.")
+
+    async def copy_tree(
+        self,
+        src_vfpath: Path,
+        dst_vfpath: Path,
+    ) -> None:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, functools.partial(
+                shutil.copytree,
+                src_vfpath,
+                dst_vfpath,
+                dirs_exist_ok=True,
+            ))
 
     async def get_vfolder_mount(self, vfid: UUID) -> Path:
         return self.mangle_vfpath(vfid)
@@ -166,7 +182,7 @@ class BaseVolume(AbstractVolume):
         vfpath = self.mangle_vfpath(vfid)
         info = await run(f'du -hs {vfpath}')
         used_bytes, _ = info.split()
-        return BinarySize.from_str(used_bytes)
+        return BinarySize.finite_from_str(used_bytes)
 
     # ------ vfolder internal operations -------
 

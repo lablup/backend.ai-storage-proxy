@@ -159,8 +159,8 @@ class XfsVolume(BaseVolume):
         if str(self.mount_path) != path:
             raise ExecutionError('\'df -h\' stdout is in an unexpected format')
         return FSUsage(
-            capacity_bytes=BinarySize.from_str(capacity),
-            used_bytes=BinarySize.from_str(used)
+            capacity_bytes=BinarySize.finite_from_str(capacity),
+            used_bytes=BinarySize.finite_from_str(used),
         )
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
@@ -171,7 +171,7 @@ class XfsVolume(BaseVolume):
         proj_name, _, _, quota, _, _ = report.split()
         if not str(vfid).startswith(proj_name):
             raise ExecutionError('vfid and project name does not match')
-        return BinarySize.from_str(quota)
+        return BinarySize.finite_from_str(quota)
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         await run(f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}"'
