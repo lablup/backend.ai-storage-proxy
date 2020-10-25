@@ -1,6 +1,6 @@
 name: Lint with isort
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   lint:
