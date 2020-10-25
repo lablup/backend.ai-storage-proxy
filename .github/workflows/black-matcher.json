@@ -1,0 +1,13 @@
+{
+    "problemMatcher": [
+        {
+            "owner": "isort",
+            "pattern": [
+                {
+                    "regexp": "^would reformat (.*)$",
+                    "file": 1
+                }
+            ]
+        }
+    ]
+}
