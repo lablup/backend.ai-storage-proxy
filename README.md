@@ -57,6 +57,12 @@ It will start Storage Proxy daemon bound at `127.0.0.1:6021` (client API) and
 
 NOTE: Depending on the backend, the server may require to be run as root.
 
+### Production Deployment
+
+To get performance boosts by using OS-provided `sendfile()` syscall
+for file transfers, SSL termination should be handled by reverse-proxies
+such as nginx and the storage proxy daemon itself should be run without SSL.
+
 
 ## Filesystem Backends
 
