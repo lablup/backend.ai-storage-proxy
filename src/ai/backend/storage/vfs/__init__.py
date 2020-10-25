@@ -4,38 +4,33 @@ import asyncio
 import functools
 import logging
 import os
-from pathlib import Path, PurePosixPath
 import secrets
 import shutil
-from typing import (
-    AsyncIterator,
-    FrozenSet,
-    Sequence,
-    Union,
-)
+from pathlib import Path, PurePosixPath
+from typing import AsyncIterator, FrozenSet, Sequence, Union
 from uuid import UUID
 
 import janus
 
-from ai.backend.common.types import BinarySize
 from ai.backend.common.logging import BraceStyleAdapter
+from ai.backend.common.types import BinarySize
 
-from ..abc import AbstractVolume, CAP_VFOLDER
-from ..types import (
-    FSPerfMetric,
-    FSUsage,
-    VFolderCreationOptions,
-    VFolderUsage,
-    DirEntry,
-    DirEntryType,
-    Stat,
-    SENTINEL,
-    Sentinel,
-)
+from ..abc import CAP_VFOLDER, AbstractVolume
 from ..exception import (
     ExecutionError,
     InvalidAPIParameters,
-    VFolderCreationError
+    VFolderCreationError,
+)
+from ..types import (
+    SENTINEL,
+    DirEntry,
+    DirEntryType,
+    FSPerfMetric,
+    FSUsage,
+    Sentinel,
+    Stat,
+    VFolderCreationOptions,
+    VFolderUsage,
 )
 from ..utils import fstime2datetime
 
@@ -44,7 +39,8 @@ log = BraceStyleAdapter(logging.getLogger(__name__))
 
 async def run(cmd: str) -> str:
     proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
     out, err = await proc.communicate()
     if err:
         raise ExecutionError(err.decode())
@@ -58,11 +54,14 @@ class BaseVolume(AbstractVolume):
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER])
 
-    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
+    async def create_vfolder(
+        self, vfid: UUID, options: VFolderCreationOptions = None
+    ) -> None:
         vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False))
+            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
+        )
 
     async def delete_vfolder(self, vfid: UUID) -> None:
         vfpath = self.mangle_vfpath(vfid)
@@ -89,7 +88,7 @@ class BaseVolume(AbstractVolume):
         fs_usage = await dst_volume.get_fs_usage()
         vfolder_usage = await self.get_usage(src_vfid)
         if vfolder_usage.used_bytes > fs_usage.capacity_bytes - fs_usage.used_bytes:
-            raise VFolderCreationError('Not enough space available for clone')
+            raise VFolderCreationError("Not enough space available for clone")
 
         # create the target vfolder
         src_vfpath = self.mangle_vfpath(src_vfid)
@@ -110,25 +109,27 @@ class BaseVolume(AbstractVolume):
     ) -> None:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, functools.partial(
+            None,
+            functools.partial(
                 shutil.copytree,
                 src_vfpath,
                 dst_vfpath,
                 dirs_exist_ok=True,
-            ))
+            ),
+        )
 
     async def get_vfolder_mount(self, vfid: UUID) -> Path:
         return self.mangle_vfpath(vfid)
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self.mangle_vfpath(vfid)
-        metadata_path = (vfpath / 'metadata.json')
+        metadata_path = vfpath / "metadata.json"
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, metadata_path.write_bytes, payload)
 
     async def get_metadata(self, vfid: UUID) -> bytes:
         vfpath = self.mangle_vfpath(vfid)
-        metadata_path = (vfpath / 'metadata.json')
+        metadata_path = vfpath / "metadata.json"
         loop = asyncio.get_running_loop()
         try:
             stat = await loop.run_in_executor(None, metadata_path.stat)
@@ -137,7 +138,7 @@ class BaseVolume(AbstractVolume):
             data = await loop.run_in_executor(None, metadata_path.read_bytes)
             return data
         except FileNotFoundError:
-            return b''
+            return b""
         # Other IO errors should be bubbled up.
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
@@ -157,7 +158,9 @@ class BaseVolume(AbstractVolume):
             used_bytes=BinarySize(stat.f_frsize * (stat.f_blocks - stat.f_bavail)),
         )
 
-    async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None) -> VFolderUsage:
+    async def get_usage(
+        self, vfid: UUID, relpath: PurePosixPath = None
+    ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
         total_count = 0
@@ -180,7 +183,7 @@ class BaseVolume(AbstractVolume):
 
     async def get_used_bytes(self, vfid: UUID) -> BinarySize:
         vfpath = self.mangle_vfpath(vfid)
-        info = await run(f'du -hs {vfpath}')
+        info = await run(f"du -hs {vfpath}")
         used_bytes, _ = info.split()
         return BinarySize.finite_from_str(used_bytes)
 
@@ -193,7 +196,7 @@ class BaseVolume(AbstractVolume):
 
         def _scandir(q: janus._SyncQueueProxy[Union[Sentinel, DirEntry]]) -> None:
             count = 0
-            limit = self.local_config['storage-proxy']['scandir-limit']
+            limit = self.local_config["storage-proxy"]["scandir-limit"]
             try:
                 with os.scandir(target_path) as scanner:
                     for entry in scanner:
@@ -202,18 +205,20 @@ class BaseVolume(AbstractVolume):
                             entry_type = DirEntryType.DIRECTORY
                         if entry.is_symlink():
                             entry_type = DirEntryType.SYMLINK
-                        q.put(DirEntry(
-                            name=entry.name,
-                            path=Path(entry.path),
-                            type=entry_type,
-                            stat=Stat(
-                                size=entry.stat().st_size,
-                                owner=str(entry.stat().st_uid),
-                                mode=entry.stat().st_mode,
-                                modified=fstime2datetime(entry.stat().st_mtime),
-                                created=fstime2datetime(entry.stat().st_ctime),
+                        q.put(
+                            DirEntry(
+                                name=entry.name,
+                                path=Path(entry.path),
+                                type=entry_type,
+                                stat=Stat(
+                                    size=entry.stat().st_size,
+                                    owner=str(entry.stat().st_uid),
+                                    mode=entry.stat().st_mode,
+                                    modified=fstime2datetime(entry.stat().st_mtime),
+                                    created=fstime2datetime(entry.stat().st_ctime),
+                                ),
                             )
-                        ))
+                        )
                         count += 1
                         if limit > 0 and count == limit:
                             break
@@ -255,28 +260,40 @@ class BaseVolume(AbstractVolume):
             lambda: target_path.mkdir(0o755, parents=parents, exist_ok=exist_ok),
         )
 
-    async def rmdir(self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False) -> None:
+    async def rmdir(
+        self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False
+    ) -> None:
         target_path = self.sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, target_path.rmdir)
 
-    async def move_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
+    async def move_file(
+        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+    ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_file():
-            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
+            raise InvalidAPIParameters(msg=f"source path {str(src_path)} is not a file")
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
+        await loop.run_in_executor(
+            None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
+        )
         await loop.run_in_executor(None, src_path.rename, dst_path)
 
-    async def copy_file(self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath) -> None:
+    async def copy_file(
+        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+    ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_file():
-            raise InvalidAPIParameters(msg=f'source path {str(src_path)} is not a file')
+            raise InvalidAPIParameters(msg=f"source path {str(src_path)} is not a file")
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True))
-        await loop.run_in_executor(None, lambda: shutil.copyfile(str(src_path), str(dst_path)))
+        await loop.run_in_executor(
+            None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
+        )
+        await loop.run_in_executor(
+            None, lambda: shutil.copyfile(str(src_path), str(dst_path))
+        )
 
     async def prepare_upload(self, vfid: UUID) -> str:
         vfpath = self.mangle_vfpath(vfid)
@@ -292,12 +309,14 @@ class BaseVolume(AbstractVolume):
         await loop.run_in_executor(None, _create_target)
         return session_id
 
-    async def add_file(self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]) -> None:
+    async def add_file(
+        self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]
+    ) -> None:
         target_path = self.sanitize_vfpath(vfid, relpath)
         q: janus.Queue[bytes] = janus.Queue()
 
         def _write(q: janus._SyncQueueProxy[bytes]) -> None:
-            with open(target_path, 'wb') as f:
+            with open(target_path, "wb") as f:
                 while True:
                     buf = q.get()
                     try:
@@ -312,7 +331,7 @@ class BaseVolume(AbstractVolume):
         try:
             async for buf in payload:
                 await q.async_q.put(buf)
-            await q.async_q.put(b'')
+            await q.async_q.put(b"")
             await q.async_q.join()
         finally:
             await write_task
@@ -333,7 +352,7 @@ class BaseVolume(AbstractVolume):
             chunk_size: int,
         ) -> None:
             try:
-                with open(target_path, 'rb') as f:
+                with open(target_path, "rb") as f:
                     while True:
                         buf = f.read(chunk_size)
                         if not buf:
@@ -342,7 +361,7 @@ class BaseVolume(AbstractVolume):
             except Exception as e:
                 q.put(e)
             finally:
-                q.put(b'')
+                q.put(b"")
 
         async def _aiter() -> AsyncIterator[bytes]:
             nonlocal chunk_size
@@ -350,7 +369,8 @@ class BaseVolume(AbstractVolume):
                 # get the preferred io block size
                 _vfs_stat = await loop.run_in_executor(
                     None,
-                    os.statvfs, self.mount_path,
+                    os.statvfs,
+                    self.mount_path,
                 )
                 chunk_size = _vfs_stat.f_bsize
             read_fut = loop.run_in_executor(None, _read, q.sync_q, chunk_size)
@@ -370,10 +390,7 @@ class BaseVolume(AbstractVolume):
         return _aiter()
 
     async def delete_files(
-        self,
-        vfid: UUID,
-        relpaths: Sequence[PurePosixPath],
-        recursive: bool = False
+        self, vfid: UUID, relpaths: Sequence[PurePosixPath], recursive: bool = False
     ) -> None:
         target_paths = [self.sanitize_vfpath(vfid, p) for p in relpaths]
 

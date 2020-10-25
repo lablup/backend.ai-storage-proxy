@@ -1,5 +1,5 @@
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -12,6 +12,6 @@ def vfroot():
 
 @pytest.fixture
 def local_volume(vfroot):
-    volume = vfroot / 'local'
+    volume = vfroot / "local"
     volume.mkdir(parents=True, exist_ok=True)
     yield volume

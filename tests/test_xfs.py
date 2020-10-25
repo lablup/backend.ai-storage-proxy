@@ -1,31 +1,31 @@
-from pathlib import Path, PurePath
-import uuid
-import os
 import asyncio
+import os
+import uuid
+from pathlib import Path, PurePath
 
 import pytest
 
-from ai.backend.storage.xfs import XfsVolume
-from ai.backend.storage.vfs import BaseVolume
 from ai.backend.common.types import BinarySize
+from ai.backend.storage.vfs import BaseVolume
+from ai.backend.storage.xfs import XfsVolume
 
 
 def read_etc_projid():
-    with open('/etc/projid') as fp:
+    with open("/etc/projid") as fp:
         content = fp.read()
     project_id_dict = {}
     for line in content.splitlines():
-        proj_name, proj_id = line.split(':')[:2]
+        proj_name, proj_id = line.split(":")[:2]
         project_id_dict[proj_name] = int(proj_id)
     return project_id_dict
 
 
 def read_etc_projects():
-    with open('/etc/projects') as fp:
+    with open("/etc/projects") as fp:
         content = fp.read()
     vfpath_id_dict = {}
     for line in content.splitlines():
-        proj_id, vfpath = line.split(':')[:2]
+        proj_id, vfpath = line.split(":")[:2]
         vfpath_id_dict[int(proj_id)] = vfpath
     return vfpath_id_dict
 
@@ -40,23 +40,23 @@ async def run(cmd: str) -> str:
 
 
 def create_sample_dir_tree(vfpath: Path) -> int:
-    (vfpath / 'test.txt').write_bytes(b'12345')
-    (vfpath / 'inner').mkdir()
-    (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
+    (vfpath / "test.txt").write_bytes(b"12345")
+    (vfpath / "inner").mkdir()
+    (vfpath / "inner" / "hello.txt").write_bytes(b"678")
     return 8  # return number of bytes written
 
 
 def assert_sample_dir_tree(vfpath: Path) -> None:
-    assert (vfpath / 'test.txt').is_file()
-    assert (vfpath / 'test.txt').read_bytes() == b'12345'
-    assert (vfpath / 'inner').is_dir()
-    assert (vfpath / 'inner' / 'hello.txt').is_file()
-    assert (vfpath / 'inner' / 'hello.txt').read_bytes() == b'678'
+    assert (vfpath / "test.txt").is_file()
+    assert (vfpath / "test.txt").read_bytes() == b"12345"
+    assert (vfpath / "inner").is_dir()
+    assert (vfpath / "inner" / "hello.txt").is_file()
+    assert (vfpath / "inner" / "hello.txt").read_bytes() == b"678"
 
 
 @pytest.fixture
 async def xfs():
-    xfs = XfsVolume({}, Path('/vfroot/xfs'))
+    xfs = XfsVolume({}, Path("/vfroot/xfs"))
     await xfs.init(os.getuid(), os.getgid())
     try:
         yield xfs
@@ -66,7 +66,7 @@ async def xfs():
 
 @pytest.fixture
 async def vfs(local_volume):
-    vfs = BaseVolume({}, local_volume, fsprefix=PurePath('fsprefix'), options={})
+    vfs = BaseVolume({}, local_volume, fsprefix=PurePath("fsprefix"), options={})
     await vfs.init()
     try:
         yield vfs
@@ -77,7 +77,7 @@ async def vfs(local_volume):
 @pytest.fixture
 async def empty_vfolder(xfs):
     vfid = uuid.uuid4()
-    await xfs.create_vfolder(vfid, options={'quota': BinarySize.from_str('10m')})
+    await xfs.create_vfolder(vfid, options={"quota": BinarySize.from_str("10m")})
     yield vfid
     await xfs.delete_vfolder(vfid)
 
@@ -85,7 +85,7 @@ async def empty_vfolder(xfs):
 @pytest.mark.asyncio
 async def test_xfs_single_vfolder_mgmt(xfs):
     vfid = uuid.uuid4()
-    options = {'quota': BinarySize.from_str('10m')}
+    options = {"quota": BinarySize.from_str("10m")}
     # vfolder create test
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
@@ -99,7 +99,10 @@ async def test_xfs_single_vfolder_mgmt(xfs):
     await xfs.delete_vfolder(vfid)
     assert not vfpath.exists()
     assert not vfpath.parent.exists() or not (vfpath.parent / vfid.hex[2:4]).exists()
-    assert not vfpath.parent.parent.exists() or not (vfpath.parent.parent / vfid.hex[0:2]).exists()
+    assert (
+        not vfpath.parent.parent.exists()
+        or not (vfpath.parent.parent / vfid.hex[0:2]).exists()
+    )
     project_id_dict = read_etc_projid()
     vfpath_id_dict = read_etc_projects()
     assert str(vfid) not in project_id_dict
@@ -108,9 +111,9 @@ async def test_xfs_single_vfolder_mgmt(xfs):
 
 @pytest.mark.asyncio
 async def test_xfs_multiple_vfolder_mgmt(xfs):
-    vfid1 = uuid.UUID(hex='83a6ba2b7b8e41deb5ee2c909ce34bcb')
-    vfid2 = uuid.UUID(hex='83a6ba2b7b8e41deb5ee2c909ce34bcc')
-    options = {'quota': BinarySize.from_str('10m')}
+    vfid1 = uuid.UUID(hex="83a6ba2b7b8e41deb5ee2c909ce34bcb")
+    vfid2 = uuid.UUID(hex="83a6ba2b7b8e41deb5ee2c909ce34bcc")
+    options = {"quota": BinarySize.from_str("10m")}
     await xfs.create_vfolder(vfid1, options=options)
     await xfs.create_vfolder(vfid2, options=options)
     vfpath1 = xfs.mount_path / vfid1.hex[0:2] / vfid1.hex[2:4] / vfid1.hex[4:]
@@ -131,13 +134,13 @@ async def test_xfs_multiple_vfolder_mgmt(xfs):
 @pytest.mark.asyncio
 async def test_xfs_quota(xfs):
     vfid = uuid.uuid4()
-    options = {'quota': BinarySize.from_str('10m')}
+    options = {"quota": BinarySize.from_str("10m")}
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
     assert vfpath.is_dir()
-    assert await xfs.get_quota(vfid) == BinarySize.from_str('10m')
-    await xfs.set_quota(vfid, BinarySize.from_str('1m'))
-    assert await xfs.get_quota(vfid) == BinarySize.from_str('1m')
+    assert await xfs.get_quota(vfid) == BinarySize.from_str("10m")
+    await xfs.set_quota(vfid, BinarySize.from_str("1m"))
+    assert await xfs.get_quota(vfid) == BinarySize.from_str("1m")
     await xfs.delete_vfolder(vfid)
     assert not vfpath.is_dir()
 
@@ -145,10 +148,10 @@ async def test_xfs_quota(xfs):
 @pytest.mark.asyncio
 async def test_xfs_get_usage(xfs, empty_vfolder):
     vfpath = xfs.mangle_vfpath(empty_vfolder)
-    (vfpath / 'test.txt').write_bytes(b'12345')
-    (vfpath / 'inner').mkdir()
-    (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
-    (vfpath / 'inner' / 'world.txt').write_bytes(b'901')
+    (vfpath / "test.txt").write_bytes(b"12345")
+    (vfpath / "inner").mkdir()
+    (vfpath / "inner" / "hello.txt").write_bytes(b"678")
+    (vfpath / "inner" / "world.txt").write_bytes(b"901")
     usage = await xfs.get_usage(empty_vfolder)
     assert usage.file_count == 3
     assert usage.used_bytes == 11
@@ -157,16 +160,18 @@ async def test_xfs_get_usage(xfs, empty_vfolder):
 @pytest.mark.asyncio
 async def test_xfs_get_used_bytes(xfs):
     vfid = uuid.uuid4()
-    options = {'quota': BinarySize.from_str('10m')}
+    options = {"quota": BinarySize.from_str("10m")}
     await xfs.create_vfolder(vfid, options=options)
     vfpath = xfs.mount_path / vfid.hex[0:2] / vfid.hex[2:4] / vfid.hex[4:]
-    (vfpath / 'test.txt').write_bytes(b'12345')
-    (vfpath / 'inner').mkdir()
-    (vfpath / 'inner' / 'hello.txt').write_bytes(b'678')
-    (vfpath / 'inner' / 'world.txt').write_bytes(b'901')
+    (vfpath / "test.txt").write_bytes(b"12345")
+    (vfpath / "inner").mkdir()
+    (vfpath / "inner" / "hello.txt").write_bytes(b"678")
+    (vfpath / "inner" / "world.txt").write_bytes(b"901")
 
     used_bytes = await xfs.get_used_bytes(vfid)
-    report = await run(f'sudo xfs_quota -x -c \'report -h\' {xfs.mount_path} | grep {str(vfid)[:-5]}')
+    report = await run(
+        f"sudo xfs_quota -x -c 'report -h' {xfs.mount_path} | grep {str(vfid)[:-5]}"
+    )
     assert len(report.split()) == 6
     proj_name, xfs_used, _, _, _, _ = report.split()
     assert str(vfid)[:-5] == proj_name
@@ -178,7 +183,7 @@ async def test_xfs_get_used_bytes(xfs):
 @pytest.mark.asyncio
 async def test_xfs_mkdir_rmdir(xfs, empty_vfolder):
     vfpath = xfs.mangle_vfpath(empty_vfolder)
-    test_rel_path = 'test/abc'
+    test_rel_path = "test/abc"
     await xfs.mkdir(empty_vfolder, Path(test_rel_path), parents=True)
     assert Path(vfpath, test_rel_path).is_dir()
     await xfs.rmdir(empty_vfolder, Path(test_rel_path), recursive=True)
@@ -188,17 +193,17 @@ async def test_xfs_mkdir_rmdir(xfs, empty_vfolder):
 @pytest.mark.asyncio
 async def test_xfs_vfolder_operations(xfs, empty_vfolder):
     vfpath = xfs.mangle_vfpath(empty_vfolder)
-    (vfpath / 'test0').mkdir()
-    (vfpath / 'test0' / 'test.txt').write_bytes(b'12345')
-    await xfs.move_file(empty_vfolder, Path('test0/test.txt'), Path('test1/test.txt'))
-    assert (vfpath / 'test1' / 'test.txt').is_file()
-    assert (vfpath / 'test1' / 'test.txt').read_bytes() == b'12345'
-    assert not (vfpath / 'test0' / 'test.txt').is_file()
+    (vfpath / "test0").mkdir()
+    (vfpath / "test0" / "test.txt").write_bytes(b"12345")
+    await xfs.move_file(empty_vfolder, Path("test0/test.txt"), Path("test1/test.txt"))
+    assert (vfpath / "test1" / "test.txt").is_file()
+    assert (vfpath / "test1" / "test.txt").read_bytes() == b"12345"
+    assert not (vfpath / "test0" / "test.txt").is_file()
 
-    await xfs.copy_file(empty_vfolder, Path('test1/test.txt'), Path('test2/test.txt'))
-    assert (vfpath / 'test1' / 'test.txt').is_file()
-    assert (vfpath / 'test2' / 'test.txt').is_file()
-    assert (vfpath / 'test2' / 'test.txt').read_bytes() == b'12345'
+    await xfs.copy_file(empty_vfolder, Path("test1/test.txt"), Path("test2/test.txt"))
+    assert (vfpath / "test1" / "test.txt").is_file()
+    assert (vfpath / "test2" / "test.txt").is_file()
+    assert (vfpath / "test2" / "test.txt").read_bytes() == b"12345"
 
 
 @pytest.mark.asyncio

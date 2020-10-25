@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
 import enum
+from datetime import datetime
 from pathlib import Path, PurePath
-from typing import (
-    Any,
-    Final,
-    Mapping,
-    Optional,
-)
+from typing import Any, Final, Mapping, Optional
 
 import attr
 import trafaret as t
@@ -52,12 +47,14 @@ class VolumeInfo:
 
     @classmethod
     def as_trafaret(cls) -> t.Trafaret:
-        return t.Dict({
-            t.Key('backend'): t.String,
-            t.Key('path'): tx.Path(type='dir'),
-            t.Key('fsprefix', default='.'): tx.PurePath(relative_only=True),
-            t.Key('options', default=None): t.Null | t.Mapping(t.String, t.Any),
-        })
+        return t.Dict(
+            {
+                t.Key("backend"): t.String,
+                t.Key("path"): tx.Path(type="dir"),
+                t.Key("fsprefix", default="."): tx.PurePath(relative_only=True),
+                t.Key("options", default=None): t.Null | t.Mapping(t.String, t.Any),
+            }
+        )
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
@@ -66,9 +63,7 @@ class VFolderCreationOptions:
 
     @classmethod
     def as_trafaret(cls) -> t.Trafaret:
-        return t.Dict({
-            t.Key('quota', default=None): t.Null | tx.BinarySize
-        })
+        return t.Dict({t.Key("quota", default=None): t.Null | tx.BinarySize})
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
