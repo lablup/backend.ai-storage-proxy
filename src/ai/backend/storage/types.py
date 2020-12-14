@@ -93,3 +93,4 @@ class DirEntry:
     path: Path
     type: DirEntryType
     stat: Stat
+    symlink_target: str

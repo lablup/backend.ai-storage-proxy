@@ -340,6 +340,7 @@ async def list_files(request: web.Request) -> web.Response:
                         "created": item.stat.created.isoformat(),
                         "modified": item.stat.modified.isoformat(),
                     },
+                    "symlink_target": item.symlink_target,
                 }
                 async for item in volume.scandir(
                     params["vfid"],
