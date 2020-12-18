@@ -27,6 +27,13 @@ secret = "0000000000000000000000000000000000000000000"
 # The download/upload session tokens are valid for:
 session-expire = "1d"
 
+# When executed as root (e.g., to bind under-1023 ports)
+# it is recommended to set UID/GID to lower the privilege after port binding.
+# If not specified, it defaults to the owner UID/GID of the "server.py" file
+# of the installed package.
+# user = 1000
+# group = 1000
+
 
 [api.client]
 # Client-facing API
