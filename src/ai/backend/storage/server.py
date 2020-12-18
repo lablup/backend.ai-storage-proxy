@@ -3,11 +3,11 @@ import grp
 import logging
 import multiprocessing
 import os
+import pwd
 import ssl
 import sys
 from pathlib import Path
 from pprint import pformat, pprint
-import pwd
 from typing import Any, AsyncIterator, Sequence
 
 import aiotools
