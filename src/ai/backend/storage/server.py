@@ -1,7 +1,9 @@
 import asyncio
+import grp
 import logging
 import multiprocessing
 import os
+import pwd
 import ssl
 import sys
 from pathlib import Path
@@ -43,48 +45,48 @@ async def server_main(
     pidx: int,
     _args: Sequence[Any],
 ) -> AsyncIterator[None]:
-    config = _args[0]
+    local_config = _args[0]
 
     etcd_credentials = None
-    if config["etcd"]["user"]:
+    if local_config["etcd"]["user"]:
         etcd_credentials = {
-            "user": config["etcd"]["user"],
-            "password": config["etcd"]["password"],
+            "user": local_config["etcd"]["user"],
+            "password": local_config["etcd"]["password"],
         }
     scope_prefix_map = {
         ConfigScopes.GLOBAL: "",
-        ConfigScopes.NODE: f"nodes/storage/{config['storage-proxy']['node-id']}",
+        ConfigScopes.NODE: f"nodes/storage/{local_config['storage-proxy']['node-id']}",
     }
     etcd = AsyncEtcd(
-        config["etcd"]["addr"],
-        config["etcd"]["namespace"],
+        local_config["etcd"]["addr"],
+        local_config["etcd"]["namespace"],
         scope_prefix_map,
         credentials=etcd_credentials,
     )
-    ctx = Context(pid=os.getpid(), local_config=config, etcd=etcd)
+    ctx = Context(pid=os.getpid(), local_config=local_config, etcd=etcd)
     client_api_app = await init_client_app(ctx)
     manager_api_app = await init_manager_app(ctx)
 
     client_ssl_ctx = None
     manager_ssl_ctx = None
-    if config["api"]["client"]["ssl-enabled"]:
+    if local_config["api"]["client"]["ssl-enabled"]:
         client_ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         client_ssl_ctx.load_cert_chain(
-            str(config["api"]["client"]["ssl-cert"]),
-            str(config["api"]["client"]["ssl-privkey"]),
+            str(local_config["api"]["client"]["ssl-cert"]),
+            str(local_config["api"]["client"]["ssl-privkey"]),
         )
-    if config["api"]["manager"]["ssl-enabled"]:
+    if local_config["api"]["manager"]["ssl-enabled"]:
         manager_ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         manager_ssl_ctx.load_cert_chain(
-            str(config["api"]["manager"]["ssl-cert"]),
-            str(config["api"]["manager"]["ssl-privkey"]),
+            str(local_config["api"]["manager"]["ssl-cert"]),
+            str(local_config["api"]["manager"]["ssl-privkey"]),
         )
     client_api_runner = web.AppRunner(client_api_app)
     manager_api_runner = web.AppRunner(manager_api_app)
     await client_api_runner.setup()
     await manager_api_runner.setup()
-    client_service_addr = config["api"]["client"]["service-addr"]
-    manager_service_addr = config["api"]["manager"]["service-addr"]
+    client_service_addr = local_config["api"]["client"]["service-addr"]
+    manager_service_addr = local_config["api"]["manager"]["service-addr"]
     client_api_site = web.TCPSite(
         client_api_runner,
         str(client_service_addr.host),
@@ -103,6 +105,15 @@ async def server_main(
     )
     await client_api_site.start()
     await manager_api_site.start()
+    if os.geteuid() == 0:
+        uid = local_config["storage-proxy"]["user"]
+        gid = local_config["storage-proxy"]["group"]
+        os.setgroups(
+            [g.gr_gid for g in grp.getgrall() if pwd.getpwuid(uid).pw_name in g.gr_mem]
+        )
+        os.setgid(gid)
+        os.setuid(uid)
+        log.info("Changed process uid:gid to {}:{}", uid, gid)
     log.info("Started service.")
     try:
         yield
