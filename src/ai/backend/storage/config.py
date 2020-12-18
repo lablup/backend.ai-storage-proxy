@@ -10,7 +10,7 @@ from ai.backend.common.logging import logging_config_iv
 from .types import VolumeInfo
 
 _max_cpu_count = os.cpu_count()
-_file_perm = (Path(__file__).parent / 'server.py').stat()
+_file_perm = (Path(__file__).parent / "server.py").stat()
 
 
 local_config_iv = (
@@ -28,10 +28,10 @@ local_config_iv = (
                     t.Key("max-upload-size", default="100g"): tx.BinarySize,
                     t.Key("secret"): t.String,  # used to generate JWT tokens
                     t.Key("session-expire"): tx.TimeDuration,
-                    t.Key('user', default=None): tx.UserID(
+                    t.Key("user", default=None): tx.UserID(
                         default_uid=_file_perm.st_uid,
                     ),
-                    t.Key('group', default=None): tx.GroupID(
+                    t.Key("group", default=None): tx.GroupID(
                         default_gid=_file_perm.st_gid,
                     ),
                 }

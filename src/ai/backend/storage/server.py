@@ -106,15 +106,14 @@ async def server_main(
     await client_api_site.start()
     await manager_api_site.start()
     if os.geteuid() == 0:
-        uid = local_config['storage-proxy']['user']
-        gid = local_config['storage-proxy']['group']
-        os.setgroups([
-            g.gr_gid for g in grp.getgrall()
-            if pwd.getpwuid(uid).pw_name in g.gr_mem
-        ])
+        uid = local_config["storage-proxy"]["user"]
+        gid = local_config["storage-proxy"]["group"]
+        os.setgroups(
+            [g.gr_gid for g in grp.getgrall() if pwd.getpwuid(uid).pw_name in g.gr_mem]
+        )
         os.setgid(gid)
         os.setuid(uid)
-        log.info('Changed process uid:gid to {}:{}', uid, gid)
+        log.info("Changed process uid:gid to {}:{}", uid, gid)
     log.info("Started service.")
     try:
         yield
