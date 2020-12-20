@@ -78,7 +78,6 @@ async def get_hwinfo(request: web.Request) -> web.Response:
                 t.Key("volume"): t.String(),
             }
         ),
-        read_from=CheckParamSource.QUERY,
     ) as params:
         await log_manager_api_entry(log, "get_hwinfo", params)
         ctx: Context = request.app["ctx"]
@@ -500,7 +499,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app["ctx"] = ctx
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
-    app.router.add_route("GET", "/volumes/hwinfo", get_hwinfo)
+    app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)
     app.router.add_route("POST", "/folder/create", create_vfolder)
     app.router.add_route("POST", "/folder/delete", delete_vfolder)
     app.router.add_route("POST", "/folder/clone", clone_vfolder)

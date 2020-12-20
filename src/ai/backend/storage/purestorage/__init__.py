@@ -63,6 +63,7 @@ class FlashBladeVolume(BaseVolume):
             "status_info": None,
             "metadata": {
                 # TODO: implement
+                "model": "flashblade",
             },
         }
 
