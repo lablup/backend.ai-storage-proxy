@@ -58,12 +58,13 @@ class FlashBladeVolume(BaseVolume):
         )
 
     async def get_hwinfo(self) -> HardwareMetadata:
+        async with self.purity_client as client:
+            metadata = await client.get_metadata()
         return {
             "status": "healthy",
             "status_info": None,
             "metadata": {
-                # TODO: implement
-                "model": "flashblade",
+                **metadata,
             },
         }
 
