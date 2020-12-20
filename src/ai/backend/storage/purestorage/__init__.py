@@ -59,9 +59,9 @@ class FlashBladeVolume(BaseVolume):
 
     async def get_hwinfo(self) -> HardwareMetadata:
         return {
-            'status': 'healthy',
-            'status_info': None,
-            'metadata': {
+            "status": "healthy",
+            "status_info": None,
+            "metadata": {
                 # TODO: implement
             },
         }

@@ -56,9 +56,9 @@ class BaseVolume(AbstractVolume):
 
     async def get_hwinfo(self) -> HardwareMetadata:
         return {
-            'status': 'healthy',
-            'status_info': None,
-            'metadata': {},
+            "status": "healthy",
+            "status_info": None,
+            "metadata": {},
         }
 
     async def create_vfolder(

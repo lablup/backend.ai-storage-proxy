@@ -16,7 +16,7 @@ from ai.backend.common.logging import BraceStyleAdapter
 
 from ..context import Context
 from ..types import VFolderCreationOptions
-from ..utils import check_params, log_manager_api_entry
+from ..utils import CheckParamSource, check_params, log_manager_api_entry
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -71,7 +71,20 @@ async def get_volumes(request: web.Request) -> web.Response:
 
 
 async def get_hwinfo(request: web.Request) -> web.Response:
-    raise NotImplementedError
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+            }
+        ),
+        read_from=CheckParamSource.QUERY,
+    ) as params:
+        await log_manager_api_entry(log, "get_hwinfo", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            data = await volume.get_hwinfo()
+            return web.json_response(data)
 
 
 async def create_vfolder(request: web.Request) -> web.Response:
