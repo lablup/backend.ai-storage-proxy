@@ -13,7 +13,7 @@ from uuid import UUID
 import janus
 
 from ai.backend.common.logging import BraceStyleAdapter
-from ai.backend.common.types import BinarySize
+from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_VFOLDER, AbstractVolume
 from ..exception import (
@@ -53,6 +53,13 @@ class BaseVolume(AbstractVolume):
 
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER])
+
+    async def get_hwinfo(self) -> HardwareMetadata:
+        return {
+            "status": "healthy",
+            "status_info": None,
+            "metadata": {},
+        }
 
     async def create_vfolder(
         self, vfid: UUID, options: VFolderCreationOptions = None

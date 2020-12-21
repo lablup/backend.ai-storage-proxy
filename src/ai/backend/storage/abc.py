@@ -13,7 +13,7 @@ from typing import (
 )
 from uuid import UUID
 
-from ai.backend.common.types import BinarySize
+from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from .types import (
     DirEntry,
@@ -71,6 +71,10 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def get_capabilities(self) -> FrozenSet[str]:
+        pass
+
+    @abstractmethod
+    async def get_hwinfo(self) -> HardwareMetadata:
         pass
 
     @abstractmethod

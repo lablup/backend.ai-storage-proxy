@@ -70,6 +70,22 @@ async def get_volumes(request: web.Request) -> web.Response:
         )
 
 
+async def get_hwinfo(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "get_hwinfo", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            data = await volume.get_hwinfo()
+            return web.json_response(data)
+
+
 async def create_vfolder(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -483,6 +499,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app["ctx"] = ctx
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
+    app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)
     app.router.add_route("POST", "/folder/create", create_vfolder)
     app.router.add_route("POST", "/folder/delete", delete_vfolder)
     app.router.add_route("POST", "/folder/clone", clone_vfolder)

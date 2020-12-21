@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 from typing import AsyncIterator, FrozenSet, Sequence
 from uuid import UUID
 
-from ai.backend.common.types import BinarySize
+from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_FAST_SCAN, CAP_METRIC, CAP_VFOLDER
 from ..types import DirEntry, DirEntryType, FSPerfMetric, Stat, VFolderUsage
@@ -56,6 +56,17 @@ class FlashBladeVolume(BaseVolume):
                 CAP_FAST_SCAN,
             ]
         )
+
+    async def get_hwinfo(self) -> HardwareMetadata:
+        async with self.purity_client as client:
+            metadata = await client.get_metadata()
+        return {
+            "status": "healthy",
+            "status_info": None,
+            "metadata": {
+                **metadata,
+            },
+        }
 
     async def copy_tree(
         self,
