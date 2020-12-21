@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextvars import ContextVar, Token
-import pprint
 from typing import Any, AsyncGenerator, Mapping
 
 import aiohttp
