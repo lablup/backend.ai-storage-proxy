@@ -82,6 +82,7 @@ class PurityClient:
             "os": first["os"],
             "revision": first["revision"],
             "version": first["version"],
+            "blade_count": str(len(items))
         }
 
     async def get_nfs_metric(
