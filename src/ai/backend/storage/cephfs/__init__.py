@@ -1,13 +1,10 @@
 import asyncio
-
 from typing import Dict, List
 from uuid import UUID
 
 from ai.backend.common.types import BinarySize
 
-from ..exception import (
-    ExecutionError
-)
+from ..exception import ExecutionError
 from ..types import FSUsage, VFolderCreationOptions
 from ..vfs import BaseVolume
 
@@ -67,10 +64,12 @@ class CephFSVolume(BaseVolume):
             raise RuntimeError(
                 "Ceph is not installed. "
                 "You cannot use the CephFS backend for the storage proxy."
-                             )
+            )
 
     # ----- volume opeartions -----
-    async def create_vfolder(self, vfid: UUID, options: VFolderCreationOptions = None) -> None:
+    async def create_vfolder(
+        self, vfid: UUID, options: VFolderCreationOptions = None
+    ) -> None:
 
         vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
@@ -103,6 +102,4 @@ class CephFSVolume(BaseVolume):
         return BinarySize.finite_from_str(quota)
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
-        await run(
-            f'setfattr -n ceph.quota.max_bytes -v {int(size_bytes)} {vfid}'
-        )
+        await run(f"setfattr -n ceph.quota.max_bytes -v {int(size_bytes)} {vfid}")
