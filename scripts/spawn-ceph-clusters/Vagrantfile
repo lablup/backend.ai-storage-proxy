@@ -8,17 +8,18 @@ Vagrant.configure("2") do |config|
   config.hostmanager.enabled = true
   config.cache.scope = :box
 
-  # We need one Ceph admin machine to manage the cluster
+  # Ceph admin machine to manage the cluster
   config.vm.define "ceph-admin" do |admin|
     admin.vm.hostname = "ceph-admin"
     admin.vm.network :private_network, ip: "172.21.12.10"
     admin.vm.provision :shell, :inline => "DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -yq ntp ceph-deploy", :privileged => true
   end
 
-  # The Ceph client will be our client machine to mount volumes and interact with the cluster
+  # The Ceph client will be client machine to mount volumes and interact with the cluster. Also it will contain Storage Proxy
   config.vm.define "ceph-client" do |client|
     client.vm.hostname = "ceph-client"
     client.vm.network :private_network, ip: "172.21.12.11"
+    # ceph-deploy will assume remote machines have python2 installed
     config.vm.provision :shell, :inline => "DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -yq python", :privileged => true
   end
 
@@ -27,6 +28,7 @@ Vagrant.configure("2") do |config|
     config.vm.define "ceph-server-#{i}" do |config|
       config.vm.hostname = "ceph-server-#{i}"
       config.vm.network :private_network, ip: "172.21.12.#{i+11}"
+      # ceph-deploy will assume remote machines have python2 installed
       config.vm.provision :shell, :inline => "DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -yq python", :privileged => true
     end
   end
