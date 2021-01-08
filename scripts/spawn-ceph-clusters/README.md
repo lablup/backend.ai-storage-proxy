@@ -25,7 +25,7 @@ vagrant ssh ceph-client
 sh /vagrant/install_storage_proxy.sh
 ```
 
-5. Storage proxy settings
+4. Storage proxy settings
 The Storage proxy is installed at root /vagrant directory which is also shared with Host machine.
 The ceph-fuse mounted path is /mnt/vfroot/ceph-fuse
 The storage-proxy.toml will contain updated path 
