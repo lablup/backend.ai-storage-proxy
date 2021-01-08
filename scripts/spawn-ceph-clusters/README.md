@@ -44,3 +44,9 @@ update domains set allowed_vfolder_hosts = '{local:myceph}' ;
 update groups set allowed_vfolder_hosts = '{local:myceph}' ;
 update keypair_resource_policies set allowed_vfolder_hosts = '{local:myceph}' ;
 ```
+
+# Mounting Ceph-Fuse
+On ceph-client machine it is already mounted on install.
+```
+sudo ceph-fuse -n client.admin --keyring=/etc/ceph/ceph.client.admin.keyring  -m ceph-server-1 /mnt/vfroot/ceph-fuse/
+```
