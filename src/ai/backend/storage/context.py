@@ -7,19 +7,18 @@ from typing import Any, AsyncIterator, Mapping, Type
 from ai.backend.common.etcd import AsyncEtcd
 
 from .abc import AbstractVolume
+from .cephfs import CephFSVolume
 from .exception import InvalidVolumeError
 from .purestorage import FlashBladeVolume
 from .types import VolumeInfo
 from .vfs import BaseVolume
 from .xfs import XfsVolume
-from .cephfs import CephFSVolume
-
 
 BACKENDS: Mapping[str, Type[AbstractVolume]] = {
     "purestorage": FlashBladeVolume,
     "vfs": BaseVolume,
     "xfs": XfsVolume,
-    "cephfs": CephFSVolume
+    "cephfs": CephFSVolume,
 }
 
 

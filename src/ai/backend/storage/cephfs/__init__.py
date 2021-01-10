@@ -55,9 +55,7 @@ class CephFSVolume(BaseVolume):
             available = False
 
         if not available:
-            raise RuntimeError(
-                "Ceph is not installed. "
-            )
+            raise RuntimeError("Ceph is not installed. ")
 
     # ----- volume opeartions -----
     async def create_vfolder(
@@ -82,9 +80,7 @@ class CephFSVolume(BaseVolume):
         )
 
     async def get_quota(self, vfpath):
-        report = await run(
-            f"getfattr -n ceph.quota.max_bytes {vfpath}"
-        )
+        report = await run(f"getfattr -n ceph.quota.max_bytes {vfpath}")
         if len(report.split()) != 6:
             raise ExecutionError("ceph quota report output is in unexpected format")
         proj_name, _, _, quota, _, _ = report.split()
