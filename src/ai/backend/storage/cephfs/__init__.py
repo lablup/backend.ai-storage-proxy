@@ -45,7 +45,7 @@ class CephFSVolume(BaseVolume):
     async def init(self) -> None:
         available = True
         try:
-            proc = await asyncio.create_subprocess_exec(
+            await asyncio.create_subprocess_exec(
                 b"ceph",
                 b"--version",
                 stdout=asyncio.subprocess.PIPE,
@@ -53,17 +53,10 @@ class CephFSVolume(BaseVolume):
             )
         except FileNotFoundError:
             available = False
-        else:
-            try:
-                stdout, stderr = await proc.communicate()
-                if b"Ceph" not in stdout or proc.returncode != 0:
-                    available = False
-            finally:
-                await proc.wait()
+
         if not available:
             raise RuntimeError(
                 "Ceph is not installed. "
-                "You cannot use the CephFS backend for the storage proxy."
             )
 
     # ----- volume opeartions -----
@@ -72,10 +65,9 @@ class CephFSVolume(BaseVolume):
     ) -> None:
 
         vfpath = self.mangle_vfpath(vfid)
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
-        )
+        await run(f"sudo  mkdir -p {vfpath}")
+        await run(f"sudo  chmod 777 -R {vfpath}")
+        self.set_quota(vfpath, 100000000)
 
     async def get_fs_usage(self) -> FSUsage:
         stat = await run(f"df -h {self.mount_path} | grep {self.mount_path}")
@@ -89,17 +81,15 @@ class CephFSVolume(BaseVolume):
             used_bytes=BinarySize.finite_from_str(used),
         )
 
-    async def get_quota(self, vfid: UUID) -> BinarySize:
+    async def get_quota(self, vfpath):
         report = await run(
-            f"getfattr -n ceph.quota.max_bytes {self.mount_path}"
-            f" | grep {str(vfid)[:-5]}"
+            f"getfattr -n ceph.quota.max_bytes {vfpath}"
         )
         if len(report.split()) != 6:
             raise ExecutionError("ceph quota report output is in unexpected format")
         proj_name, _, _, quota, _, _ = report.split()
-        if not str(vfid).startswith(proj_name):
-            raise ExecutionError("vfid and project name does not match")
-        return BinarySize.finite_from_str(quota)
+        return quota
 
-    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
-        await run(f"setfattr -n ceph.quota.max_bytes -v {int(size_bytes)} {vfid}")
+    async def set_quota(self, vfpath, size_bytes) -> None:
+        print("quota set")
+        await run(f"setfattr -n ceph.quota.max_bytes -v {int(size_bytes)} {vfpath}")

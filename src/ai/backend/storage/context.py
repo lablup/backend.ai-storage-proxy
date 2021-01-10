@@ -12,11 +12,14 @@ from .purestorage import FlashBladeVolume
 from .types import VolumeInfo
 from .vfs import BaseVolume
 from .xfs import XfsVolume
+from .cephfs import CephFSVolume
+
 
 BACKENDS: Mapping[str, Type[AbstractVolume]] = {
     "purestorage": FlashBladeVolume,
     "vfs": BaseVolume,
     "xfs": XfsVolume,
+    "cephfs": CephFSVolume
 }
 
 
@@ -44,8 +47,10 @@ class Context:
     @actxmgr
     async def get_volume(self, name: str) -> AsyncIterator[AbstractVolume]:
         try:
+            print(self.local_config)
             volume_config = self.local_config["volume"][name]
         except KeyError:
+            print(name)
             raise InvalidVolumeError(name)
         volume_cls: Type[AbstractVolume] = BACKENDS[volume_config["backend"]]
         volume_obj = volume_cls(
