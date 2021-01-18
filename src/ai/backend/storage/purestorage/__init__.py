@@ -77,11 +77,11 @@ class FlashBladeVolume(BaseVolume):
             },
         }
 
-    async def get_statistics(self) -> FSUsage:
+    async def get_fs_usage(self) -> FSUsage:
         async with self.purity_client as client:
-            statistics = await client.get_statistics(self.config["purity_fs_name"])
+            usage = await client.get_usage(self.config["purity_fs_name"])
         return FSUsage(
-            capacity_bytes=statistics["total"], used_bytes=statistics["usage"]
+            capacity_bytes=usage["capacity_bytes"], used_bytes=usage["used_bytes"]
         )
 
     async def copy_tree(

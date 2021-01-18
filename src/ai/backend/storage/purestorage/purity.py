@@ -118,7 +118,7 @@ class PurityClient:
                 if pagination_token is None:
                     break
 
-    async def get_statistics(self, fs_name: str) -> Mapping[str, Any]:
+    async def get_usage(self, fs_name: str) -> Mapping[str, Any]:
         if self.auth_token is None:
             raise RuntimeError("The auth token for Purity API is not initialized.")
         items = []
@@ -145,6 +145,6 @@ class PurityClient:
             return {}
         first = items[0]
         return {
-            "total": data["total"]["provisioned"],
-            "usage": first["space"]["total_physical"],
+            "capacity_bytes": data["total"]["provisioned"],
+            "used_bytes": first["space"]["total_physical"],
         }
