@@ -82,7 +82,7 @@ class PurityClient:
             "os": first["os"],
             "revision": first["revision"],
             "version": first["version"],
-            "blade_count": str(len(items))
+            "blade_count": str(len(items)),
         }
 
     async def get_nfs_metric(
@@ -117,24 +117,19 @@ class PurityClient:
                 if pagination_token is None:
                     break
 
-    async def get_statistics(
-        self, fs_name: str) -> Mapping[str, Any]:
+    async def get_statistics(self, fs_name: str) -> Mapping[str, Any]:
         if self.auth_token is None:
             raise RuntimeError("The auth token for Purity API is not initialized.")
         items = []
         pagination_token = ""
         while True:
             async with self._session.get(
-                (self.endpoint
-                / "api"
-                / self.api_version
-                / "file-systems"
-                ),
+                (self.endpoint / "api" / self.api_version / "file-systems"),
                 headers={"x-auth-token": self.auth_token.get()},
                 params={
                     "names": fs_name,
                     "items_returned": 10,
-                    "token": pagination_token
+                    "token": pagination_token,
                 },
                 ssl=False,
                 raise_for_status=True,
@@ -149,6 +144,6 @@ class PurityClient:
             return {}
         first = items[0]
         return {
-            "total": data['total']['provisioned'],
-            "usage": first["space"]["total_physical"]
+            "total": data["total"]["provisioned"],
+            "usage": first["space"]["total_physical"],
         }

@@ -99,11 +99,7 @@ async def get_statistics(request: web.Request) -> web.Response:
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
             statistics = await volume.get_statistics()
-            return web.json_response(
-                {
-                    "statistics": attr.asdict(statistics)
-                }
-            )
+            return web.json_response({"statistics": attr.asdict(statistics)})
 
 
 async def create_vfolder(request: web.Request) -> web.Response:
