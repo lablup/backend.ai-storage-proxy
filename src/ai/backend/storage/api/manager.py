@@ -86,6 +86,26 @@ async def get_hwinfo(request: web.Request) -> web.Response:
             return web.json_response(data)
 
 
+async def get_statistics(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+            }
+        ), 
+    ) as params:
+        await log_manager_api_entry(log, "get_statistics", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            statistics = await volume.get_statistics()
+            return web.json_response(
+                {
+                    "statistics": attr.asdict(statistics)
+                }
+            )
+
+
 async def create_vfolder(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -505,6 +525,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/clone", clone_vfolder)
     app.router.add_route("GET", "/folder/mount", get_vfolder_mount)
     app.router.add_route("GET", "/volume/performance-metric", get_performance_metric)
+    app.router.add_route("GET", "/volume/statistics", get_statistics)
     app.router.add_route("GET", "/folder/metadata", get_metadata)
     app.router.add_route("POST", "/folder/metadata", set_metadata)
     app.router.add_route("GET", "/folder/usage", get_vfolder_usage)

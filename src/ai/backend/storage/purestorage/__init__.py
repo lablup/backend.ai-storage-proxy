@@ -11,7 +11,7 @@ from aiotools import aclosing
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_FAST_SCAN, CAP_METRIC, CAP_VFOLDER
-from ..types import DirEntry, DirEntryType, FSPerfMetric, Stat, VFolderUsage
+from ..types import DirEntry, DirEntryType, FSPerfMetric, FSUsage, Stat, VFolderUsage
 from ..utils import fstime2datetime
 from ..vfs import BaseVolume
 from .purity import PurityClient
@@ -69,6 +69,14 @@ class FlashBladeVolume(BaseVolume):
                 **metadata,
             },
         }
+
+    async def get_statistics(self) -> FSUsage:
+        async with self.purity_client as client:
+            statistics = await client.get_statistics(self.config["purity_fs_name"])
+        return FSUsage(
+                    capacity_bytes=statistics["total"],
+                    used_bytes=statistics["usage"]
+                )
 
     async def copy_tree(
         self,
