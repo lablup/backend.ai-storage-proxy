@@ -201,7 +201,6 @@ def main(cli_ctx, config_path, debug):
                     log.info("Using uvloop as the event loop backend")
                 aiotools.start_server(
                     server_main_logwrapper,
-                    use_threading=False,
                     num_workers=local_config["storage-proxy"]["num-proc"],
                     args=(local_config, log_endpoint),
                 )
