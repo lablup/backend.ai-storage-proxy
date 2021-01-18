@@ -93,7 +93,7 @@ async def get_statistics(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
             }
-        ), 
+        ),
     ) as params:
         await log_manager_api_entry(log, "get_statistics", params)
         ctx: Context = request.app["ctx"]

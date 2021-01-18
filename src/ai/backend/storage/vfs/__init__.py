@@ -157,6 +157,9 @@ class BaseVolume(AbstractVolume):
     async def get_performance_metric(self) -> FSPerfMetric:
         raise NotImplementedError
 
+    async def get_statistics(self) -> FSUsage:
+        raise NotImplementedError
+
     async def get_fs_usage(self) -> FSUsage:
         loop = asyncio.get_running_loop()
         stat = await loop.run_in_executor(None, os.statvfs, self.mount_path)
