@@ -46,10 +46,8 @@ class Context:
     @actxmgr
     async def get_volume(self, name: str) -> AsyncIterator[AbstractVolume]:
         try:
-            print(self.local_config)
             volume_config = self.local_config["volume"][name]
         except KeyError:
-            print(name)
             raise InvalidVolumeError(name)
         volume_cls: Type[AbstractVolume] = BACKENDS[volume_config["backend"]]
         volume_obj = volume_cls(
