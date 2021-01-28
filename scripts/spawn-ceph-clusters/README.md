@@ -50,3 +50,17 @@ On ceph-client machine it is already mounted on install.
 ```
 sudo ceph-fuse -n client.admin --keyring=/etc/ceph/ceph.client.admin.keyring  -m ceph-server-1 /mnt/vfroot/ceph-fuse/
 ```
+
+# Setting Quotas setup
+vagrant ssh ceps-admin
+ceph fs authorize test_fs client.foo / rwp
+
+Copy the key to the ceph-client at /etc/ceph/ceph.client.foo.keyring
+
+At the ceph-client: mount the ceps-fuse with created client account.
+```
+sudo ceph-fuse -n client.foo --keyring=/etc/ceph/ceph.client.foo.keyring  -m ceph-server-1 /mnt/vfroot/ceph-fuse/
+sudo mkdir /mnt/vfroot/ceph-fuse/test/
+sudo setfattr -n ceph.quota.max_bytes -v 100000000 /mnt/vfroot/ceph-fuse/test/
+getfattr -n ceph.quota.max_bytes /mnt/vfroot/ceph-fuse/test/
+```
