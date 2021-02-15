@@ -294,6 +294,7 @@ class BaseVolume(AbstractVolume):
         if not src_path.is_dir():
             raise InvalidAPIParameters(msg=f"source path {str(src_path)} is not a directory")
         dst_path = self.sanitize_vfpath(vfid, dst)
+        src_path = self.sanitize_vfpath(vfid, src)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None, lambda: shutil.move(str(src_path), str(dst_path))

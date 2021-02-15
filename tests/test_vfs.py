@@ -1,5 +1,5 @@
 import uuid
-from pathlib import PurePath
+from pathlib import Path, PurePath
 
 import pytest
 
@@ -85,3 +85,16 @@ async def test_vfs_clone(vfs):
     assert (vfpath2 / "inner" / "hello.txt").is_file()
     await vfs.delete_vfolder(vfid1)
     await vfs.delete_vfolder(vfid2)
+
+@pytest.mark.asyncio
+async def test_vfs_operation(vfs, empty_vfolder):
+    vfpath = vfs.mangle_vfpath(empty_vfolder)
+    (vfpath / "test0").mkdir()
+    (vfpath / "test0" / "test.txt").write_bytes(b"12345")
+    await vfs.move_file(empty_vfolder, Path("test0/test.txt"), Path("test1/test.txt"))
+    assert (vfpath / "test1" / "test.txt").is_file()
+    assert (vfpath / "test1" / "test.txt").read_bytes() == b"12345"
+    assert not (vfpath / "test0" / "test.txt").is_file()
+    await vfs.move_tree(empty_vfolder, Path("test1"), Path("test2"))
+    assert (vfpath / "test2").is_dir()
+    assert (vfpath / "test2" / "test.txt").read_bytes() == b"12345"

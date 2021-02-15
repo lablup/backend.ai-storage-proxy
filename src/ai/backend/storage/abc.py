@@ -59,7 +59,7 @@ class AbstractVolume(metaclass=ABCMeta):
     def sanitize_vfpath(self, vfid: UUID, relpath: Optional[PurePosixPath]) -> Path:
         if relpath is None:
             relpath = PurePosixPath(".")
-        vfpath = self.mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid).resolve()
         target_path = (vfpath / relpath).resolve()
         try:
             target_path.relative_to(vfpath)
