@@ -65,7 +65,7 @@ class CephFSVolume(BaseVolume):
         vfpath = self.mangle_vfpath(vfid)
         await run(f"sudo  mkdir -p {vfpath}")
         await run(f"sudo  chmod 777 -R {vfpath}")
-        self.set_quota(vfpath, 100000000)
+        await self.set_quota(vfpath, 100000000)
 
     async def get_fs_usage(self) -> FSUsage:
         stat = await run(f"df -h {self.mount_path} | grep {self.mount_path}")
@@ -83,9 +83,9 @@ class CephFSVolume(BaseVolume):
         report = await run(f"getfattr -n ceph.quota.max_bytes {vfpath}")
         if len(report.split()) != 6:
             raise ExecutionError("ceph quota report output is in unexpected format")
-        proj_name, _, _, quota, _, _ = report.split()
-        return quota
+        _, quota = report.split("=")
+        quota = quota.replace('"', '')
+        return int(quota)
 
     async def set_quota(self, vfpath, size_bytes) -> None:
-        print("quota set")
         await run(f"setfattr -n ceph.quota.max_bytes -v {int(size_bytes)} {vfpath}")
