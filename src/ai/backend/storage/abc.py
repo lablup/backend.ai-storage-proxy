@@ -64,7 +64,7 @@ class AbstractVolume(metaclass=ABCMeta):
         try:
             target_path.relative_to(vfpath)
         except ValueError:
-            raise PermissionError("cannot acess outside of the given vfolder")
+            raise PermissionError("cannot access outside of the given vfolder")
         return target_path
 
     # ------ volume operations -------
@@ -179,6 +179,12 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def move_file(
+        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def move_tree(
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
     ) -> None:
         pass
