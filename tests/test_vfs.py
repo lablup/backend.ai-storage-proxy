@@ -86,6 +86,7 @@ async def test_vfs_clone(vfs):
     await vfs.delete_vfolder(vfid1)
     await vfs.delete_vfolder(vfid2)
 
+
 @pytest.mark.asyncio
 async def test_vfs_operation(vfs, empty_vfolder):
     vfpath = vfs.mangle_vfpath(empty_vfolder)

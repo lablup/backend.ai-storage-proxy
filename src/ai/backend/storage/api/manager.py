@@ -378,15 +378,15 @@ async def rename_file(request: web.Request) -> web.Response:
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("new_name"): t.String(),
-                t.Key("is_dir"): t.ToBool
+                t.Key("is_dir"): t.ToBool,
             }
         ),
     ) as params:
         await log_manager_api_entry(log, "rename_file", params)
         ctx: Context = request.app["ctx"]
-        is_dir = params['is_dir']
+        is_dir = params["is_dir"]
         async with ctx.get_volume(params["volume"]) as volume:
-            if is_dir :
+            if is_dir:
                 await volume.move_tree(
                     params["vfid"],
                     params["relpath"],
