@@ -96,6 +96,20 @@ async def test_vfs_operation(vfs, empty_vfolder):
     assert (vfpath / "test1" / "test.txt").is_file()
     assert (vfpath / "test1" / "test.txt").read_bytes() == b"12345"
     assert not (vfpath / "test0" / "test.txt").is_file()
+
+    # rename directory from test1 to test2
     await vfs.move_tree(empty_vfolder, Path("test1"), Path("test2"))
     assert (vfpath / "test2").is_dir()
     assert (vfpath / "test2" / "test.txt").read_bytes() == b"12345"
+
+    # move directory into another directory that not exists
+    await vfs.move_tree(empty_vfolder, Path("test2"), Path("test0/inner/test2/test3"))
+    assert (vfpath / "test0" / "inner").is_dir()
+    assert (vfpath / "test0" / "inner" / "test2" / "test3").is_dir()
+    assert (
+        vfpath / "test0" / "inner" / "test2" / "test3" / "test.txt"
+    ).read_bytes() == b"12345"
+
+    # move directory into another directory that already exists
+    await vfs.move_tree(empty_vfolder, Path("test0/inner/test2/"), Path("test0/"))
+    assert (vfpath / "test0" / "test2" / "test3").is_dir()
