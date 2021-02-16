@@ -59,12 +59,12 @@ class AbstractVolume(metaclass=ABCMeta):
     def sanitize_vfpath(self, vfid: UUID, relpath: Optional[PurePosixPath]) -> Path:
         if relpath is None:
             relpath = PurePosixPath(".")
-        vfpath = self.mangle_vfpath(vfid)
+        vfpath = self.mangle_vfpath(vfid).resolve()
         target_path = (vfpath / relpath).resolve()
         try:
             target_path.relative_to(vfpath)
         except ValueError:
-            raise PermissionError("cannot acess outside of the given vfolder")
+            raise PermissionError("cannot access outside of the given vfolder")
         return target_path
 
     # ------ volume operations -------
@@ -179,6 +179,12 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def move_file(
+        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def move_tree(
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
     ) -> None:
         pass
