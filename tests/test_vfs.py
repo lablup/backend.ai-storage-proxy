@@ -113,3 +113,8 @@ async def test_vfs_operation(vfs, empty_vfolder):
     # move directory into another directory that already exists
     await vfs.move_tree(empty_vfolder, Path("test0/inner/test2/"), Path("test0/"))
     assert (vfpath / "test0" / "test2" / "test3").is_dir()
+
+    # do not let move directory to non-relative directory
+    with pytest.raises(Exception):
+        await vfs.move_tree(empty_vfolder, Path("test0"), Path("../"))
+        await vfs.move_tree(empty_vfolder, Path("/"), Path("./"))
