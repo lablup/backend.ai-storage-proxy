@@ -287,6 +287,21 @@ class BaseVolume(AbstractVolume):
         )
         await loop.run_in_executor(None, src_path.rename, dst_path)
 
+    async def move_tree(
+        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+    ) -> None:
+        src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_dir():
+            raise InvalidAPIParameters(
+                msg=f"source path {str(src_path)} is not a directory"
+            )
+        dst_path = self.sanitize_vfpath(vfid, dst)
+        src_path = self.sanitize_vfpath(vfid, src)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, lambda: shutil.move(str(src_path), str(dst_path))
+        )
+
     async def copy_file(
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
     ) -> None:
