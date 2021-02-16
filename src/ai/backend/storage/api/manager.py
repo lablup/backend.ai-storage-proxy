@@ -428,7 +428,7 @@ async def create_download_session(request: web.Request) -> web.Response:
             token_data,
             ctx.local_config["storage-proxy"]["secret"],
             algorithm="HS256",
-        ).decode("UTF-8")
+        )
         return web.json_response(
             {
                 "token": token,
@@ -466,7 +466,7 @@ async def create_upload_session(request: web.Request) -> web.Response:
             token_data,
             ctx.local_config["storage-proxy"]["secret"],
             algorithm="HS256",
-        ).decode("UTF-8")
+        )
         return web.json_response(
             {
                 "token": token,
