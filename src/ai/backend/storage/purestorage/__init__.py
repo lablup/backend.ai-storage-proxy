@@ -247,6 +247,7 @@ class FlashBladeVolume(BaseVolume):
         target_paths = [bytes(self.sanitize_vfpath(vfid, p)) for p in relpaths]
         proc = await asyncio.create_subprocess_exec(
             b"prm",
+            b"-r",
             *target_paths,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
