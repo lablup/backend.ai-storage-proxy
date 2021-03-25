@@ -6,10 +6,19 @@ from pathlib import Path, PurePosixPath
 from typing import AsyncIterator, FrozenSet, Sequence
 from uuid import UUID
 
-from ai.backend.common.types import BinarySize
+from aiotools import aclosing
+
+from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_FAST_SCAN, CAP_METRIC, CAP_VFOLDER
-from ..types import DirEntry, DirEntryType, FSPerfMetric, Stat, VFolderUsage
+from ..types import (
+    DirEntry,
+    DirEntryType,
+    FSPerfMetric,
+    FSUsage,
+    Stat,
+    VFolderUsage,
+)
 from ..utils import fstime2datetime
 from ..vfs import BaseVolume
 from .purity import PurityClient
@@ -57,6 +66,24 @@ class FlashBladeVolume(BaseVolume):
             ]
         )
 
+    async def get_hwinfo(self) -> HardwareMetadata:
+        async with self.purity_client as client:
+            metadata = await client.get_metadata()
+        return {
+            "status": "healthy",
+            "status_info": None,
+            "metadata": {
+                **metadata,
+            },
+        }
+
+    async def get_fs_usage(self) -> FSUsage:
+        async with self.purity_client as client:
+            usage = await client.get_usage(self.config["purity_fs_name"])
+        return FSUsage(
+            capacity_bytes=usage["capacity_bytes"], used_bytes=usage["used_bytes"]
+        )
+
     async def copy_tree(
         self,
         src_vfpath: Path,
@@ -83,19 +110,22 @@ class FlashBladeVolume(BaseVolume):
 
     async def get_performance_metric(self) -> FSPerfMetric:
         async with self.purity_client as client:
-            async for item in client.get_nfs_metric(self.config["purity_fs_name"]):
-                return FSPerfMetric(
-                    iops_read=item["reads_per_sec"],
-                    iops_write=item["writes_per_sec"],
-                    io_bytes_read=item["read_bytes_per_sec"],
-                    io_bytes_write=item["write_bytes_per_sec"],
-                    io_usec_read=item["usec_per_read_op"],
-                    io_usec_write=item["usec_per_write_op"],
-                )
-            else:
-                raise RuntimeError(
-                    "no metric found for the configured flashblade filesystem"
-                )
+            async with aclosing(
+                client.get_nfs_metric(self.config["purity_fs_name"])
+            ) as items:
+                async for item in items:
+                    return FSPerfMetric(
+                        iops_read=item["reads_per_sec"],
+                        iops_write=item["writes_per_sec"],
+                        io_bytes_read=item["read_bytes_per_sec"],
+                        io_bytes_write=item["write_bytes_per_sec"],
+                        io_usec_read=item["usec_per_read_op"],
+                        io_usec_write=item["usec_per_write_op"],
+                    )
+                else:
+                    raise RuntimeError(
+                        "no metric found for the configured flashblade filesystem"
+                    )
 
     async def get_usage(
         self, vfid: UUID, relpath: PurePosixPath = None
@@ -218,6 +248,7 @@ class FlashBladeVolume(BaseVolume):
         target_paths = [bytes(self.sanitize_vfpath(vfid, p)) for p in relpaths]
         proc = await asyncio.create_subprocess_exec(
             b"prm",
+            b"-r",
             *target_paths,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
