@@ -207,7 +207,7 @@ class BaseVolume(AbstractVolume):
             try:
                 with os.scandir(target_path) as scanner:
                     for entry in scanner:
-                        symlink_target = ''
+                        symlink_target = ""
                         entry_type = DirEntryType.FILE
                         if entry.is_dir():
                             entry_type = DirEntryType.DIRECTORY

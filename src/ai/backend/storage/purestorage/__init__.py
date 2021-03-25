@@ -218,7 +218,7 @@ class FlashBladeVolume(BaseVolume):
                             modified=fstime2datetime(item["mtime"]),
                             created=fstime2datetime(item["ctime"]),
                         ),
-                        symlink_target='',  # TODO: should be tested on PureStorage
+                        symlink_target="",  # TODO: should be tested on PureStorage
                     )
             finally:
                 await proc.wait()
