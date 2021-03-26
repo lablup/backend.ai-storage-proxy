@@ -15,20 +15,15 @@ eval "$(pyenv virtualenv-init -)"
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile
 echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile
 echo 'eval "$(pyenv init -)"' >> ~/.profile
-echo "1======"
+
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 echo 'eval "$(pyenv init -)"' >> ~/.bashrc
-echo "2======"
 
 sudo git clone https://github.com/pyenv/pyenv-virtualenv.git "$HOME/.pyenv/plugins/pyenv-virtualenv"
 echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.profile
 echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashers
 sudo chmod 777 -R .pyenv/
-echo "3======"
-
-
-echo "4======"
 
 pyenv install 3.8.6
 pyenv virtualenv 3.8.6 storage-proxy
