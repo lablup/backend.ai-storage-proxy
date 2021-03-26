@@ -48,6 +48,44 @@ class PurityClient:
     async def __aexit__(self, *exc_info) -> None:
         self.auth_token.reset(self._auth_token_cvtoken)
 
+    # For the concrete API reference, check out:
+    # https://purity-fb.readthedocs.io/en/latest/
+
+    async def get_metadata(self) -> Mapping[str, Any]:
+        if self.auth_token is None:
+            raise RuntimeError("The auth token for Purity API is not initialized.")
+        items = []
+        pagination_token = ""
+        while True:
+            async with self._session.get(
+                (self.endpoint / "api" / self.api_version / "arrays"),
+                headers={"x-auth-token": self.auth_token.get()},
+                params={
+                    "items_returned": 10,
+                    "token": pagination_token,
+                },
+                ssl=False,
+                raise_for_status=True,
+            ) as resp:
+                data = await resp.json()
+                for item in data["items"]:
+                    items.append(item)
+                pagination_token = data["pagination_info"]["continuation_token"]
+                if pagination_token is None:
+                    break
+        if not items:
+            return {}
+        first = items[0]
+        return {
+            "id": first["id"],
+            "name": first["name"],
+            "os": first["os"],
+            "revision": first["revision"],
+            "version": first["version"],
+            "blade_count": str(len(items)),
+            "console_url": str(self.endpoint),
+        }
+
     async def get_nfs_metric(
         self, fs_name: str
     ) -> AsyncGenerator[Mapping[str, Any], None]:
@@ -79,3 +117,34 @@ class PurityClient:
                 pagination_token = data["pagination_info"]["continuation_token"]
                 if pagination_token is None:
                     break
+
+    async def get_usage(self, fs_name: str) -> Mapping[str, Any]:
+        if self.auth_token is None:
+            raise RuntimeError("The auth token for Purity API is not initialized.")
+        items = []
+        pagination_token = ""
+        while True:
+            async with self._session.get(
+                (self.endpoint / "api" / self.api_version / "file-systems"),
+                headers={"x-auth-token": self.auth_token.get()},
+                params={
+                    "names": fs_name,
+                    "items_returned": 10,
+                    "token": pagination_token,
+                },
+                ssl=False,
+                raise_for_status=True,
+            ) as resp:
+                data = await resp.json()
+                for item in data["items"]:
+                    items.append(item)
+                pagination_token = data["pagination_info"]["continuation_token"]
+                if pagination_token is None:
+                    break
+        if not items:
+            return {}
+        first = items[0]
+        return {
+            "capacity_bytes": data["total"]["provisioned"],
+            "used_bytes": first["space"]["total_physical"],
+        }
