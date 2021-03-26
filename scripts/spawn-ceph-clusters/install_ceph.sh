@@ -25,11 +25,8 @@ ssh ceph-server-3 sudo chmod +r /etc/ceph/ceph.client.admin.keyring
 ssh ceph-client   sudo chmod +r /etc/ceph/ceph.client.admin.keyring
 echo "3.===== deployed"
 ceph-deploy mgr create ceph-admin:mon_mgr
-
 ceph-deploy mds create ceph-server-1
-
 ceph osd pool create rbd 150 150
-
 
 # Creates pool for metadata
 ceph osd pool create cephfs_metadata 30 30
@@ -37,10 +34,7 @@ ceph osd pool create cephfs_metadata 30 30
 ceph osd pool create cephfs 30 30
 # Creates Filesystem
 ceph fs new test_fs cephfs_metadata cephfs
-
-
 sudo apt-get -y install ceph-fuse
-
 ceph fs authorize test_fs client.foo / rwp
 echo "Done"
 exit
