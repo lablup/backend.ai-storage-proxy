@@ -13,7 +13,7 @@ from uuid import UUID
 import janus
 
 from ai.backend.common.logging import BraceStyleAdapter
-from ai.backend.common.types import BinarySize
+from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_VFOLDER, AbstractVolume
 from ..exception import (
@@ -53,6 +53,13 @@ class BaseVolume(AbstractVolume):
 
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER])
+
+    async def get_hwinfo(self) -> HardwareMetadata:
+        return {
+            "status": "healthy",
+            "status_info": None,
+            "metadata": {},
+        }
 
     async def create_vfolder(
         self, vfid: UUID, options: VFolderCreationOptions = None
@@ -200,23 +207,27 @@ class BaseVolume(AbstractVolume):
             try:
                 with os.scandir(target_path) as scanner:
                     for entry in scanner:
+                        symlink_target = ""
                         entry_type = DirEntryType.FILE
                         if entry.is_dir():
                             entry_type = DirEntryType.DIRECTORY
                         if entry.is_symlink():
                             entry_type = DirEntryType.SYMLINK
+                            symlink_target = str(Path(entry).resolve())
+                        entry_stat = entry.stat(follow_symlinks=False)
                         q.put(
                             DirEntry(
                                 name=entry.name,
                                 path=Path(entry.path),
                                 type=entry_type,
                                 stat=Stat(
-                                    size=entry.stat().st_size,
-                                    owner=str(entry.stat().st_uid),
-                                    mode=entry.stat().st_mode,
-                                    modified=fstime2datetime(entry.stat().st_mtime),
-                                    created=fstime2datetime(entry.stat().st_ctime),
+                                    size=entry_stat.st_size,
+                                    owner=str(entry_stat.st_uid),
+                                    mode=entry_stat.st_mode,
+                                    modified=fstime2datetime(entry_stat.st_mtime),
+                                    created=fstime2datetime(entry_stat.st_ctime),
                                 ),
+                                symlink_target=symlink_target,
                             )
                         )
                         count += 1
@@ -279,6 +290,21 @@ class BaseVolume(AbstractVolume):
             None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
         )
         await loop.run_in_executor(None, src_path.rename, dst_path)
+
+    async def move_tree(
+        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+    ) -> None:
+        src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_dir():
+            raise InvalidAPIParameters(
+                msg=f"source path {str(src_path)} is not a directory"
+            )
+        dst_path = self.sanitize_vfpath(vfid, dst)
+        src_path = self.sanitize_vfpath(vfid, src)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, lambda: shutil.move(str(src_path), str(dst_path))
+        )
 
     async def copy_file(
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath

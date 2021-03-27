@@ -32,7 +32,7 @@ async def check_params(
     auth_required: bool = True,
 ) -> Any:
     if checker is None:
-        if request.has_body:
+        if request.can_read_body:
             raise web.HTTPBadRequest(
                 text=json.dumps(
                     {

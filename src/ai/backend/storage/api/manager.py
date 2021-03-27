@@ -70,6 +70,22 @@ async def get_volumes(request: web.Request) -> web.Response:
         )
 
 
+async def get_hwinfo(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "get_hwinfo", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            data = await volume.get_hwinfo()
+            return web.json_response(data)
+
+
 async def create_vfolder(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -340,6 +356,7 @@ async def list_files(request: web.Request) -> web.Response:
                         "created": item.stat.created.isoformat(),
                         "modified": item.stat.modified.isoformat(),
                     },
+                    "symlink_target": item.symlink_target,
                 }
                 async for item in volume.scandir(
                     params["vfid"],
@@ -362,17 +379,26 @@ async def rename_file(request: web.Request) -> web.Response:
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("new_name"): t.String(),
+                t.Key("is_dir"): t.ToBool,
             }
         ),
     ) as params:
         await log_manager_api_entry(log, "rename_file", params)
         ctx: Context = request.app["ctx"]
+        is_dir = params["is_dir"]
         async with ctx.get_volume(params["volume"]) as volume:
-            await volume.move_file(
-                params["vfid"],
-                params["relpath"],
-                params["relpath"].with_name(params["new_name"]),
-            )
+            if is_dir:
+                await volume.move_tree(
+                    params["vfid"],
+                    params["relpath"],
+                    params["relpath"].with_name(params["new_name"]),
+                )
+            else:
+                await volume.move_file(
+                    params["vfid"],
+                    params["relpath"],
+                    params["relpath"].with_name(params["new_name"]),
+                )
         return web.Response(status=204)
 
 
@@ -403,7 +429,7 @@ async def create_download_session(request: web.Request) -> web.Response:
             token_data,
             ctx.local_config["storage-proxy"]["secret"],
             algorithm="HS256",
-        ).decode("UTF-8")
+        )
         return web.json_response(
             {
                 "token": token,
@@ -441,7 +467,7 @@ async def create_upload_session(request: web.Request) -> web.Response:
             token_data,
             ctx.local_config["storage-proxy"]["secret"],
             algorithm="HS256",
-        ).decode("UTF-8")
+        )
         return web.json_response(
             {
                 "token": token,
@@ -483,6 +509,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app["ctx"] = ctx
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
+    app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)
     app.router.add_route("POST", "/folder/create", create_vfolder)
     app.router.add_route("POST", "/folder/delete", delete_vfolder)
     app.router.add_route("POST", "/folder/clone", clone_vfolder)
