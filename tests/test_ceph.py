@@ -4,7 +4,7 @@ from pathlib import PurePath
 import pytest
 
 from ai.backend.storage.vfs import BaseVolume
-from ai.backend.storage.cephfs import CephFSVolume
+# from ai.backend.storage.cephfs import CephFSVolume
 
 
 @pytest.fixture
@@ -15,6 +15,7 @@ async def vfs(local_volume):
         yield vfs
     finally:
         await vfs.shutdown()
+
 
 @pytest.fixture
 async def empty_vfolder(vfs):
