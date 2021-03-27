@@ -84,7 +84,7 @@ class CephFSVolume(BaseVolume):
         if len(report.split()) != 6:
             raise ExecutionError("ceph quota report output is in unexpected format")
         _, quota = report.split("=")
-        quota = quota.replace('"', '')
+        quota = quota.replace('"', "")
         return int(quota)
 
     async def set_quota(self, vfpath, size_bytes) -> None:
