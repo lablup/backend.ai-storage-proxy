@@ -65,7 +65,13 @@ class CephFSVolume(BaseVolume):
         vfpath = self.mangle_vfpath(vfid)
         await run(f"sudo  mkdir -p {vfpath}")
         await run(f"sudo  chmod 777 -R {vfpath}")
-        await self.set_quota(vfpath, 100000000)
+        
+        if options is None or options.quota is None:  # max quota i.e. the whole fs size
+            fs_usage = await self.get_fs_usage()
+            quota = fs_usage.capacity_bytes
+        else:
+            quota = options.quota
+        await self.set_quota(vfpath, quota)
 
     async def get_fs_usage(self) -> FSUsage:
         stat = await run(f"df -h {self.mount_path} | grep {self.mount_path}")
