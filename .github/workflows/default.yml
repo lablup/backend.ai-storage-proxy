@@ -45,8 +45,6 @@ jobs:
           echo "::add-matcher::.github/workflows/black-matcher.json"
         fi
         python -m black --check src/ai/backend tests
-
-
   lint-flake8:
 
     runs-on: ubuntu-latest
@@ -89,8 +87,6 @@ jobs:
           echo "::add-matcher::.github/workflows/flake8-matcher.json"
         fi
         python -m flake8 src/ai/backend tests
-
-
   lint-isort:
 
     runs-on: ubuntu-latest
@@ -133,8 +129,6 @@ jobs:
           echo "::add-matcher::.github/workflows/isort-matcher.json"
         fi
         python -m isort --check-only src/ai/backend tests
-
-
   typecheck-mypy:
 
     runs-on: ubuntu-latest
@@ -177,7 +171,6 @@ jobs:
           echo "::add-matcher::.github/workflows/mypy-matcher.json"
         fi
         python -m mypy --no-color-output src/ai/backend tests
-
   deploy-to-pypi:
     needs: [lint-black, lint-flake8, lint-isort, typecheck-mypy]
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
