@@ -138,3 +138,4 @@ dmypy.json
 # local config
 storage-proxy.toml
 storage-proxy.pid
+.DS_Store
