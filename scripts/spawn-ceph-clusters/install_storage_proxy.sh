@@ -6,7 +6,6 @@ sudo apt install -y python3.8
 
 sudo apt-get install -y build-essential git-core libreadline-dev libsqlite3-dev libssl-dev libbz2-dev tk-dev libzmq3-dev libsnappy-dev libffi-dev
 
-curl https://pyenv.run | bash
 curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 exec $SHELL
 eval "$(pyenv init -)"
