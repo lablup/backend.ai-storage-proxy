@@ -3,7 +3,7 @@ sudo chmod 755 /
 echo "StrictHostKeyChecking no" >> .ssh/config
 mkdir test-cluster && cd test-cluster/
 
-ssh-keyscan 172.21.12.10 172.21.12.11 172.21.12.12 172.21.12.13
+ssh-keyscan 172.21.12.10 172.21.12.11 172.21.12.12 172.21.12.13 172.21.12.14
 ssh-keyscan ceph-server-1 ceph-server-2 ceph-server-3 ceph-server-client
 yes | ceph-deploy new ceph-server-1 ceph-server-2 ceph-server-3
 
