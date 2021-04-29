@@ -22,7 +22,7 @@ echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 
 sudo git clone https://github.com/pyenv/pyenv-virtualenv.git "$HOME/.pyenv/plugins/pyenv-virtualenv"
 echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.profile
-echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashers
+echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrs
 sudo chmod 777 -R .pyenv/
 
 pyenv install 3.8.6
