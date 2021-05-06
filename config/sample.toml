@@ -22,7 +22,7 @@ scandir-limit = 1000
 max-upload-size = "100g"
 
 # Used to generate JWT tokens for download/upload sessions
-secret = "0000000000000000000000000000000000000000000"
+secret = "some-secret-private-for-storage-proxy"
 
 # The download/upload session tokens are valid for:
 session-expire = "1d"
@@ -50,7 +50,7 @@ ssl-cert = "config/ssl/manager-api-selfsigned.cert.pem"
 ssl-privkey = "config/ssl/manager-api-selfsigned.key.pem"
 
 # Used to authenticate managers
-secret = "0000000000000000000000000000000000000000000"
+secret = "some-secret-shared-with-manager"
 
 
 [debug]
