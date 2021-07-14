@@ -59,6 +59,15 @@ upload_token_data_iv = t.Dict(
 )  # allow JWT-intrinsic keys
 
 
+async def get_status(request: web.Request) -> web.Response:
+    async with check_params(request, None) as params:
+        return web.json_response(
+            {
+                "status": "ok",
+            }
+        )
+
+
 async def download(request: web.Request) -> web.StreamResponse:
     ctx: Context = request.app["ctx"]
     secret = ctx.local_config["storage-proxy"]["secret"]
@@ -327,6 +336,7 @@ async def prepare_tus_session_headers(
 async def init_client_app(ctx: Context) -> web.Application:
     app = web.Application()
     app["ctx"] = ctx
+    app.router.add_route("GET", "/", get_status)
     cors_options = {
         "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True,
