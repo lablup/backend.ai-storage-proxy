@@ -60,12 +60,7 @@ upload_token_data_iv = t.Dict(
 
 
 async def get_status(request: web.Request) -> web.Response:
-    async with check_params(request, None) as params:
-        return web.json_response(
-            {
-                "status": "ok",
-            }
-        )
+    return web.json_response({"status": "ok"})
 
 
 async def download(request: web.Request) -> web.StreamResponse:
