@@ -36,6 +36,15 @@ local_config_iv = (
                     ),
                 }
             ),
+            t.Key("filebrowser"): t.Dict(
+                {
+                    t.Key("image"): t.String,
+                    t.Key("service-ip"): t.IP,
+                    t.Key("max-cpu", default=1): t.Int[1:_max_cpu_count],
+                    t.Key("max-mem", default="1g"): tx.BinarySize,
+                    t.Key("max-containers", default=32): t.Int[1:],
+                }
+            ),
             t.Key("logging"): logging_config_iv,
             t.Key("api"): t.Dict(
                 {

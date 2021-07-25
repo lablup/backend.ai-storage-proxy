@@ -34,6 +34,22 @@ session-expire = "1d"
 # user = 1000
 # group = 1000
 
+[filebrowser]
+# A locally available container image to run as filebrowser containers
+image = "cr.backend.ai/stable/filebrowser:1"
+
+# The IP address to expose the filebrowser ports
+service-ip = "0.0.0.0"
+
+# The maxium number of CPU cores available to each filebrowser container
+max-cpu = 1
+
+# The maximum size of memory available to each filebrowser container
+max-mem = "1g"
+
+# The maximum limit of the number of filebrowser containers
+max-containers = 32
+
 
 [api.client]
 # Client-facing API
