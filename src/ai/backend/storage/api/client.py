@@ -17,8 +17,8 @@ import zipstream
 from aiohttp import hdrs, web
 
 from ai.backend.common import validators as tx
-from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.files import AsyncFileWriter
+from ai.backend.common.logging import BraceStyleAdapter
 
 from ..abc import AbstractVolume
 from ..context import Context
