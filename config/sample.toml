@@ -50,6 +50,10 @@ max-mem = "1g"
 # The maximum limit of the number of filebrowser containers
 max-containers = 32
 
+# The user/group to be used by the filebrowser container
+# user = 1000
+# group = 1000
+
 
 [api.client]
 # Client-facing API
