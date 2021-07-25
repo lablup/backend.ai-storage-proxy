@@ -500,6 +500,46 @@ async def delete_files(request: web.Request) -> web.Response:
         )
 
 
+async def create_filebrowser(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("vfolders"): t.List(t.String()),  # list of <volume>:<vfid>
+                t.Key("auth_token"): t.String,
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "create_filebrowser", params)
+        ctx: Context = request.app["ctx"]
+        # TODO: implement
+        return web.json_response(
+            {
+                "addr": "<config[filebrowser.service-ip]>:<mapped-port>",
+                "status": "ok",
+            }
+        )
+
+
+async def destroy_filebrowser(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("auth_token"): t.String,
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "destroy_filebrowser", params)
+        ctx: Context = request.app["ctx"]
+        # TODO: implement
+        return web.json_response(
+            {
+                "status": "ok",
+            }
+        )
+
+
 async def init_manager_app(ctx: Context) -> web.Application:
     app = web.Application(
         middlewares=[
@@ -526,4 +566,6 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/download", create_download_session)
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
+    app.router.add_route("POST", "/browser", create_filebrowser)
+    app.router.add_route("DELETE", "/browser", destroy_filebrowser)
     return app
