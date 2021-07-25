@@ -36,7 +36,7 @@ session-expire = "1d"
 
 [filebrowser]
 # A locally available container image to run as filebrowser containers
-image = "cr.backend.ai/stable/filebrowser:1"
+image = "cr.backend.ai/stable/filebrowser:21.02-ubuntu20.04"
 
 # The IP address to expose the filebrowser ports
 service-ip = "0.0.0.0"
