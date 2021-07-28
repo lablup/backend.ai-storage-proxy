@@ -8,17 +8,17 @@ from ai.backend.common.etcd import AsyncEtcd
 
 from .abc import AbstractVolume
 from .exception import InvalidVolumeError
+from .netapp import NetAppVolume
 from .purestorage import FlashBladeVolume
 from .types import VolumeInfo
 from .vfs import BaseVolume
 from .xfs import XfsVolume
-from .netapp import NetAppVolume
 
 BACKENDS: Mapping[str, Type[AbstractVolume]] = {
     "purestorage": FlashBladeVolume,
     "vfs": BaseVolume,
     "xfs": XfsVolume,
-    "netapp": NetAppVolume
+    "netapp": NetAppVolume,
 }
 
 
