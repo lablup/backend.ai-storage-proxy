@@ -5,6 +5,7 @@ import asyncio
 from ..exception import ExecutionError
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
+from .quotamanager import QuotaManager
 
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
@@ -64,3 +65,6 @@ class NetAppVolume(BaseVolume):
             self.config["netapp_admin"],
             self.config["netapp_password"],
         )
+
+    async def get_quota():
+        return QuotaManager().list_quota()
