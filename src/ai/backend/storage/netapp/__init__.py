@@ -6,7 +6,7 @@ from ..exception import ExecutionError
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
-
+from yarl import URL
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
     def _read():
@@ -37,7 +37,15 @@ async def run(cmd: str) -> str:
 
 
 class NetAppVolume(BaseVolume):
+
+    endpoint: URL
+    netapp_admin: str
+    netapp_passowrd: str
+
     async def init(self) -> None:
+        self.endpoint = URL(self.config["netapp_endpoint"]),
+        self.netapp_admin = str(self.config["netapp_admin"]),
+        self.netapp_password = str(self.config["netapp_password"]),
 
         available = True
         try:
@@ -66,5 +74,11 @@ class NetAppVolume(BaseVolume):
             self.config["netapp_password"],
         )
 
-    async def get_quota():
-        return QuotaManager().list_quota()
+        self.quotaManager = QuotaManager(endpoint=self.config["netapp_endpoint"], user=self.config["netapp_admin"],
+                                         password=self.config["netapp_password"])
+        return 1
+
+    async def get_quota(self):
+        quota_rule = await self.quotaManager.show_quotarule()
+        print(quota_rule)
+        return quota_rule
