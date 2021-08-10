@@ -11,14 +11,12 @@ class QuotaManager:
     user: str
     password: str
     _session: aiohttp.ClientSession
-    volume_op: str
 
-    def __init__(self, endpoint: str, user: str, password: str, volume_op: str) -> None:
+    def __init__(self, endpoint: str, user: str, password: str) -> None:
         self.endpoint = URL(endpoint)
         self.user = user
         self.password = password
         self._session = aiohttp.ClientSession()
-        self.volume_op = volume_op
 
     async def aclose(self) -> None:
         await self._session.close()

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 
+from yarl import URL
+
 from ..exception import ExecutionError
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
-from yarl import URL
+
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
     def _read():
@@ -40,12 +42,14 @@ class NetAppVolume(BaseVolume):
 
     endpoint: URL
     netapp_admin: str
-    netapp_passowrd: str
+    netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = URL(self.config["netapp_endpoint"]),
-        self.netapp_admin = str(self.config["netapp_admin"]),
-        self.netapp_password = str(self.config["netapp_password"]),
+        self.endpoint = (URL(self.config["netapp_endpoint"]),)
+        self.netapp_admin = (str(self.config["netapp_admin"]),)
+        self.netapp_password = (str(self.config["netapp_password"]),)
+        self.netapp_svm = (str(self.config["netapp_svm"]),)
+        self.netapp_volume_name = str(self.config["netapp_volume_name"])
 
         available = True
         try:
@@ -68,17 +72,26 @@ class NetAppVolume(BaseVolume):
         if not available:
             raise RuntimeError("NetApp volume is not available or not mounted.")
 
-        self.netappclient_client = NetAppClient(
-            self.config["netapp_endpoint"],
-            self.config["netapp_admin"],
-            self.config["netapp_password"],
+        self.netappclient = NetAppClient(
+            str(self.endpoint),
+            self.netapp_admin,
+            self.netapp_password,
+            str(self.netapp_svm),
+            self.netapp_volume_name,
         )
 
-        self.quotaManager = QuotaManager(endpoint=self.config["netapp_endpoint"], user=self.config["netapp_admin"],
-                                         password=self.config["netapp_password"])
-        return 1
+        self.quotaManager = QuotaManager(
+            endpoint=str(self.endpoint),
+            user=self.netapp_admin,
+            password=self.netapp_password,
+        )
 
     async def get_quota(self):
         quota_rule = await self.quotaManager.show_quotarule()
-        print(quota_rule)
         return quota_rule
+
+    async def create_qtree(self, name: str) -> None:
+        resp = await self.netappclient.create_qtree(name)
+
+        if "errot" in resp:
+            raise ExecutionError("qtree creation was not succesfull")
