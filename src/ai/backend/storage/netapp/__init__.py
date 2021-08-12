@@ -87,12 +87,6 @@ class NetAppVolume(BaseVolume):
             volume_name=self.netapp_volume_name,
         )
 
-    async def create_qtree(self, name: str) -> None:
-        resp = await self.netappclient.create_qtree(name)
-
-        if "error" in resp:
-            raise ExecutionError("qtree creation was not succesfull")
-
     async def get_list_volumes(self):
         resp = await self.netappclient.get_list_volumes()
 
@@ -141,6 +135,13 @@ class NetAppVolume(BaseVolume):
 
         if "error" in resp:
             raise ExecutionError("api error")
+        return resp
+
+    async def create_qtree(self, name: str):
+        resp = await self.netappclient.create_qtree(name)
+
+        if "error" in resp:
+            raise ExecutionError("qtree creation was not succesfull")
         return resp
 
     async def update_qtree(
