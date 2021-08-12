@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import asyncio
 
-from yarl import URL
-
 from ..exception import ExecutionError
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
@@ -40,18 +38,19 @@ async def run(cmd: str) -> str:
 
 class NetAppVolume(BaseVolume):
 
-    endpoint: URL
+    endpoint: str
     netapp_admin: str
     netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = (URL(self.config["netapp_endpoint"]),)
-        self.netapp_admin = (str(self.config["netapp_admin"]),)
-        self.netapp_password = (str(self.config["netapp_password"]),)
-        self.netapp_svm = (str(self.config["netapp_svm"]),)
-        self.netapp_volume_name = str(self.config["netapp_volume_name"])
+        self.endpoint = str(self.config["netapp_endpoint"]),
+        self.netapp_admin = str(self.config["netapp_admin"]),
+        self.netapp_password = str(self.config["netapp_password"]),
+        self.netapp_svm = self.config["netapp_svm"],
+        self.netapp_volume_name = self.config["netapp_volume_name"]
 
         available = True
+
         try:
             proc = await asyncio.create_subprocess_exec(
                 b"nfsstat",
@@ -84,6 +83,8 @@ class NetAppVolume(BaseVolume):
             endpoint=str(self.endpoint),
             user=self.netapp_admin,
             password=self.netapp_password,
+            svm=str(self.netapp_svm),
+            volume_name=self.netapp_volume_name,
         )
 
     async def get_quota(self):
@@ -93,5 +94,19 @@ class NetAppVolume(BaseVolume):
     async def create_qtree(self, name: str) -> None:
         resp = await self.netappclient.create_qtree(name)
 
-        if "errot" in resp:
+        if "error" in resp:
             raise ExecutionError("qtree creation was not succesfull")
+
+    async def create_qtree_quota(
+                                 self,
+                                 qtree_name: str,
+                                 spahali: int,
+                                 spasoli: int,
+                                 fihali: int,
+                                 fisoli: int) -> None:
+
+        resp = await self.quotaManager.create_quotarule_qtree(qtree_name, spahali,
+                                                              spasoli, fihali, fisoli)
+
+        if "error" in resp:
+            raise ExecutionError("Quota setting was not succesfull")
