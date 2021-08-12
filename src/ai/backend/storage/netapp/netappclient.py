@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any, AsyncGenerator, Mapping
 
@@ -134,6 +133,7 @@ class NetAppClient:
         ) as resp:
             await resp.json()
             await self._session.close()
+        return resp
 
     async def update_qtree(
         self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
@@ -164,9 +164,7 @@ class NetAppClient:
             await self._session.close()
         return tmp
 
-    async def delete_qtree(
-        self, qtree_id, security_style, unix_permission, export_policy_name
-    ):
+    async def delete_qtree(self, qtree_id):
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.delete(
@@ -181,12 +179,13 @@ class NetAppClient:
         ) as resp:
             await resp.json()
             await self._session.close()
+        return resp
 
-    async def get_qtree_info(self):
+    async def get_qtree_info(self, qtree_id):
         async with self._session.get(
             (
                 self.endpoint
-                / "/api/storage/qtrees/{}/{}".format(self.volume_uuid, self.qtree_id)
+                / "/api/storage/qtrees/{}/{}".format(self.volume_uuid, qtree_id)
             ),
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
@@ -195,25 +194,3 @@ class NetAppClient:
             data = await resp.json()
             await self._session.close()
         return data
-
-
-async def main():
-    async def call():
-
-        # client = NetAppClient("https://172.32.15.101",  "admin",  "Netapp1!", "svm", "nfs_vol_01")
-        # data = await client.get_volume_metrics('a2654a41-e326-11eb-b3c9-d039ea172067')
-        # print(data)
-        client = NetAppClient(
-            "https://172.32.15.101", "admin", "Netapp1!", "svm", "nfs_vol_01"
-        )
-        res = await client.create_qtree("sergey2")
-        print(res)
-
-    await call()
-
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
-
-# curl   -u admin:Netapp1! https://172.32.15.101/api/storage/volumes/a2654a41-e326-11eb-b3c9-d039ea172067 --insecure

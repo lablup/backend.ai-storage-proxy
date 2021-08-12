@@ -43,10 +43,10 @@ class NetAppVolume(BaseVolume):
     netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = str(self.config["netapp_endpoint"]),
-        self.netapp_admin = str(self.config["netapp_admin"]),
-        self.netapp_password = str(self.config["netapp_password"]),
-        self.netapp_svm = self.config["netapp_svm"],
+        self.endpoint = (str(self.config["netapp_endpoint"]),)
+        self.netapp_admin = (str(self.config["netapp_admin"]),)
+        self.netapp_password = (str(self.config["netapp_password"]),)
+        self.netapp_svm = (self.config["netapp_svm"],)
         self.netapp_volume_name = self.config["netapp_volume_name"]
 
         available = True
@@ -87,26 +87,151 @@ class NetAppVolume(BaseVolume):
             volume_name=self.netapp_volume_name,
         )
 
-    async def get_quota(self):
-        quota_rule = await self.quotaManager.show_quotarule()
-        return quota_rule
-
     async def create_qtree(self, name: str) -> None:
         resp = await self.netappclient.create_qtree(name)
 
         if "error" in resp:
             raise ExecutionError("qtree creation was not succesfull")
 
-    async def create_qtree_quota(
-                                 self,
-                                 qtree_name: str,
-                                 spahali: int,
-                                 spasoli: int,
-                                 fihali: int,
-                                 fisoli: int) -> None:
-
-        resp = await self.quotaManager.create_quotarule_qtree(qtree_name, spahali,
-                                                              spasoli, fihali, fisoli)
+    async def get_list_volumes(self):
+        resp = await self.netappclient.get_list_volumes()
 
         if "error" in resp:
-            raise ExecutionError("Quota setting was not succesfull")
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_volume_uuid_by_name(self):
+        resp = await self.netappclient.get_volume_uuid_by_name(self.netapp_volume_name)
+        self.volume_uuid = resp["uuid"]
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_volume_info(self, volume_uuid):
+        resp = await self.netappclient.get_volume_info(volume_uuid)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_qtree_info(self, qtree_id):
+        resp = await self.netappclient.get_qtree_info(qtree_id)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_qtree_name_by_id(self, qtree_id):
+        resp = await self.netappclient.get_volume_info(qtree_id)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_qtree_id_by_name(self, qtree_name):
+        resp = await self.netappclient.get_volume_info(qtree_name)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_qtree_path(self, qtree_id):
+        resp = await self.netappclient.get_qtree_path(self, qtree_id)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def update_qtree(
+        self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
+    ):
+        resp = await self.netappclient.update_qtree(
+            self,
+            qtree_id,
+            qtree_name,
+            security_style,
+            unix_permission,
+            export_policy_name,
+        )
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def delete_qtree(self, qtree_id):
+        resp = await self.netappclient.delete_qtree(self, qtree_id)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def list_quotarules(self):
+        resp = await self.quotaManager.list_quotarules()
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def list_all_qtrees_with_quotas(self):
+        resp = await self.quotaManager.list_all_qtrees_with_quotas(self)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def get_quota(self, rule_uuid):
+        resp = await self.quotaManager.get_quota(self, rule_uuid)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def create_quotarule_qtree(
+        self,
+        qtree_name,
+        space_hard_limit,
+        space_soft_limit,
+        files_hard_limit,
+        files_soft_limit,
+    ):
+        resp = await self.quotaManager.create_quotarule_qtree(
+            self,
+            qtree_name,
+            space_hard_limit,
+            space_soft_limit,
+            files_hard_limit,
+            files_soft_limit,
+        )
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def update_quotarule_qtree(
+        self,
+        qtree_name,
+        space_hard_limit,
+        space_soft_limit,
+        files_hard_limit,
+        files_soft_limit,
+    ):
+        resp = await self.quotaManager.update_quotarule_qtree(
+            self,
+            qtree_name,
+            space_hard_limit,
+            space_soft_limit,
+            files_hard_limit,
+            files_soft_limit,
+        )
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def delete_quotarule_qtree(self, rule_uuid):
+        resp = await self.quotaManager.update_quotarule_qtree(rule_uuid)
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
