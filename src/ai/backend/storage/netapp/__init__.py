@@ -49,27 +49,23 @@ class NetAppVolume(BaseVolume):
         self.netapp_svm = (self.config["netapp_svm"],)
         self.netapp_volume_name = self.config["netapp_volume_name"]
 
-        # available = True
+        available = True
 
-        # try:
-        #     proc = await asyncio.create_subprocess_exec(
-        #         b"nfsstat",
-        #         b"-m",
-        #         stdout=asyncio.subprocess.PIPE,
-        #         stderr=asyncio.subprocess.STDOUT,
-        #     )
-        # except FileNotFoundError:
-        #     available = False
-        # else:
-        #     try:
-        #         stdout, stderr = await proc.communicate()
-        #         if b"NFS parameters" not in stdout or proc.returncode != 0:
-        #             available = False
-        #     finally:
-        #         await proc.wait()
-
-        # if not available:
-        #     raise RuntimeError("NetApp volume is not available or not mounted.")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                b"mount | grep nfs",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+        except FileNotFoundError:
+            available = False
+        else:
+            try:
+                stdout, stderr = await proc.communicate()
+                if b"type nfs" not in stdout or proc.returncode != 0:
+                    available = False
+            finally:
+                await proc.wait()
 
         self.netappclient = NetAppClient(
             str(self.endpoint),
