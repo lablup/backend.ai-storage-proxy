@@ -43,14 +43,15 @@ class NetAppVolume(BaseVolume):
     netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = (str(self.config["netapp_endpoint"]),)
-        self.netapp_admin = (str(self.config["netapp_admin"]),)
-        self.netapp_password = (str(self.config["netapp_password"]),)
-        self.netapp_svm = (self.config["netapp_svm"],)
-        self.netapp_volume_name = self.config["netapp_volume_name"]
+        self.endpoint = self.local_config["volume"]["netapp"]['options']['netapp_endpoint']
+        self.netapp_admin = self.local_config["volume"]["netapp"]['options']["netapp_admin"]
+        self.netapp_password = self.local_config["volume"]["netapp"]['options']["netapp_password"]
+        self.netapp_svm = self.local_config["volume"]["netapp"]['options']["netapp_svm"]
+        self.netapp_volume_name = self.local_config["volume"]["netapp"]['options']["netapp_volume_name"]
 
+        """
         available = True
-
+        print(available)
         try:
             proc = await asyncio.create_subprocess_exec(
                 b"mount | grep nfs",
@@ -66,6 +67,8 @@ class NetAppVolume(BaseVolume):
                     available = False
             finally:
                 await proc.wait()
+        print(available)
+        """
 
         self.netappclient = NetAppClient(
             str(self.endpoint),
@@ -82,6 +85,10 @@ class NetAppVolume(BaseVolume):
             svm=str(self.netapp_svm),
             volume_name=self.netapp_volume_name,
         )
+
+    def aclose(self):
+        NetAppClient._session.close()
+        QuotaManager._session.close()
 
     async def get_list_volumes(self):
         resp = await self.netappclient.get_list_volumes()
