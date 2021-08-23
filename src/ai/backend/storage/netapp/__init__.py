@@ -53,7 +53,8 @@ class NetAppVolume(BaseVolume):
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                b"mount | grep nfs",
+                b"nfsstat",
+                b"-m",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -62,7 +63,7 @@ class NetAppVolume(BaseVolume):
         else:
             try:
                 stdout, stderr = await proc.communicate()
-                if b"type nfs" not in stdout or proc.returncode != 0:
+                if b"NFS parameters" not in stdout or proc.returncode != 0:
                     available = False
             finally:
                 await proc.wait()
