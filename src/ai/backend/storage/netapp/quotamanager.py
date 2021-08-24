@@ -137,7 +137,7 @@ class QuotaManager:
 
         async with self._session.patch(
             api_url,
-            auth=aiohttp.BasicAuth("admin", "Netapp1!"),
+            auth=aiohttp.BasicAuth(self.user, self.password),
             headers=headers,
             json=dataobj,
             ssl=False,
@@ -155,7 +155,7 @@ class QuotaManager:
 
         async with self._session.delete(
             api_url,
-            auth=aiohttp.BasicAuth("admin", "Netapp1!"),
+            auth=aiohttp.BasicAuth(self.user, self.password),
             headers=headers,
             ssl=False,
             raise_for_status=True,
