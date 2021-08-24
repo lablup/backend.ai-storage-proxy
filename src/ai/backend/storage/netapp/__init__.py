@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 
+from ..abc import CAP_FAST_SCAN, CAP_METRIC, CAP_VFOLDER
 from ..exception import ExecutionError
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
+from ..types import FSPerfMetric, FSUsage
 
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
@@ -43,10 +45,10 @@ class NetAppVolume(BaseVolume):
     netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = (str(self.config["netapp_endpoint"]),)
-        self.netapp_admin = (str(self.config["netapp_admin"]),)
-        self.netapp_password = (str(self.config["netapp_password"]),)
-        self.netapp_svm = (self.config["netapp_svm"],)
+        self.endpoint = self.config["netapp_endpoint"]
+        self.netapp_admin = str(self.config["netapp_admin"])
+        self.netapp_password = str(self.config["netapp_password"])
+        self.netapp_svm = self.config["netapp_svm"]
         self.netapp_volume_name = self.config["netapp_volume_name"]
 
         # available = True
@@ -71,7 +73,7 @@ class NetAppVolume(BaseVolume):
         # if not available:
         #     raise RuntimeError("NetApp volume is not available or not mounted.")
 
-        self.netappclient = NetAppClient(
+        self.netapp_client = NetAppClient(
             str(self.endpoint),
             self.netapp_admin,
             self.netapp_password,
@@ -87,58 +89,91 @@ class NetAppVolume(BaseVolume):
             volume_name=self.netapp_volume_name,
         )
 
+    async def get_capabilities(self) -> FrozenSet[str]:
+        return frozenset([CAP_VFOLDER, CAP_METRIC])
+
+    async def get_hwinfo(self) -> HardwareMetadata:
+        metadata = await self.netapp_client.get_metadata()
+        return {"status": "healthy", "status_info": None, "metadata": {**metadata}}
+
+    async def get_fs_usage(self) -> FSUsage:
+        usage = await self.netapp_client.get_usage()
+        return FSUsage(
+            capacity_bytes=usage["capacity_bytes"], used_bytes=usage["used_bytes"]
+        )
+
+    async def get_performance_metric(self) -> FSPerfMetric:
+        uuid = await self.get_volume_uuid_by_name()
+        volume_info = await self.get_volume_info(uuid)
+        # if volume_info is None:
+        #     raise RuntimeError(
+        #         "no metric found for the configured netapp ontap filesystem"
+        #     )
+        metric = volume_info["metric"]
+        return FSPerfMetric(
+            iops_read=metric["iops"]["read"],
+            iops_write=metric["iops"]["write"],
+            io_bytes_read=metric["throughput"]["read"],
+            io_bytes_write=metric["throughput"]["write"],
+            io_usec_read=metric["latency"]["read"],
+            io_usec_write=metric["latency"]["write"],
+        )
+
+    # ------ volume operations ------
+
     async def get_list_volumes(self):
-        resp = await self.netappclient.get_list_volumes()
+        resp = await self.netapp_client.get_list_volumes()
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_volume_uuid_by_name(self):
-        resp = await self.netappclient.get_volume_uuid_by_name(self.netapp_volume_name)
-        self.volume_uuid = resp["uuid"]
+        resp = await self.netapp_client.get_volume_uuid_by_name()
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_volume_info(self, volume_uuid):
-        resp = await self.netappclient.get_volume_info(volume_uuid)
+        resp = await self.netapp_client.get_volume_info(volume_uuid)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
+    # ------ qtree and quotas operations ------
+
     async def get_qtree_info(self, qtree_id):
-        resp = await self.netappclient.get_qtree_info(qtree_id)
+        resp = await self.netapp_client.get_qtree_info(qtree_id)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_qtree_name_by_id(self, qtree_id):
-        resp = await self.netappclient.get_volume_info(qtree_id)
+        resp = await self.netapp_client.get_volume_info(qtree_id)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_qtree_id_by_name(self, qtree_name):
-        resp = await self.netappclient.get_volume_info(qtree_name)
+        resp = await self.netapp_client.get_volume_info(qtree_name)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_qtree_path(self, qtree_id):
-        resp = await self.netappclient.get_qtree_path(self, qtree_id)
+        resp = await self.netapp_client.get_qtree_path(self, qtree_id)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def create_qtree(self, name: str):
-        resp = await self.netappclient.create_qtree(name)
+        resp = await self.netapp_client.create_qtree(name)
 
         if "error" in resp:
             raise ExecutionError("qtree creation was not succesfull")
@@ -147,7 +182,7 @@ class NetAppVolume(BaseVolume):
     async def update_qtree(
         self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
     ):
-        resp = await self.netappclient.update_qtree(
+        resp = await self.netapp_client.update_qtree(
             self,
             qtree_id,
             qtree_name,
@@ -161,7 +196,7 @@ class NetAppVolume(BaseVolume):
         return resp
 
     async def delete_qtree(self, qtree_id):
-        resp = await self.netappclient.delete_qtree(self, qtree_id)
+        resp = await self.netapp_client.delete_qtree(self, qtree_id)
 
         if "error" in resp:
             raise ExecutionError("api error")

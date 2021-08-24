@@ -28,86 +28,112 @@ class NetAppClient:
     async def aclose(self) -> None:
         await self._session.close()
 
-    async def get_list_volumes(self) -> AsyncGenerator[Mapping[str, Any], None]:
+    async def get_metadata(self) -> Mapping[str, Any]:
+        uuid = await self.get_volume_uuid_by_name()
+        data = await self.get_volume_info(uuid)
+        qos = await self.get_qos_by_id(uuid)
+        return {
+            "id": data["uuid"],
+            "name": data["name"],
+            "local_tier": data["aggregates"][0]["name"],
+            "create_time": data["create_time"],
+            "snapshot_policy": data["snapshot_policy"]["name"],
+            "snapmirroring": str(data["snapmirror"]["is_protected"]),
+            "style": data["style"],
+            "state": data["state"],
+            "svm_name": data["svm"]["name"],
+            "svm_id": data["svm"]["uuid"],
+            "qos": json.dumps(qos["policy"]) if qos else None,
+        }
 
+    async def get_usage(self) -> Mapping[str, Any]:
+        uuid = await self.get_volume_uuid_by_name()
+        data = await self.get_volume_info(uuid)
+        return {
+            "capacity_bytes": data["space"]["available"],
+            "used_bytes": data["space"]["used"],
+        }
+
+    async def get_list_volumes(self) -> AsyncGenerator[Mapping[str, Any], None]:
         async with self._session.get(
-            ("https://{}/api/storage/volumes".format(self.endpoint)),
+            f"{self.endpoint}/api/storage/volumes",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return data["records"]
+
+    async def get_volume_name_by_uuid(self, volume_uuid):
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/volumes?uuid={volume_uuid}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
+        ) as resp:
+            data = await resp.json()
+            name = data["records"][0]["name"]
+            # await self._session.close()
+        return name
 
     async def get_volume_uuid_by_name(self):
         async with self._session.get(
-            (
-                "https://{}/api/storage/volumes?name={}".format(
-                    self.endpoint, self.volume_name
-                )
-            ),
+            f"{self.endpoint}/api/storage/volumes?name={self.volume_name}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
-        return data["uuid"]
+            uuid = data["records"][0]["uuid"]
+            # await self._session.close()
+        return uuid
 
-    async def get_volume_info(self) -> AsyncGenerator[Mapping[str, Any], None]:
-
+    async def get_volume_info(
+        self, volume_uuid
+    ) -> AsyncGenerator[Mapping[str, Any], None]:
+        volume_name = await self.get_volume_name_by_uuid(volume_uuid)
         async with self._session.get(
-            "https://{}api/storage/volumes/{}".format(
-                self.endpoint, self.get_volume_uuid_by_name()
-            ),
+            f"{self.endpoint}/api/storage/volumes/{volume_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return data
 
     async def get_qtree_name_by_id(self, qtree_id):
-        api_url = "https://{}/api/storage/qtrees?id={}".format(self.endpoint, qtree_id)
         async with self._session.get(
-            api_url,
+            f"{self.endpoint}/api/storage/qtrees?id={qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return data["name"]
 
     async def get_qtree_id_by_name(self, qtree_name):
-
-        api_url = "https://{}/api/storage/qtrees?name={}".format(
-            self.endpoint, qtree_name
-        )
         async with self._session.get(
-            api_url,
+            f"{self.endpoint}/api/storage/qtrees?name={qtree_name}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return data["id"]
 
     async def get_qtree_path(self, qtree_id):
         async with self._session.get(
-            (
-                self.endpoint
-                / "/api/storage/qtrees/{}/{}".format(self.volume_uuid, self.qtree_id)
-            ),
+            f"{self.endpoint}/api/storage/qtrees/{self.volume_uuid}/{self.qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return data["path"]
 
     async def create_qtree(self, name):
@@ -124,7 +150,7 @@ class NetAppClient:
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.post(
-            (self.endpoint / "api/storage/qtrees"),
+            f"{self.endpoint}/api/storage/qtrees",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             headers=headers,
@@ -132,7 +158,7 @@ class NetAppClient:
             data=json.dumps(payload),
         ) as resp:
             await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return resp
 
     async def update_qtree(
@@ -150,10 +176,7 @@ class NetAppClient:
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.patch(
-            (
-                self.endpoint
-                / "api/storage/qtrees{}/{}".format(self.volume_uuid, qtree_id)
-            ),
+            f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             headers=headers,
@@ -161,36 +184,42 @@ class NetAppClient:
             data=json.dumps(payload),
         ) as resp:
             tmp = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return tmp
 
     async def delete_qtree(self, qtree_id):
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.delete(
-            (
-                self.endpoint
-                / "api/storage/qtrees{}/{}".format(self.volume_uuid, qtree_id)
-            ),
+            f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             headers=headers,
             raise_for_status=True,
         ) as resp:
             await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return resp
 
     async def get_qtree_info(self, qtree_id):
         async with self._session.get(
-            (
-                self.endpoint
-                / "/api/storage/qtrees/{}/{}".format(self.volume_uuid, qtree_id)
-            ),
+            f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            await self._session.close()
+            # await self._session.close()
         return data
+
+    async def get_qos_by_id(
+        self, volume_uuid
+    ) -> AsyncGenerator[Mapping[str, Any], None]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/volumes/{volume_uuid}?fields=qos",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
+        ) as resp:
+            data = await resp.json()
+        return data["qos"]
