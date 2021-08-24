@@ -45,33 +45,32 @@ class NetAppVolume(BaseVolume):
     netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = self.config["netapp_endpoint"]
-        self.netapp_admin = str(self.config["netapp_admin"])
-        self.netapp_password = str(self.config["netapp_password"])
-        self.netapp_svm = self.config["netapp_svm"]
-        self.netapp_volume_name = self.config["netapp_volume_name"]
+        self.endpoint = self.local_config["volume"]["netapp"]['options']['netapp_endpoint']
+        self.netapp_admin = self.local_config["volume"]["netapp"]['options']["netapp_admin"]
+        self.netapp_password = self.local_config["volume"]["netapp"]['options']["netapp_password"]
+        self.netapp_svm = self.local_config["volume"]["netapp"]['options']["netapp_svm"]
+        self.netapp_volume_name = self.local_config["volume"]["netapp"]['options']["netapp_volume_name"]
 
-        # available = True
-
-        # try:
-        #     proc = await asyncio.create_subprocess_exec(
-        #         b"nfsstat",
-        #         b"-m",
-        #         stdout=asyncio.subprocess.PIPE,
-        #         stderr=asyncio.subprocess.STDOUT,
-        #     )
-        # except FileNotFoundError:
-        #     available = False
-        # else:
-        #     try:
-        #         stdout, stderr = await proc.communicate()
-        #         if b"NFS parameters" not in stdout or proc.returncode != 0:
-        #             available = False
-        #     finally:
-        #         await proc.wait()
-
-        # if not available:
-        #     raise RuntimeError("NetApp volume is not available or not mounted.")
+        """
+        available = True
+        print(available)
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                b"mount | grep nfs",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+        except FileNotFoundError:
+            available = False
+        else:
+            try:
+                stdout, stderr = await proc.communicate()
+                if b"type nfs" not in stdout or proc.returncode != 0:
+                    available = False
+            finally:
+                await proc.wait()
+        print(available)
+        """
 
         self.netapp_client = NetAppClient(
             str(self.endpoint),
@@ -120,6 +119,9 @@ class NetAppVolume(BaseVolume):
         )
 
     # ------ volume operations ------
+    def aclose(self):
+        NetAppClient._session.close()
+        QuotaManager._session.close()
 
     async def get_list_volumes(self):
         resp = await self.netapp_client.get_list_volumes()
