@@ -54,7 +54,7 @@ class NetAppClient:
             "used_bytes": data["space"]["used"],
         }
 
-    async def get_list_volumes(self) -> AsyncGenerator[Mapping[str, Any], None]:
+    async def get_list_volumes(self):
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -89,10 +89,7 @@ class NetAppClient:
             # await self._session.close()
         return uuid
 
-    async def get_volume_info(
-        self, volume_uuid
-    ) -> AsyncGenerator[Mapping[str, Any], None]:
-        volume_name = await self.get_volume_name_by_uuid(volume_uuid)
+    async def get_volume_info(self, volume_uuid):
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes/{volume_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 
-from ..abc import CAP_FAST_SCAN, CAP_METRIC, CAP_VFOLDER
+from ..abc import CAP_METRIC, CAP_VFOLDER
 from ..exception import ExecutionError
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
 from ..types import FSPerfMetric, FSUsage
+from typing import FrozenSet
+from ai.backend.common.types import HardwareMetadata
 
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
@@ -45,11 +47,11 @@ class NetAppVolume(BaseVolume):
     netapp_password: str
 
     async def init(self) -> None:
-        self.endpoint = self.local_config["volume"]["netapp"]['options']['netapp_endpoint']
-        self.netapp_admin = self.local_config["volume"]["netapp"]['options']["netapp_admin"]
-        self.netapp_password = self.local_config["volume"]["netapp"]['options']["netapp_password"]
-        self.netapp_svm = self.local_config["volume"]["netapp"]['options']["netapp_svm"]
-        self.netapp_volume_name = self.local_config["volume"]["netapp"]['options']["netapp_volume_name"]
+        self.endpoint = self.config["netapp_endpoint"]
+        self.netapp_admin = self.config["netapp_admin"]
+        self.netapp_password = str(self.config["netapp_password"])
+        self.netapp_svm = self.config["netapp_svm"]
+        self.netapp_volume_name = self.config["netapp_volume_name"]
 
         """
         available = True
