@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 import aiohttp
 from aiohttp.client_reqrep import ClientResponse
 from yarl import URL
-from typing import Any, Mapping
 
 
 class QuotaManager:
