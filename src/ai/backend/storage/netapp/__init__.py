@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+from typing import FrozenSet
+
+from ai.backend.common.types import HardwareMetadata
 
 from ..abc import CAP_METRIC, CAP_VFOLDER
 from ..exception import ExecutionError
+from ..types import FSPerfMetric, FSUsage
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
-from ..types import FSPerfMetric, FSUsage
-from typing import FrozenSet
-from ai.backend.common.types import HardwareMetadata
 
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
@@ -53,15 +54,14 @@ class NetAppVolume(BaseVolume):
         self.netapp_svm = self.config["netapp_svm"]
         self.netapp_volume_name = self.config["netapp_volume_name"]
 
-        """
         available = True
-        print(available)
         try:
             proc = await asyncio.create_subprocess_exec(
-                b"mount | grep nfs",
+                b"mount",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
+
         except FileNotFoundError:
             available = False
         else:
@@ -71,8 +71,11 @@ class NetAppVolume(BaseVolume):
                     available = False
             finally:
                 await proc.wait()
-        print(available)
-        """
+
+        if not available:
+            raise RuntimeError(
+                "NetApp volumes are not mounted or not supported."
+            )
 
         self.netapp_client = NetAppClient(
             str(self.endpoint),
@@ -121,9 +124,9 @@ class NetAppVolume(BaseVolume):
         )
 
     # ------ volume operations ------
-    def aclose(self):
-        NetAppClient._session.close()
-        QuotaManager._session.close()
+    async def aclose(self):
+        self.netapp_client._session.close()
+        self.quotaManager._session.close()
 
     async def get_list_volumes(self):
         resp = await self.netapp_client.get_list_volumes()

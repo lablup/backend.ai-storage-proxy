@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncGenerator, Mapping
+from typing import Any, Mapping
 
 import aiohttp
+from aiohttp.client_reqrep import ClientResponse
 
 
 class NetAppClient:
@@ -14,6 +15,7 @@ class NetAppClient:
     _session: aiohttp.ClientSession
     svm: str
     volume_name: str
+    volume_uuid: str
 
     def __init__(
         self, endpoint: str, user: str, password: str, svm: str, volume_name: str
@@ -54,7 +56,7 @@ class NetAppClient:
             "used_bytes": data["space"]["used"],
         }
 
-    async def get_list_volumes(self):
+    async def get_list_volumes(self) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -62,10 +64,9 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            # await self._session.close()
         return data["records"]
 
-    async def get_volume_name_by_uuid(self, volume_uuid):
+    async def get_volume_name_by_uuid(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes?uuid={volume_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -74,10 +75,9 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
             name = data["records"][0]["name"]
-            # await self._session.close()
         return name
 
-    async def get_volume_uuid_by_name(self):
+    async def get_volume_uuid_by_name(self) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes?name={self.volume_name}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -86,10 +86,9 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
             uuid = data["records"][0]["uuid"]
-            # await self._session.close()
         return uuid
 
-    async def get_volume_info(self, volume_uuid):
+    async def get_volume_info(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes/{volume_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -97,10 +96,9 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            # await self._session.close()
         return data
 
-    async def get_qtree_name_by_id(self, qtree_id):
+    async def get_qtree_name_by_id(self, qtree_id) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qtrees?id={qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -108,10 +106,9 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            # await self._session.close()
         return data["name"]
 
-    async def get_qtree_id_by_name(self, qtree_name):
+    async def get_qtree_id_by_name(self, qtree_name) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qtrees?name={qtree_name}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -119,21 +116,19 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            # await self._session.close()
         return data["id"]
 
-    async def get_qtree_path(self, qtree_id):
+    async def get_qtree_path(self, qtree_id) -> Mapping[str, Any]:
         async with self._session.get(
-            f"{self.endpoint}/api/storage/qtrees/{self.volume_uuid}/{self.qtree_id}",
+            f"{self.endpoint}/api/storage/qtrees/{self.volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            # await self._session.close()
         return data["path"]
 
-    async def create_qtree(self, name):
+    async def create_qtree(self, name) -> ClientResponse:
 
         payload = {
             "svm": {"name": self.svm},
@@ -155,12 +150,11 @@ class NetAppClient:
             data=json.dumps(payload),
         ) as resp:
             await resp.json()
-            # await self._session.close()
         return resp
 
     async def update_qtree(
         self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
-    ):
+    ) -> Mapping[str, Any]:
 
         payload = {
             "svm": {"name": self.svm},
@@ -181,10 +175,9 @@ class NetAppClient:
             data=json.dumps(payload),
         ) as resp:
             tmp = await resp.json()
-            # await self._session.close()
         return tmp
 
-    async def delete_qtree(self, qtree_id):
+    async def delete_qtree(self, qtree_id) -> ClientResponse:
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.delete(
@@ -195,10 +188,9 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             await resp.json()
-            # await self._session.close()
         return resp
 
-    async def get_qtree_info(self, qtree_id):
+    async def get_qtree_info(self, qtree_id) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -206,12 +198,9 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            # await self._session.close()
         return data
 
-    async def get_qos_by_id(
-        self, volume_uuid
-    ) -> AsyncGenerator[Mapping[str, Any], None]:
+    async def get_qos_by_id(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes/{volume_uuid}?fields=qos",
             auth=aiohttp.BasicAuth(self.user, self.password),

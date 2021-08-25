@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import aiohttp
+from aiohttp.client_reqrep import ClientResponse
 from yarl import URL
+from typing import Any, Mapping
 
 
 class QuotaManager:
@@ -25,7 +27,7 @@ class QuotaManager:
     async def aclose(self) -> None:
         await self._session.close()
 
-    async def list_quotarules(self) -> list:
+    async def list_quotarules(self):
         qr_api_url = URL("https://{}/api/storage/quota/rules".format(self.endpoint))
         async with self._session.get(
             qr_api_url,
@@ -41,7 +43,7 @@ class QuotaManager:
         self.rules = rules
         return rules
 
-    async def list_all_qtrees_with_quotas(self):
+    async def list_all_qtrees_with_quotas(self) -> Mapping[str, Any]:
         rules = self.list_quotarules()
 
         qtrees = {}
@@ -61,11 +63,10 @@ class QuotaManager:
                 qtree_uuid = data["uuid"]
                 qtree_name = data["qtree"]["name"]
                 qtrees[qtree_uuid] = qtree_name
-                await self._session.close()
         self.qtrees = qtrees
         return qtrees
 
-    async def get_quota(self, rule_uuid):
+    async def get_quota(self, rule_uuid) -> Mapping[str, Any]:
         qr_api_url = URL(
             "https://{}/api/storage/quota/rules/{}".format(self.endpoint, rule_uuid)
         )
@@ -78,13 +79,11 @@ class QuotaManager:
         ) as resp:
             data = await resp.json()
             spaces = data["space"]
-
-            await self._session.close()
         return spaces
 
     async def create_quotarule_qtree(
         self, qtree_name: str, spahali: int, spasoli: int, fihali: int, fisoli: int
-    ) -> None:
+    ) -> Mapping[str, Any]:
         api_url = "https://{}/api/storage/quota/rules".format(self.endpoint)
 
         dataobj = {
@@ -108,7 +107,6 @@ class QuotaManager:
         ) as resp:
 
             msg = await resp.json()
-            await self._session.close()
         return msg
 
     async def update_quotarule_qtree(
@@ -119,7 +117,7 @@ class QuotaManager:
         fihali: int,
         fisoli: int,
         rule_uuid,
-    ) -> None:
+    ) -> ClientResponse:
         api_url = "https://{}/api/storage/quota/rules/{}".format(
             self.endpoint, rule_uuid
         )
@@ -143,10 +141,9 @@ class QuotaManager:
             ssl=False,
             raise_for_status=True,
         ) as resp:
-            await resp.json()
-            await self._session.close()
+            return await resp.json()
 
-    async def delete_quotarule_qtree(self, rule_uuid) -> None:
+    async def delete_quotarule_qtree(self, rule_uuid) -> ClientResponse:
         api_url = "https://{}/api/storage/quota/rules/{}".format(
             self.endpoint, rule_uuid
         )
@@ -160,5 +157,4 @@ class QuotaManager:
             ssl=False,
             raise_for_status=True,
         ) as resp:
-            await resp.json()
-            await self._session.close()
+            return await resp.json()
