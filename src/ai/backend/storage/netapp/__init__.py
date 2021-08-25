@@ -73,9 +73,7 @@ class NetAppVolume(BaseVolume):
                 await proc.wait()
 
         if not available:
-            raise RuntimeError(
-                "NetApp volumes are not mounted or not supported."
-            )
+            raise RuntimeError("NetApp volumes are not mounted or not supported.")
 
         self.netapp_client = NetAppClient(
             str(self.endpoint),

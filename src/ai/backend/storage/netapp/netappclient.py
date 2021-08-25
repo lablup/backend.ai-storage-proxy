@@ -4,7 +4,6 @@ import json
 from typing import Any, Mapping
 
 import aiohttp
-from aiohttp.client_reqrep import ClientResponse
 
 
 class NetAppClient:
@@ -128,7 +127,7 @@ class NetAppClient:
             data = await resp.json()
         return data["path"]
 
-    async def create_qtree(self, name) -> ClientResponse:
+    async def create_qtree(self, name) -> Mapping[str, Any]:
 
         payload = {
             "svm": {"name": self.svm},
@@ -149,8 +148,7 @@ class NetAppClient:
             raise_for_status=True,
             data=json.dumps(payload),
         ) as resp:
-            await resp.json()
-        return resp
+            return await resp.json()
 
     async def update_qtree(
         self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
@@ -177,7 +175,7 @@ class NetAppClient:
             tmp = await resp.json()
         return tmp
 
-    async def delete_qtree(self, qtree_id) -> ClientResponse:
+    async def delete_qtree(self, qtree_id) -> Mapping[str, Any]:
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.delete(
@@ -187,8 +185,7 @@ class NetAppClient:
             headers=headers,
             raise_for_status=True,
         ) as resp:
-            await resp.json()
-        return resp
+            return await resp.json()
 
     async def get_qtree_info(self, qtree_id) -> Mapping[str, Any]:
         async with self._session.get(
