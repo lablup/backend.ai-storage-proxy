@@ -8,30 +8,30 @@ from yarl import URL
 
 
 class QuotaManager:
+
     endpoint: str
     user: str
     password: str
     _session: aiohttp.ClientSession
+    svm: str
+    volume_name: str
 
     def __init__(
         self, endpoint: str, user: str, password: str, svm: str, volume_name: str
     ) -> None:
-
         self.endpoint = endpoint
         self.user = user
         self.password = password
         self._session = aiohttp.ClientSession()
         self.svm = svm
         self.volume_name = volume_name
-        self._session = aiohttp.ClientSession()
 
     async def aclose(self) -> None:
         await self._session.close()
 
     async def list_quotarules(self):
-        qr_api_url = URL("https://{}/api/storage/quota/rules".format(self.endpoint))
         async with self._session.get(
-            qr_api_url,
+            f"{self.endpoint}/api/storage/quota/rules",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=False,
@@ -50,12 +50,8 @@ class QuotaManager:
         qtrees = {}
 
         for rule in rules:
-            qr_api_url = URL(
-                "https://{}/api/storage/quota/rules/{}".format(self.endpoint, rule)
-            )
-
             async with self._session.get(
-                qr_api_url,
+                f"{self.endpoint}/api/storage/quota/rules/{rule}",
                 auth=aiohttp.BasicAuth(self.user, self.password),
                 ssl=False,
                 raise_for_status=False,
@@ -68,12 +64,8 @@ class QuotaManager:
         return qtrees
 
     async def get_quota(self, rule_uuid) -> Mapping[str, Any]:
-        qr_api_url = URL(
-            "https://{}/api/storage/quota/rules/{}".format(self.endpoint, rule_uuid)
-        )
-
         async with self._session.get(
-            qr_api_url,
+            f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}"
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=False,
@@ -82,11 +74,11 @@ class QuotaManager:
             spaces = data["space"]
         return spaces
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def create_quotarule_qtree(
         self, qtree_name: str, spahali: int, spasoli: int, fihali: int, fisoli: int
     ) -> Mapping[str, Any]:
-        api_url = "https://{}/api/storage/quota/rules".format(self.endpoint)
-
         dataobj = {
             "svm": {"name": self.svm},
             "volume": {"name": self.volume_name},
@@ -99,7 +91,7 @@ class QuotaManager:
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.post(
-            api_url,
+            f"{self.endpoint}/api/storage/quota/rules",
             auth=aiohttp.BasicAuth(self.user, self.password),
             headers=headers,
             json=dataobj,
@@ -119,10 +111,6 @@ class QuotaManager:
         fisoli: int,
         rule_uuid,
     ) -> ClientResponse:
-        api_url = "https://{}/api/storage/quota/rules/{}".format(
-            self.endpoint, rule_uuid
-        )
-
         dataobj = {
             "svm": {"name": self.svm},
             "volume": {"name": self.volume_name},
@@ -135,7 +123,7 @@ class QuotaManager:
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.patch(
-            api_url,
+            f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             headers=headers,
             json=dataobj,
@@ -144,15 +132,13 @@ class QuotaManager:
         ) as resp:
             return await resp.json()
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def delete_quotarule_qtree(self, rule_uuid) -> ClientResponse:
-        api_url = "https://{}/api/storage/quota/rules/{}".format(
-            self.endpoint, rule_uuid
-        )
-
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.delete(
-            api_url,
+            f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             headers=headers,
             ssl=False,
