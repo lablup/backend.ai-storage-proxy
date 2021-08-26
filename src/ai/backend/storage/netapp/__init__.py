@@ -46,6 +46,10 @@ class NetAppVolume(BaseVolume):
     endpoint: str
     netapp_admin: str
     netapp_password: str
+    netapp_svm: str
+    netapp_volume_name: str
+    netapp_qtree_name: str
+    netapp_qtree_uuid: str
 
     async def init(self) -> None:
         self.endpoint = self.config["netapp_endpoint"]
@@ -90,6 +94,10 @@ class NetAppVolume(BaseVolume):
             svm=str(self.netapp_svm),
             volume_name=self.netapp_volume_name,
         )
+
+        # assign qtree info after netapp_client and quotamanager are initiated
+        self.netapp_qtree_name = self.config["netapp_qtree_name"]
+        self.netapp_qtree_uuid = await self.get_qtree_id_by_name(self.netapp_qtree_name)
 
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER, CAP_METRIC])
@@ -157,14 +165,14 @@ class NetAppVolume(BaseVolume):
         return resp
 
     async def get_qtree_name_by_id(self, qtree_id):
-        resp = await self.netapp_client.get_volume_info(qtree_id)
+        resp = await self.netapp_client.get_qtree_name_by_id(qtree_id)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_qtree_id_by_name(self, qtree_name):
-        resp = await self.netapp_client.get_volume_info(qtree_name)
+        resp = await self.netapp_client.get_qtree_id_by_name(qtree_name)
 
         if "error" in resp:
             raise ExecutionError("api error")
@@ -177,6 +185,8 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def create_qtree(self, name: str):
         resp = await self.netapp_client.create_qtree(name)
 
@@ -200,6 +210,8 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def delete_qtree(self, qtree_id):
         resp = await self.netapp_client.delete_qtree(self, qtree_id)
 
@@ -228,6 +240,8 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def create_quotarule_qtree(
         self,
         qtree_name,
@@ -270,6 +284,8 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def delete_quotarule_qtree(self, rule_uuid):
         resp = await self.quotaManager.update_quotarule_qtree(rule_uuid)
 

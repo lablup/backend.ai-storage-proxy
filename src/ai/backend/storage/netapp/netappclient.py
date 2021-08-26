@@ -15,6 +15,8 @@ class NetAppClient:
     svm: str
     volume_name: str
     volume_uuid: str
+    qtree_name: str
+    qtree_uuid: str
 
     def __init__(
         self, endpoint: str, user: str, password: str, svm: str, volume_name: str
@@ -25,6 +27,9 @@ class NetAppClient:
         self.svm = svm
         self.volume_name = volume_name
         self._session = aiohttp.ClientSession()
+        qtree = await self.get_default_qtree_by_volume_id(self.volume_name)
+        self.qtree_name = qtree["name"]
+        self.qtree_uuid = qtree["uuid"]
 
     async def aclose(self) -> None:
         await self._session.close()
@@ -97,6 +102,16 @@ class NetAppClient:
             data = await resp.json()
         return data
 
+    async def get_default_qtree_by_volume_id(self, volume_uuid) -> Mapping[str, Any]:
+        qtrees = await self.list_qtrees_by_volume_id(volume_uuid)
+        for qtree in qtrees:
+            # skip the default qtree made by NetApp ONTAP internally
+            # It will not be used in Backend.AI NetApp ONTAP Plugin
+            if not qtree["name"]:
+                continue
+            else:
+                return qtree
+
     async def get_qtree_name_by_id(self, qtree_id) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qtrees?id={qtree_id}",
@@ -127,6 +142,15 @@ class NetAppClient:
             data = await resp.json()
         return data["path"]
 
+    async def list_qtrees_by_volume_id(self, volume_uuid) -> Mapping[str, Any]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/qtrees/{volume_uuid if volume_uuid else self.volume_uuid}"
+        ) as resp:
+            data = await resp.json()
+        return data["records"]
+
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def create_qtree(self, name) -> Mapping[str, Any]:
 
         payload = {
@@ -175,6 +199,8 @@ class NetAppClient:
             tmp = await resp.json()
         return tmp
 
+    # For now, Only Read / Update operation for qtree is available
+    # in NetApp ONTAP Plugin of Backend.AI
     async def delete_qtree(self, qtree_id) -> Mapping[str, Any]:
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
