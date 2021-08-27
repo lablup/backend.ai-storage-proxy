@@ -36,7 +36,6 @@ class QuotaManager:
             ssl=False,
             raise_for_status=False,
         ) as resp:
-
             data = await resp.json()
             await self._session.close()
 
@@ -45,8 +44,7 @@ class QuotaManager:
         return rules
 
     async def list_all_qtrees_with_quotas(self) -> Mapping[str, Any]:
-        rules = self.list_quotarules()
-
+        rules = await self.list_quotarules()
         qtrees = {}
 
         for rule in rules:
@@ -65,14 +63,31 @@ class QuotaManager:
 
     async def get_quota(self, rule_uuid) -> Mapping[str, Any]:
         async with self._session.get(
-            f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}"
+            f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=False,
         ) as resp:
             data = await resp.json()
-            spaces = data["space"]
-        return spaces
+            quota = {}
+            if data.get("space"):
+                quota["space"] = data["space"]
+            if data.get("files"):
+                quota["files"] = data["files"]
+        return quota
+
+    async def get_quota_by_qtree_name(self, qtree_name) -> Mapping[str, Any]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/quota/rules?volume={self.volume_name}&qtree={qtree_name}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=False,
+        ) as resp:
+            data = await resp.json()
+            rule_uuid = data["records"][0]["uuid"]
+            quota = await self.get_quota(rule_uuid)
+        return quota
+
 
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI
