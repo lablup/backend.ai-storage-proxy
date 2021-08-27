@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import FrozenSet
 
 from ai.backend.common.types import HardwareMetadata
 
+
 from ..abc import CAP_METRIC, CAP_VFOLDER
 from ..exception import ExecutionError
-from ..types import FSPerfMetric, FSUsage
+from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
+
 
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
@@ -48,36 +51,37 @@ class NetAppVolume(BaseVolume):
     netapp_password: str
     netapp_svm: str
     netapp_volume_name: str
+    netapp_volume_uuid: str
     netapp_qtree_name: str
-    netapp_qtree_uuid: str
+    netapp_qtree_id: str
 
     async def init(self) -> None:
+        # Temporaily comment out volume mount checking
+        #available = True
+        # try:
+        #     proc = await asyncio.create_subprocess_exec(
+        #         b"mount",
+        #         stdout=asyncio.subprocess.PIPE,
+        #         stderr=asyncio.subprocess.STDOUT,
+        #     )
+
+        # except FileNotFoundError:
+        #     available = False
+        # else:
+        #     try:
+        #         stdout, stderr = await proc.communicate()
+        #         if b"type nfs" not in stdout or proc.returncode != 0:
+        #             available = False
+        #     finally:
+        #         await proc.wait()
+        # if not available:
+        #     raise RuntimeError("NetApp volumes are not mounted or not supported.")
+        
         self.endpoint = self.config["netapp_endpoint"]
         self.netapp_admin = self.config["netapp_admin"]
         self.netapp_password = str(self.config["netapp_password"])
         self.netapp_svm = self.config["netapp_svm"]
         self.netapp_volume_name = self.config["netapp_volume_name"]
-
-        available = True
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                b"mount",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-            )
-
-        except FileNotFoundError:
-            available = False
-        else:
-            try:
-                stdout, stderr = await proc.communicate()
-                if b"type nfs" not in stdout or proc.returncode != 0:
-                    available = False
-            finally:
-                await proc.wait()
-
-        if not available:
-            raise RuntimeError("NetApp volumes are not mounted or not supported.")
 
         self.netapp_client = NetAppClient(
             str(self.endpoint),
@@ -87,7 +91,7 @@ class NetAppVolume(BaseVolume):
             self.netapp_volume_name,
         )
 
-        self.quotaManager = QuotaManager(
+        self.quota_manager = QuotaManager(
             endpoint=str(self.endpoint),
             user=self.netapp_admin,
             password=self.netapp_password,
@@ -96,8 +100,12 @@ class NetAppVolume(BaseVolume):
         )
 
         # assign qtree info after netapp_client and quotamanager are initiated
+        self.netapp_volume_uuid = await self.netapp_client.get_volume_uuid_by_name()
         self.netapp_qtree_name = self.config["netapp_qtree_name"]
-        self.netapp_qtree_uuid = await self.get_qtree_id_by_name(self.netapp_qtree_name)
+        self.netapp_qtree_id = await self.get_qtree_id_by_name(self.netapp_qtree_name)
+
+        # adjust mount path (volume + qtree)
+        self.mount_path = (self.mount_path / Path(self.netapp_qtree_name)).resolve()
 
     async def get_capabilities(self) -> FrozenSet[str]:
         return frozenset([CAP_VFOLDER, CAP_METRIC])
@@ -107,9 +115,11 @@ class NetAppVolume(BaseVolume):
         return {"status": "healthy", "status_info": None, "metadata": {**metadata}}
 
     async def get_fs_usage(self) -> FSUsage:
-        usage = await self.netapp_client.get_usage()
+        volume_usage = await self.netapp_client.get_usage()
+        quota = await self.quota_manager.get_quota_by_qtree_name(self.netapp_qtree_name)
+        capacity_bytes = quota["space"]["hard_limit"] if quota["space"].get("hard_limit") else volume_usage["capacity_bytes"]
         return FSUsage(
-            capacity_bytes=usage["capacity_bytes"], used_bytes=usage["used_bytes"]
+            capacity_bytes= capacity_bytes, used_bytes=volume_usage["used_bytes"]
         )
 
     async def get_performance_metric(self) -> FSPerfMetric:
@@ -129,10 +139,20 @@ class NetAppVolume(BaseVolume):
             io_usec_write=metric["latency"]["write"],
         )
 
+    async def create_vfolder(
+        self, vfid: UUID, options: VFolderCreationOptions = None
+    ) -> None:
+        vfpath = self.mangle_vfpath(vfid)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
+        )
+
+    async def shutdown(self) -> None:
+        await self.netapp_client.aclose()
+        await self.quota_manager.aclose()
+
     # ------ volume operations ------
-    async def aclose(self):
-        self.netapp_client._session.close()
-        self.quotaManager._session.close()
 
     async def get_list_volumes(self):
         resp = await self.netapp_client.get_list_volumes()
@@ -156,6 +176,12 @@ class NetAppVolume(BaseVolume):
         return resp
 
     # ------ qtree and quotas operations ------
+    async def get_default_qtree_by_volume_id(self, volume_uuid):
+        volume_uuid = volume_uuid if volume_uuid else self.netapp_volume_uuid
+        resp = self.netapp_client.get_default_qtree_by_volume_id(volume_uuid)
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
 
     async def get_qtree_info(self, qtree_id):
         resp = await self.netapp_client.get_qtree_info(qtree_id)
@@ -172,6 +198,7 @@ class NetAppVolume(BaseVolume):
         return resp
 
     async def get_qtree_id_by_name(self, qtree_name):
+        qtree_name = qtree_name if qtree_name else await self.get_default_qtree_by_volume_id()
         resp = await self.netapp_client.get_qtree_id_by_name(qtree_name)
 
         if "error" in resp:
@@ -220,21 +247,21 @@ class NetAppVolume(BaseVolume):
         return resp
 
     async def list_quotarules(self):
-        resp = await self.quotaManager.list_quotarules()
+        resp = await self.quota_manager.list_quotarules()
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def list_all_qtrees_with_quotas(self):
-        resp = await self.quotaManager.list_all_qtrees_with_quotas(self)
+        resp = await self.quota_manager.list_all_qtrees_with_quotas(self)
 
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
 
     async def get_quota(self, rule_uuid):
-        resp = await self.quotaManager.get_quota(self, rule_uuid)
+        resp = await self.quota_manager.get_quota(self, rule_uuid)
 
         if "error" in resp:
             raise ExecutionError("api error")
@@ -250,7 +277,7 @@ class NetAppVolume(BaseVolume):
         files_hard_limit,
         files_soft_limit,
     ):
-        resp = await self.quotaManager.create_quotarule_qtree(
+        resp = await self.quota_manager.create_quotarule_qtree(
             self,
             qtree_name,
             space_hard_limit,
@@ -271,7 +298,7 @@ class NetAppVolume(BaseVolume):
         files_hard_limit,
         files_soft_limit,
     ):
-        resp = await self.quotaManager.update_quotarule_qtree(
+        resp = await self.quota_manager.update_quotarule_qtree(
             self,
             qtree_name,
             space_hard_limit,
@@ -287,7 +314,7 @@ class NetAppVolume(BaseVolume):
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI
     async def delete_quotarule_qtree(self, rule_uuid):
-        resp = await self.quotaManager.update_quotarule_qtree(rule_uuid)
+        resp = await self.quota_manager.update_quotarule_qtree(rule_uuid)
 
         if "error" in resp:
             raise ExecutionError("api error")
