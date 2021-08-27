@@ -27,32 +27,40 @@ class NetAppClient:
         self.svm = svm
         self.volume_name = volume_name
         self._session = aiohttp.ClientSession()
-        qtree = await self.get_default_qtree_by_volume_id(self.volume_name)
-        self.qtree_name = qtree["name"]
-        self.qtree_uuid = qtree["uuid"]
 
     async def aclose(self) -> None:
         await self._session.close()
 
     async def get_metadata(self) -> Mapping[str, Any]:
-        uuid = await self.get_volume_uuid_by_name()
-        data = await self.get_volume_info(uuid)
-        qos = await self.get_qos_by_id(uuid)
-        return {
+        volume_uuid = await self.get_volume_uuid_by_name()
+        data = await self.get_volume_info(volume_uuid)
+        qos = await self.get_qos_by_id(volume_uuid)
+        qtree_metadata = await self.get_default_qtree_by_volume_id(volume_uuid)
+        qtree = await self.get_qtree_info(qtree_metadata.get("id"))
+
+        # mapping certain data for better explanation
+        volume_qtree_cluster = {
+            #------ use volume info ------
             "id": data["uuid"],
-            "name": data["name"],
             "local_tier": data["aggregates"][0]["name"],
             "create_time": data["create_time"],
             "snapshot_policy": data["snapshot_policy"]["name"],
             "snapmirroring": str(data["snapmirror"]["is_protected"]),
-            "style": data["style"],
             "state": data["state"],
+            "style": data["style"],
             "svm_name": data["svm"]["name"],
             "svm_id": data["svm"]["uuid"],
             "qos": json.dumps(qos["policy"]) if qos else None,
+
+            #------ use qtree info ------
+            "name": qtree["name"],
+            "path": qtree["path"],
+            "timestamp": qtree["statistics"].get("timestamp") # last check time
         }
+        return volume_qtree_cluster
 
     async def get_usage(self) -> Mapping[str, Any]:
+        # volume specific usage check
         uuid = await self.get_volume_uuid_by_name()
         data = await self.get_volume_info(uuid)
         return {
@@ -130,7 +138,8 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-        return data["id"]
+            id = str(data["records"][0]["id"]) if data["num_records"] > 0 else ''
+        return id
 
     async def get_qtree_path(self, qtree_id) -> Mapping[str, Any]:
         async with self._session.get(
@@ -144,7 +153,10 @@ class NetAppClient:
 
     async def list_qtrees_by_volume_id(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(
-            f"{self.endpoint}/api/storage/qtrees/{volume_uuid if volume_uuid else self.volume_uuid}"
+            f"{self.endpoint}/api/storage/qtrees/{volume_uuid if volume_uuid else self.volume_uuid}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
         ) as resp:
             data = await resp.json()
         return data["records"]
@@ -214,8 +226,9 @@ class NetAppClient:
             return await resp.json()
 
     async def get_qtree_info(self, qtree_id) -> Mapping[str, Any]:
+        uuid = await self.get_volume_uuid_by_name()
         async with self._session.get(
-            f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
+            f"{self.endpoint}/api/storage/qtrees/{uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
