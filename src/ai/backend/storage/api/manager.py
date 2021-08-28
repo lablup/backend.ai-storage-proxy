@@ -306,6 +306,68 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
                 }
             )
 
+async def get_quota(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "get_quota", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            quota = await volume.get_quota()
+            space = quota.get("space")
+            files = quota.get("files")
+            return web.json_response(
+                {
+                    "space": space if space else {},
+                    "files": files if files else {}
+                }
+            )
+
+async def update_quota(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+                t.Key("files_soft_limit"): t.Int,
+                t.Key("files_hard_limit"): t.Int,
+                t.Key("space_soft_limit"): t.Int,
+                t.Key("space_hard_limit"): t.Int,
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "update_quota", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            quota = {
+                "files_soft_limit" : params["files_soft_limit"],
+                "files_hard_limit" : params["files_hard_limit"],
+                "space_soft_limit" : params["space_soft_limit"],
+                "space_hard_limit" : params["space_hard_limit"],
+            }
+            await volume.update_quota(quota)
+            return web.Response(status=204)
+
+
+async def get_qtree(request: web.Request) -> web.Response:
+    raise NotImplementedError
+
+async def update_qtree(request: web.Request) -> web.Response:
+    raise NotImplementedError
+
+async def get_qos(request: web.Request) -> web.Response:
+    raise NotImplementedError
+
+async def update_qos(request: web.Request) -> web.Response:
+    raise NotImplementedError
+
+async def delete_qos(request: web.Request) -> web.Response:
+    raise NotImplementedError
 
 async def mkdir(request: web.Request) -> web.Response:
     async with check_params(
@@ -517,6 +579,13 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("GET", "/volume/performance-metric", get_performance_metric)
     app.router.add_route("GET", "/folder/metadata", get_metadata)
     app.router.add_route("POST", "/folder/metadata", set_metadata)
+    app.router.add_route("GET", "/volume/quota", get_quota)
+    app.router.add_route("POST", "/volume/quota", update_quota)
+    app.router.add_route("GET", "/volume/qtree", get_qtree)
+    app.router.add_route("POST", "/volume/qtree", update_qtree)
+    app.router.add_route("GET", "/volume/qos", get_qos)
+    app.router.add_route("POST", "/volume/qos", update_qos)
+    app.router.add_route("DELETE", "/volume/qos", delete_qos)
     app.router.add_route("GET", "/folder/usage", get_vfolder_usage)
     app.router.add_route("GET", "/folder/fs-usage", get_vfolder_fs_usage)
     app.router.add_route("POST", "/folder/file/mkdir", mkdir)

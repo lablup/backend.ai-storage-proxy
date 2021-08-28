@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import aiohttp
 import json
 from typing import Any, Mapping
-
-import aiohttp
 
 
 class NetAppClient:
@@ -35,6 +34,7 @@ class NetAppClient:
         volume_uuid = await self.get_volume_uuid_by_name()
         data = await self.get_volume_info(volume_uuid)
         qos = await self.get_qos_by_id(volume_uuid)
+        qos_policies = await self.get_qos_policies()
         qtree_metadata = await self.get_default_qtree_by_volume_id(volume_uuid)
         qtree = await self.get_qtree_info(qtree_metadata.get("id"))
 
@@ -51,10 +51,13 @@ class NetAppClient:
             "svm_name": data["svm"]["name"],
             "svm_id": data["svm"]["uuid"],
             "qos": json.dumps(qos["policy"]) if qos else None,
+            "qos_policies": json.dumps(qos_policies) if qos_policies else None,
 
             #------ use qtree info ------
             "name": qtree["name"],
             "path": qtree["path"],
+            "security_style": qtree["security_style"],
+            "export_policy": qtree["export_policy"]['name'],
             "timestamp": qtree["statistics"].get("timestamp") # last check time
         }
         return volume_qtree_cluster
@@ -235,6 +238,16 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
         return data
+
+    async def get_qos_policies(self) -> Mapping[str, Any]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/qos/policies",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
+        ) as resp:
+            data = await resp.json()
+        return data["records"]
 
     async def get_qos_by_id(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(

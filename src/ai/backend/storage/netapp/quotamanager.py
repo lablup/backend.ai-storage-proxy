@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
 
 import aiohttp
 from aiohttp.client_reqrep import ClientResponse
+import json
+from typing import Any, Mapping
 from yarl import URL
 
 
@@ -61,7 +62,23 @@ class QuotaManager:
         self.qtrees = qtrees
         return qtrees
 
-    async def get_quota(self, rule_uuid) -> Mapping[str, Any]:
+    async def get_quota(self, quota_name) -> Mapping[str, Any]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/quota/rules?qtree={quota_name}&volume={self.volume_name}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=False,
+        ) as resp:
+            data = await resp.json()
+            quota = {}
+            if data.get("num_records") > 0:
+                # the first record is quota
+                quota_metadata = data["records"][0]
+                quota = await self.get_quota_by_rule(quota_metadata["uuid"])
+                quota["uuid"] = quota_metadata["uuid"]
+        return quota
+
+    async def get_quota_by_rule(self, rule_uuid) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -85,7 +102,7 @@ class QuotaManager:
         ) as resp:
             data = await resp.json()
             rule_uuid = data["records"][0]["uuid"]
-            quota = await self.get_quota(rule_uuid)
+            quota = await self.get_quota_by_rule(rule_uuid)
         return quota
 
 
@@ -119,7 +136,6 @@ class QuotaManager:
 
     async def update_quotarule_qtree(
         self,
-        qtree_name: str,
         spahali: int,
         spasoli: int,
         fihali: int,
@@ -127,12 +143,8 @@ class QuotaManager:
         rule_uuid,
     ) -> ClientResponse:
         dataobj = {
-            "svm": {"name": self.svm},
-            "volume": {"name": self.volume_name},
-            "type": "tree",
             "space": {"hard_limit": spahali, "soft_limit": spasoli},
             "files": {"hard_limit": fihali, "soft_limit": fisoli},
-            "qtree": {"name": qtree_name},
         }
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}

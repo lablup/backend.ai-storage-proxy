@@ -117,7 +117,11 @@ class NetAppVolume(BaseVolume):
     async def get_fs_usage(self) -> FSUsage:
         volume_usage = await self.netapp_client.get_usage()
         quota = await self.quota_manager.get_quota_by_qtree_name(self.netapp_qtree_name)
-        capacity_bytes = quota["space"]["hard_limit"] if quota["space"].get("hard_limit") else volume_usage["capacity_bytes"]
+        space = quota.get("space")
+        if space:
+            capacity_bytes = space["hard_limit"]
+        else:
+            capacity_bytes = volume_usage["capacity_bytes"]
         return FSUsage(
             capacity_bytes= capacity_bytes, used_bytes=volume_usage["used_bytes"]
         )
@@ -178,7 +182,7 @@ class NetAppVolume(BaseVolume):
     # ------ qtree and quotas operations ------
     async def get_default_qtree_by_volume_id(self, volume_uuid):
         volume_uuid = volume_uuid if volume_uuid else self.netapp_volume_uuid
-        resp = self.netapp_client.get_default_qtree_by_volume_id(volume_uuid)
+        resp = await self.netapp_client.get_default_qtree_by_volume_id(volume_uuid)
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
@@ -259,9 +263,39 @@ class NetAppVolume(BaseVolume):
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
+    
+    async def get_quota(self):
+        qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
+        resp = await self.quota_manager.get_quota(qtree["name"])
 
-    async def get_quota(self, rule_uuid):
-        resp = await self.quota_manager.get_quota(self, rule_uuid)
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def update_quota(self, quota):
+        qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
+        resp = await self.quota_manager.get_quota(qtree["name"])
+        from icecream import ic
+        ic(resp)
+        rule_uuid = resp["uuid"]
+        files_hard_limit = quota["files_hard_limit"]
+        files_soft_limit = quota["files_soft_limit"]
+        space_hard_limit = quota["space_hard_limit"]
+        space_soft_limit = quota["space_soft_limit"]
+        
+        await self.update_quotarule_qtree(
+            space_hard_limit,
+            space_soft_limit,
+            files_hard_limit,
+            files_soft_limit,
+            rule_uuid
+        )
+
+        if "error" in resp:
+            raise ExecutionError("api error")
+
+    async def get_quota_by_rule(self, rule_uuid):
+        resp = await self.quota_manager.get_quota_by_rule(self, rule_uuid)
 
         if "error" in resp:
             raise ExecutionError("api error")
@@ -292,24 +326,23 @@ class NetAppVolume(BaseVolume):
 
     async def update_quotarule_qtree(
         self,
-        qtree_name,
+        # qtree_name,
         space_hard_limit,
         space_soft_limit,
         files_hard_limit,
         files_soft_limit,
+        rule_uuid,
     ):
         resp = await self.quota_manager.update_quotarule_qtree(
-            self,
-            qtree_name,
+            #qtree_name,
             space_hard_limit,
             space_soft_limit,
             files_hard_limit,
             files_soft_limit,
+            rule_uuid,
         )
-
         if "error" in resp:
             raise ExecutionError("api error")
-        return resp
 
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI
