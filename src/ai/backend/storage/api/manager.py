@@ -306,6 +306,7 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
                 }
             )
 
+
 async def get_quota(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -322,11 +323,9 @@ async def get_quota(request: web.Request) -> web.Response:
             space = quota.get("space")
             files = quota.get("files")
             return web.json_response(
-                {
-                    "space": space if space else {},
-                    "files": files if files else {}
-                }
+                {"space": space if space else {}, "files": files if files else {}}
             )
+
 
 async def update_quota(request: web.Request) -> web.Response:
     async with check_params(
@@ -345,10 +344,10 @@ async def update_quota(request: web.Request) -> web.Response:
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
             quota = {
-                "files_soft_limit" : params["files_soft_limit"],
-                "files_hard_limit" : params["files_hard_limit"],
-                "space_soft_limit" : params["space_soft_limit"],
-                "space_hard_limit" : params["space_hard_limit"],
+                "files_soft_limit": params["files_soft_limit"],
+                "files_hard_limit": params["files_hard_limit"],
+                "space_soft_limit": params["space_soft_limit"],
+                "space_hard_limit": params["space_hard_limit"],
             }
             await volume.update_quota(quota)
             return web.Response(status=204)
@@ -357,17 +356,22 @@ async def update_quota(request: web.Request) -> web.Response:
 async def get_qtree(request: web.Request) -> web.Response:
     raise NotImplementedError
 
+
 async def update_qtree(request: web.Request) -> web.Response:
     raise NotImplementedError
+
 
 async def get_qos(request: web.Request) -> web.Response:
     raise NotImplementedError
 
+
 async def update_qos(request: web.Request) -> web.Response:
     raise NotImplementedError
 
+
 async def delete_qos(request: web.Request) -> web.Response:
     raise NotImplementedError
+
 
 async def mkdir(request: web.Request) -> web.Response:
     async with check_params(

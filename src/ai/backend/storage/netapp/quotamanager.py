@@ -1,11 +1,9 @@
 from __future__ import annotations
 
+from typing import Any, Mapping
 
 import aiohttp
 from aiohttp.client_reqrep import ClientResponse
-import json
-from typing import Any, Mapping
-from yarl import URL
 
 
 class QuotaManager:
@@ -104,7 +102,6 @@ class QuotaManager:
             rule_uuid = data["records"][0]["uuid"]
             quota = await self.get_quota_by_rule(rule_uuid)
         return quota
-
 
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI

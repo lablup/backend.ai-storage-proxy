@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from typing import FrozenSet
+from uuid import UUID
 
 from ai.backend.common.types import HardwareMetadata
-
 
 from ..abc import CAP_METRIC, CAP_VFOLDER
 from ..exception import ExecutionError
@@ -13,7 +13,6 @@ from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
-
 
 
 async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
@@ -57,7 +56,7 @@ class NetAppVolume(BaseVolume):
 
     async def init(self) -> None:
         # Temporaily comment out volume mount checking
-        #available = True
+        # available = True
         # try:
         #     proc = await asyncio.create_subprocess_exec(
         #         b"mount",
@@ -76,7 +75,7 @@ class NetAppVolume(BaseVolume):
         #         await proc.wait()
         # if not available:
         #     raise RuntimeError("NetApp volumes are not mounted or not supported.")
-        
+
         self.endpoint = self.config["netapp_endpoint"]
         self.netapp_admin = self.config["netapp_admin"]
         self.netapp_password = str(self.config["netapp_password"])
@@ -123,7 +122,7 @@ class NetAppVolume(BaseVolume):
         else:
             capacity_bytes = volume_usage["capacity_bytes"]
         return FSUsage(
-            capacity_bytes= capacity_bytes, used_bytes=volume_usage["used_bytes"]
+            capacity_bytes=capacity_bytes, used_bytes=volume_usage["used_bytes"]
         )
 
     async def get_performance_metric(self) -> FSPerfMetric:
@@ -202,7 +201,9 @@ class NetAppVolume(BaseVolume):
         return resp
 
     async def get_qtree_id_by_name(self, qtree_name):
-        qtree_name = qtree_name if qtree_name else await self.get_default_qtree_by_volume_id()
+        qtree_name = (
+            qtree_name if qtree_name else await self.get_default_qtree_by_volume_id()
+        )
         resp = await self.netapp_client.get_qtree_id_by_name(qtree_name)
 
         if "error" in resp:
@@ -263,7 +264,7 @@ class NetAppVolume(BaseVolume):
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
-    
+
     async def get_quota(self):
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
@@ -276,19 +277,20 @@ class NetAppVolume(BaseVolume):
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
         from icecream import ic
+
         ic(resp)
         rule_uuid = resp["uuid"]
         files_hard_limit = quota["files_hard_limit"]
         files_soft_limit = quota["files_soft_limit"]
         space_hard_limit = quota["space_hard_limit"]
         space_soft_limit = quota["space_soft_limit"]
-        
+
         await self.update_quotarule_qtree(
             space_hard_limit,
             space_soft_limit,
             files_hard_limit,
             files_soft_limit,
-            rule_uuid
+            rule_uuid,
         )
 
         if "error" in resp:
@@ -334,7 +336,7 @@ class NetAppVolume(BaseVolume):
         rule_uuid,
     ):
         resp = await self.quota_manager.update_quotarule_qtree(
-            #qtree_name,
+            # qtree_name,
             space_hard_limit,
             space_soft_limit,
             files_hard_limit,

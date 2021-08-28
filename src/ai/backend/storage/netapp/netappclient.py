@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import aiohttp
 import json
 from typing import Any, Mapping
+
+import aiohttp
 
 
 class NetAppClient:
@@ -40,7 +41,7 @@ class NetAppClient:
 
         # mapping certain data for better explanation
         volume_qtree_cluster = {
-            #------ use volume info ------
+            # ------ use volume info ------
             "id": data["uuid"],
             "local_tier": data["aggregates"][0]["name"],
             "create_time": data["create_time"],
@@ -52,13 +53,12 @@ class NetAppClient:
             "svm_id": data["svm"]["uuid"],
             "qos": json.dumps(qos["policy"]) if qos else None,
             "qos_policies": json.dumps(qos_policies) if qos_policies else None,
-
-            #------ use qtree info ------
+            # ------ use qtree info ------
             "name": qtree["name"],
             "path": qtree["path"],
             "security_style": qtree["security_style"],
-            "export_policy": qtree["export_policy"]['name'],
-            "timestamp": qtree["statistics"].get("timestamp") # last check time
+            "export_policy": qtree["export_policy"]["name"],
+            "timestamp": qtree["statistics"].get("timestamp"),  # last check time
         }
         return volume_qtree_cluster
 
@@ -141,7 +141,7 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-            id = str(data["records"][0]["id"]) if data["num_records"] > 0 else ''
+            id = str(data["records"][0]["id"]) if data["num_records"] > 0 else ""
         return id
 
     async def get_qtree_path(self, qtree_id) -> Mapping[str, Any]:
