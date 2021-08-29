@@ -353,12 +353,46 @@ async def update_quota(request: web.Request) -> web.Response:
             return web.Response(status=204)
 
 
-async def get_qtree(request: web.Request) -> web.Response:
-    raise NotImplementedError
+async def get_qtree_config(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "get_qtree_config", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            qtree_config = await volume.get_qtree_config()
+            return web.json_response(qtree_config)
 
 
-async def update_qtree(request: web.Request) -> web.Response:
-    raise NotImplementedError
+async def update_qtree_config(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+                t.Key("qtree_name"): t.String(),
+                t.Key("security_style"): t.String(),
+                # TODO: export_policy update
+                # t.Key("export_policy"): t.Dict({t.Key("name"): t.String, t.Key("id"): t.String})
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "update_qtree_config", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            config = {
+                "name": params["qtree_name"],
+                "security_style": params["security_style"]
+                # TODO: export policy update
+                # export_policy: params["export_policy"]
+            }
+            await volume.update_qtree_config(config)
+            return web.Response(status=204)
 
 
 async def get_qos(request: web.Request) -> web.Response:
@@ -585,8 +619,8 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/metadata", set_metadata)
     app.router.add_route("GET", "/volume/quota", get_quota)
     app.router.add_route("POST", "/volume/quota", update_quota)
-    app.router.add_route("GET", "/volume/qtree", get_qtree)
-    app.router.add_route("POST", "/volume/qtree", update_qtree)
+    app.router.add_route("GET", "/volume/qtree", get_qtree_config)
+    app.router.add_route("POST", "/volume/qtree", update_qtree_config)
     app.router.add_route("GET", "/volume/qos", get_qos)
     app.router.add_route("POST", "/volume/qos", update_qos)
     app.router.add_route("DELETE", "/volume/qos", delete_qos)

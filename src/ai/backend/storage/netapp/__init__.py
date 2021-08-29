@@ -115,6 +115,8 @@ class NetAppVolume(BaseVolume):
 
     async def get_fs_usage(self) -> FSUsage:
         volume_usage = await self.netapp_client.get_usage()
+        qtree_info = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
+        self.netapp_qtree_name = qtree_info["name"]
         quota = await self.quota_manager.get_quota_by_qtree_name(self.netapp_qtree_name)
         space = quota.get("space")
         if space:
@@ -276,9 +278,6 @@ class NetAppVolume(BaseVolume):
     async def update_quota(self, quota):
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
-        from icecream import ic
-
-        ic(resp)
         rule_uuid = resp["uuid"]
         files_hard_limit = quota["files_hard_limit"]
         files_soft_limit = quota["files_soft_limit"]
@@ -350,7 +349,30 @@ class NetAppVolume(BaseVolume):
     # in NetApp ONTAP Plugin of Backend.AI
     async def delete_quotarule_qtree(self, rule_uuid):
         resp = await self.quota_manager.update_quotarule_qtree(rule_uuid)
-
         if "error" in resp:
             raise ExecutionError("api error")
         return resp
+
+    async def get_qtree_config(self):
+        qtree_metadata = await self.netapp_client.get_default_qtree_by_volume_id(
+            self.netapp_volume_uuid
+        )
+        resp = await self.netapp_client.get_qtree_config(qtree_metadata.get("id"))
+        if "error" in resp:
+            raise ExecutionError("api error")
+        return resp
+
+    async def update_qtree_config(self, config):
+        qtree_metadata = await self.get_default_qtree_by_volume_id(
+            self.netapp_volume_uuid
+        )
+        config.update({"id": qtree_metadata.get("id")})
+        resp = await self.netapp_client.update_qtree_config(config)
+
+        # adjust mount path (volume + qtree) according to qtree_name
+        self.netapp_qtree_name = config["name"]
+        self.mount_path = (
+            self.mount_path.parent / Path(self.netapp_qtree_name)
+        ).resolve()
+        if "error" in resp:
+            raise ExecutionError("api error")

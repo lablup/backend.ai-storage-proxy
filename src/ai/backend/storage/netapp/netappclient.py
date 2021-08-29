@@ -14,9 +14,6 @@ class NetAppClient:
     _session: aiohttp.ClientSession
     svm: str
     volume_name: str
-    volume_uuid: str
-    qtree_name: str
-    qtree_uuid: str
 
     def __init__(
         self, endpoint: str, user: str, password: str, svm: str, volume_name: str
@@ -145,8 +142,9 @@ class NetAppClient:
         return id
 
     async def get_qtree_path(self, qtree_id) -> Mapping[str, Any]:
+        volume_uuid = await self.get_volume_uuid_by_name()
         async with self._session.get(
-            f"{self.endpoint}/api/storage/qtrees/{self.volume_uuid}/{qtree_id}",
+            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
@@ -155,8 +153,10 @@ class NetAppClient:
         return data["path"]
 
     async def list_qtrees_by_volume_id(self, volume_uuid) -> Mapping[str, Any]:
+        if not volume_uuid:
+            volume_uuid = await self.get_volume_uuid_by_name()
         async with self._session.get(
-            f"{self.endpoint}/api/storage/qtrees/{volume_uuid if volume_uuid else self.volume_uuid}",
+            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             raise_for_status=True,
@@ -189,38 +189,31 @@ class NetAppClient:
         ) as resp:
             return await resp.json()
 
-    async def update_qtree(
-        self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
-    ) -> Mapping[str, Any]:
-
+    async def update_qtree(self, config) -> Mapping[str, Any]:
         payload = {
-            "svm": {"name": self.svm},
-            "volume": {"name": self.volume_name},
-            "name": qtree_name,
-            "security_style": security_style,
-            "unix_permissions": unix_permission,
-            "export_policy": {"name": export_policy_name},
+            "name": config.get("name"),
+            "security_style": config.get("security_style"),
         }
-
+        qtree_id = config["id"]
+        volume_uuid = await self.get_volume_uuid_by_name()
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.patch(
-            f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
+            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             headers=headers,
             raise_for_status=True,
             data=json.dumps(payload),
         ) as resp:
-            tmp = await resp.json()
-        return tmp
+            return await resp.json()
 
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI
     async def delete_qtree(self, qtree_id) -> Mapping[str, Any]:
-
+        volume_uuid = await self.get_volume_uuid_by_name()
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
         async with self._session.delete(
-            f"{self.endpoint}/api/storage/qtrees{self.volume_uuid}/{qtree_id}",
+            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}/{qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
             ssl=False,
             headers=headers,
@@ -238,6 +231,19 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
         return data
+
+    async def get_qtree_config(self, qtree_id) -> Mapping[str, Any]:
+        qtree = await self.get_qtree_info(qtree_id)
+        qtree_config = {
+            "qtree_name": qtree["name"],
+            "security_style": qtree["security_style"],
+            "export_policy": qtree["export_policy"]["name"],
+        }
+        return qtree_config
+
+    async def update_qtree_config(self, config) -> Mapping[str, Any]:
+        resp = await self.update_qtree(config)
+        return resp
 
     async def get_qos_policies(self) -> Mapping[str, Any]:
         async with self._session.get(
