@@ -458,6 +458,7 @@ async def delete_qos(request: web.Request) -> web.Response:
             await volume.delete_qos(qos)
             return web.Response(status=204)
 
+
 async def update_volume_config(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -476,6 +477,7 @@ async def update_volume_config(request: web.Request) -> web.Response:
             }
             await volume.update_volume_config(config)
             return web.Response(status=200)
+
 
 async def mkdir(request: web.Request) -> web.Response:
     async with check_params(

@@ -330,7 +330,7 @@ class NetAppClient:
         }
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
-        
+
         async with self._session.post(
             f"{self.endpoint}/api/storage/qos/policies",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -347,7 +347,7 @@ class NetAppClient:
             "name": qos["input"]["name"],
             "fixed": qos["input"]["fixed"],
         }
-        
+
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.patch(
@@ -358,12 +358,11 @@ class NetAppClient:
             raise_for_status=True,
             data=json.dumps(payload),
         ) as resp:
-            ic(resp)
             return await resp.json()
 
     async def delete_qos(self, qos_name):
         qos_metadata = await self.get_qos_by_qos_name(qos_name)
-        
+
         async with self._session.delete(
             f"{self.endpoint}/api/storage/qos/policies/{qos_metadata['uuid']}",
             auth=aiohttp.BasicAuth(self.user, self.password),
