@@ -279,16 +279,12 @@ class NetAppVolume(BaseVolume):
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
         rule_uuid = resp["uuid"]
-        files_hard_limit = quota["files_hard_limit"]
-        files_soft_limit = quota["files_soft_limit"]
-        space_hard_limit = quota["space_hard_limit"]
-        space_soft_limit = quota["space_soft_limit"]
 
         await self.update_quotarule_qtree(
-            space_hard_limit,
-            space_soft_limit,
-            files_hard_limit,
-            files_soft_limit,
+            quota["space"]["hard_limit"],
+            quota["space"]["soft_limit"],
+            quota["files"]["hard_limit"],
+            quota["files"]["soft_limit"],
             rule_uuid,
         )
 
@@ -362,10 +358,14 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
-    async def update_qtree_config(self, config):
+    async def update_qtree_config(self, raw_config):
         qtree_metadata = await self.get_default_qtree_by_volume_id(
             self.netapp_volume_uuid
         )
+        config = {
+            "name":  raw_config["input"]["name"],
+            "security_style": raw_config["input"]["security_style"]
+        }
         config.update({"id": qtree_metadata.get("id")})
         resp = await self.netapp_client.update_qtree_config(config)
 
@@ -375,4 +375,36 @@ class NetAppVolume(BaseVolume):
             self.mount_path.parent / Path(self.netapp_qtree_name)
         ).resolve()
         if "error" in resp:
+            raise ExecutionError("api error")
+
+    async def get_qos(self, qos_name):
+        resp = await self.netapp_client.get_qos_by_qos_name(qos_name)
+        if resp and "error" in resp:
+            raise ExecutionError
+        return resp
+
+    async def create_qos(self, qos):
+        resp = await self.netapp_client.create_qos(qos)
+        # if successfully created when resp will be an empty dict
+        if resp and "error" in resp:
+            raise ExecutionError("api error")
+
+    async def update_qos(self, qos):
+        resp = await self.netapp_client.update_qos(qos)
+        # if successfully created when resp will be an empty dict
+        if resp and "error" in resp:
+            raise ExecutionError("api error")
+
+    async def delete_qos(self, qos_list):
+        qos_names = qos_list["input"]["name_list"]
+        for name in qos_names:
+            resp = await self.netapp_client.delete_qos(name)
+            # if successfully created when resp will be an empty dict
+            if resp and "error" in resp:
+                raise ExecutionError("api error")
+
+    async def update_volume_config(self, config):
+        resp = await self.netapp_client.update_volume_config(config)
+        # if successfully created when resp will be an empty dict
+        if resp and "error" in resp:
             raise ExecutionError("api error")

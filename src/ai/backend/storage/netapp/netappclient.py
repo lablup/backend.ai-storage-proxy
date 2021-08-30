@@ -31,7 +31,7 @@ class NetAppClient:
     async def get_metadata(self) -> Mapping[str, Any]:
         volume_uuid = await self.get_volume_uuid_by_name()
         data = await self.get_volume_info(volume_uuid)
-        qos = await self.get_qos_by_id(volume_uuid)
+        qos = await self.get_qos_by_volume_id(volume_uuid)
         qos_policies = await self.get_qos_policies()
         qtree_metadata = await self.get_default_qtree_by_volume_id(volume_uuid)
         qtree = await self.get_qtree_info(qtree_metadata.get("id"))
@@ -48,8 +48,6 @@ class NetAppClient:
             "style": data["style"],
             "svm_name": data["svm"]["name"],
             "svm_id": data["svm"]["uuid"],
-            "qos": json.dumps(qos["policy"]) if qos else None,
-            "qos_policies": json.dumps(qos_policies) if qos_policies else None,
             # ------ use qtree info ------
             "name": qtree["name"],
             "path": qtree["path"],
@@ -57,6 +55,15 @@ class NetAppClient:
             "export_policy": qtree["export_policy"]["name"],
             "timestamp": qtree["statistics"].get("timestamp"),  # last check time
         }
+        # optional values to add in volume_qtree_cluster
+        if qos:
+            volume_qtree_cluster.update({
+                "qos": json.dumps(qos["policy"])
+            })
+        if qos_policies:
+            volume_qtree_cluster.update({
+                "qos_policies": json.dumps(qos_policies)
+            })
         return volume_qtree_cluster
 
     async def get_usage(self) -> Mapping[str, Any]:
@@ -253,9 +260,37 @@ class NetAppClient:
             raise_for_status=True,
         ) as resp:
             data = await resp.json()
-        return data["records"]
+            qos_policies_metadata = data["records"]
+            qos_policies = []
+            for qos in qos_policies_metadata:
+                policy = await self.get_qos_by_uuid(qos["uuid"])
+                qos_policies.append(policy)
+        return qos_policies
 
-    async def get_qos_by_id(self, volume_uuid) -> Mapping[str, Any]:
+    async def get_qos_by_uuid(self, qos_uuid) -> Mapping[str, Any]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/qos/policies/{qos_uuid}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
+        ) as resp:
+            data = await resp.json()
+            fixed = data["fixed"]
+            qos_policy = {
+                "uuid": data["uuid"],
+                "name": data["name"],
+                "fixed": {
+                    "max_throughput_iops": fixed.get("max_throughput_iops", 0),
+                    "max_throughput_mbps": fixed.get("max_throughput_mbps", 0),
+                    "min_throughput_iops": fixed.get("min_throughput_iops", 0),
+                    "min_throughput_mbps": fixed.get("min_throughput_mbps", 0),
+                    "capacity_shared": fixed["capacity_shared"],
+                },
+                "svm": data["svm"]
+            }
+            return qos_policy
+
+    async def get_qos_by_volume_id(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes/{volume_uuid}?fields=qos",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -264,3 +299,88 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
         return data["qos"]
+
+    async def get_qos_by_qos_name(self, qos_name) -> Mapping[str, Any]:
+        async with self._session.get(
+            f"{self.endpoint}/api/storage/qos/policies?name={qos_name}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
+        ) as resp:
+            data = await resp.json()
+            qos = {}
+            if data["num_records"]:
+                qos_metadata = data["records"][0]
+                raw_qos = await self.get_qos_by_uuid(qos_metadata["uuid"])
+                qos = {
+                    "uuid": raw_qos["uuid"],
+                    "name" : raw_qos["name"],
+                    "svm" : raw_qos["svm"],
+                    "fixed": raw_qos["fixed"]
+                }
+            else:
+                resp = qos
+            return qos
+
+    async def create_qos(self, qos):
+        payload = {
+            "name": qos["name"],
+            "fixed": qos["input"]["fixed"],
+            "svm": qos["input"]["svm"]
+        }
+
+        headers = {"content-type": "application/json", "accept": "application/hal+json"}
+        
+        async with self._session.post(
+            f"{self.endpoint}/api/storage/qos/policies",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            headers=headers,
+            raise_for_status=True,
+            data=json.dumps(payload),
+        ) as resp:
+            return await resp.json()
+
+    async def update_qos(self, qos):
+
+        payload = {
+            "name": qos["input"]["name"],
+            "fixed": qos["input"]["fixed"],
+        }
+        
+        headers = {"content-type": "application/json", "accept": "application/hal+json"}
+
+        async with self._session.patch(
+            f"{self.endpoint}/api/storage/qos/policies/{qos['input']['uuid']}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            headers=headers,
+            raise_for_status=True,
+            data=json.dumps(payload),
+        ) as resp:
+            ic(resp)
+            return await resp.json()
+
+    async def delete_qos(self, qos_name):
+        qos_metadata = await self.get_qos_by_qos_name(qos_name)
+        
+        async with self._session.delete(
+            f"{self.endpoint}/api/storage/qos/policies/{qos_metadata['uuid']}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            raise_for_status=True,
+        ) as resp:
+            return await resp.json()
+
+    async def update_volume_config(self, config):
+        uuid = await self.get_volume_uuid_by_name()
+        headers = {"content-type": "application/json", "accept": "application/hal+json"}
+        async with self._session.patch(
+            f"{self.endpoint}/api/storage/volumes/{uuid}",
+            auth=aiohttp.BasicAuth(self.user, self.password),
+            ssl=False,
+            headers=headers,
+            raise_for_status=True,
+            data=json.dumps(config["input"]),
+        ) as resp:
+            return await resp.json()
