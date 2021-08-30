@@ -137,7 +137,35 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def get_performance_metric(self) -> FSPerfMetric:
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
+        pass
+
+    @abstractmethod
+    async def get_qtree_config(self):
+        pass
+
+    @abstractmethod
+    async def update_qtree_config(self):
+        pass
+
+    @abstractmethod
+    async def get_qos(self):
+        pass
+
+    @abstractmethod
+    async def create_qos(self):
+        pass
+
+    @abstractmethod
+    async def update_qos(self):
+        pass
+
+    @abstractmethod
+    async def delete_qos(self):
+        pass
+
+    @abstractmethod
+    async def update_volume_config(self):
         pass
 
     @abstractmethod
