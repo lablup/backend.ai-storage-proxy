@@ -267,7 +267,7 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
-    async def get_quota(self):
+    async def get_quota(self) -> Mapping[str, Any]:
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
 
@@ -363,8 +363,8 @@ class NetAppVolume(BaseVolume):
             self.netapp_volume_uuid
         )
         config = {
-            "name":  raw_config["input"]["name"],
-            "security_style": raw_config["input"]["security_style"]
+            "name": raw_config["input"]["name"],
+            "security_style": raw_config["input"]["security_style"],
         }
         config.update({"id": qtree_metadata.get("id")})
         resp = await self.netapp_client.update_qtree_config(config)

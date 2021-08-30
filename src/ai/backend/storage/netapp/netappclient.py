@@ -4,6 +4,7 @@ import json
 from typing import Any, Mapping
 
 import aiohttp
+from aiohttp.client_reqrep import ClientResponse
 
 
 class NetAppClient:
@@ -57,13 +58,9 @@ class NetAppClient:
         }
         # optional values to add in volume_qtree_cluster
         if qos:
-            volume_qtree_cluster.update({
-                "qos": json.dumps(qos["policy"])
-            })
+            volume_qtree_cluster.update({"qos": json.dumps(qos["policy"])})
         if qos_policies:
-            volume_qtree_cluster.update({
-                "qos_policies": json.dumps(qos_policies)
-            })
+            volume_qtree_cluster.update({"qos_policies": json.dumps(qos_policies)})
         return volume_qtree_cluster
 
     async def get_usage(self) -> Mapping[str, Any]:
@@ -85,7 +82,7 @@ class NetAppClient:
             data = await resp.json()
         return data["records"]
 
-    async def get_volume_name_by_uuid(self, volume_uuid) -> Mapping[str, Any]:
+    async def get_volume_name_by_uuid(self, volume_uuid) -> str:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes?uuid={volume_uuid}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -96,7 +93,7 @@ class NetAppClient:
             name = data["records"][0]["name"]
         return name
 
-    async def get_volume_uuid_by_name(self) -> Mapping[str, Any]:
+    async def get_volume_uuid_by_name(self) -> str:
         async with self._session.get(
             f"{self.endpoint}/api/storage/volumes?name={self.volume_name}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -126,8 +123,9 @@ class NetAppClient:
                 continue
             else:
                 return qtree
+        return {}
 
-    async def get_qtree_name_by_id(self, qtree_id) -> Mapping[str, Any]:
+    async def get_qtree_name_by_id(self, qtree_id) -> str:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qtrees?id={qtree_id}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -137,7 +135,7 @@ class NetAppClient:
             data = await resp.json()
         return data["name"]
 
-    async def get_qtree_id_by_name(self, qtree_name) -> Mapping[str, Any]:
+    async def get_qtree_id_by_name(self, qtree_name) -> str:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qtrees?name={qtree_name}",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -286,7 +284,7 @@ class NetAppClient:
                     "min_throughput_mbps": fixed.get("min_throughput_mbps", 0),
                     "capacity_shared": fixed["capacity_shared"],
                 },
-                "svm": data["svm"]
+                "svm": data["svm"],
             }
             return qos_policy
 
@@ -314,19 +312,19 @@ class NetAppClient:
                 raw_qos = await self.get_qos_by_uuid(qos_metadata["uuid"])
                 qos = {
                     "uuid": raw_qos["uuid"],
-                    "name" : raw_qos["name"],
-                    "svm" : raw_qos["svm"],
-                    "fixed": raw_qos["fixed"]
+                    "name": raw_qos["name"],
+                    "svm": raw_qos["svm"],
+                    "fixed": raw_qos["fixed"],
                 }
             else:
                 resp = qos
             return qos
 
-    async def create_qos(self, qos):
+    async def create_qos(self, qos) -> ClientResponse:
         payload = {
             "name": qos["name"],
             "fixed": qos["input"]["fixed"],
-            "svm": qos["input"]["svm"]
+            "svm": qos["input"]["svm"],
         }
 
         headers = {"content-type": "application/json", "accept": "application/hal+json"}

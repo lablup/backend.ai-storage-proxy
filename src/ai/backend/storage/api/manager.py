@@ -334,7 +334,6 @@ async def update_quota(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("input"): t.Mapping(t.String, t.Any),
-
             }
         ),
     ) as params:
@@ -389,12 +388,13 @@ async def get_qos(request: web.Request) -> web.Response:
                 t.Key("volume"): t.String,
                 t.Key("name"): t.String,
             }
-        )
+        ),
     ) as params:
         await log_manager_api_entry(log, "get_qos", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
-            await volume.get_qos(params["name"])
+            resp = await volume.get_qos(params["name"])
+            return web.Response(resp)
 
 
 async def create_qos(request: web.Request) -> web.Response:
@@ -472,9 +472,7 @@ async def update_volume_config(request: web.Request) -> web.Response:
         await log_manager_api_entry(log, "update_volume_config", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
-            config = {
-                "input": params["input"]
-            }
+            config = {"input": params["input"]}
             await volume.update_volume_config(config)
             return web.Response(status=200)
 
