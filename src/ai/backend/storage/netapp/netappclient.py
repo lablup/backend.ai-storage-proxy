@@ -340,12 +340,12 @@ class NetAppClient:
             return await resp.json()
 
     async def update_qos(self, qos):
-
+        name =  qos["input"].get("name", None)
         payload = {
-            "name": qos["input"]["name"],
             "fixed": qos["input"]["fixed"],
         }
-
+        if name:
+            payload.update({"name", name})
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.patch(

@@ -119,7 +119,7 @@ class NetAppVolume(BaseVolume):
         self.netapp_qtree_name = qtree_info["name"]
         quota = await self.quota_manager.get_quota_by_qtree_name(self.netapp_qtree_name)
         space = quota.get("space")
-        if space:
+        if space and space.get("hard_limit"):
             capacity_bytes = space["hard_limit"]
         else:
             capacity_bytes = volume_usage["capacity_bytes"]
