@@ -102,7 +102,7 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
             uuid = data["records"][0]["uuid"]
-        return uuid
+            return uuid
 
     async def get_volume_info(self, volume_uuid) -> Mapping[str, Any]:
         async with self._session.get(
@@ -210,7 +210,8 @@ class NetAppClient:
             raise_for_status=True,
             data=json.dumps(payload),
         ) as resp:
-            return await resp.json()
+            data = await resp.json()
+        return data
 
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI

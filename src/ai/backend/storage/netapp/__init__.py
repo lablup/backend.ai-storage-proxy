@@ -100,7 +100,8 @@ class NetAppVolume(BaseVolume):
 
         # assign qtree info after netapp_client and quotamanager are initiated
         self.netapp_volume_uuid = await self.netapp_client.get_volume_uuid_by_name()
-        self.netapp_qtree_name = self.config["netapp_qtree_name"]
+        default_qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
+        self.netapp_qtree_name = default_qtree['name'] if default_qtree.get('name') else self.config["netapp_qtree_name"]
         self.netapp_qtree_id = await self.get_qtree_id_by_name(self.netapp_qtree_name)
 
         # adjust mount path (volume + qtree)
@@ -374,6 +375,9 @@ class NetAppVolume(BaseVolume):
         self.mount_path = (
             self.mount_path.parent / Path(self.netapp_qtree_name)
         ).resolve()
+        test_var = await self.netapp_client.get_default_qtree_by_volume_id(
+            self.netapp_volume_uuid
+        )
         if "error" in resp:
             raise ExecutionError("api error")
 
