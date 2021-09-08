@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path, PurePosixPath
-from typing import AsyncIterator, FrozenSet, Sequence
+from typing import Any, AsyncIterator, FrozenSet, Mapping, Sequence
 from uuid import UUID
 
 from aiotools import aclosing
@@ -105,7 +105,13 @@ class FlashBladeVolume(BaseVolume):
     async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
 
+    async def get_quota_metadata(self) -> Mapping[str, Any]:
+        raise NotImplementedError
+
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
+        raise NotImplementedError
+
+    async def set_quota_metadata(self, quota: Mapping[str, Any]):
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:

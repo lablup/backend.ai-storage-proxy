@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+from typing import Any, List, Mapping
 
 import aiohttp
 from aiohttp.client_reqrep import ClientResponse
@@ -157,7 +157,7 @@ class NetAppClient:
             data = await resp.json()
         return data["path"]
 
-    async def list_qtrees_by_volume_id(self, volume_uuid) -> Mapping[str, Any]:
+    async def list_qtrees_by_volume_id(self, volume_uuid) -> List[Mapping[str, Any]]:
         if not volume_uuid:
             volume_uuid = await self.get_volume_uuid_by_name()
         async with self._session.get(
@@ -251,7 +251,7 @@ class NetAppClient:
         resp = await self.update_qtree(config)
         return resp
 
-    async def get_qos_policies(self) -> Mapping[str, Any]:
+    async def get_qos_policies(self) -> List[Mapping[str, Any]]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/qos/policies",
             auth=aiohttp.BasicAuth(self.user, self.password),
@@ -317,8 +317,6 @@ class NetAppClient:
                     "svm": raw_qos["svm"],
                     "fixed": raw_qos["fixed"],
                 }
-            else:
-                resp = qos
             return qos
 
     async def create_qos(self, qos) -> ClientResponse:
@@ -341,12 +339,12 @@ class NetAppClient:
             return await resp.json()
 
     async def update_qos(self, qos):
-        name =  qos["input"].get("name", None)
+        name = qos["input"].get("name", None)
         payload = {
             "fixed": qos["input"]["fixed"],
         }
         if name:
-            payload.update({"name", name})
+            payload.update({"name": name})
         headers = {"content-type": "application/json", "accept": "application/hal+json"}
 
         async with self._session.patch(

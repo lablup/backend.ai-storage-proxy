@@ -313,21 +313,23 @@ async def get_quota(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("volume"): t.String(),
+                t.Key("vfid", default=None): t.Null | t.String,
             }
         ),
     ) as params:
         await log_manager_api_entry(log, "get_quota", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
-            quota = await volume.get_quota()
-            space = quota.get("space")
-            files = quota.get("files")
-            return web.json_response(
-                {"space": space if space else {}, "files": files if files else {}}
-            )
+            # monkeypatch for volume checking
+            netapp_vols = ["netapp", "netapp2"]
+            if any(vol in params["volume"].lower() for vol in netapp_vols):
+                quota = await volume.get_quota_metadata()
+            else:
+                quota = await volume.get_quota(params["vfid"])
+            return web.json_response(quota)
 
 
-async def update_quota(request: web.Request) -> web.Response:
+async def set_quota_metadata(request: web.Request) -> web.Response:
     async with check_params(
         request,
         t.Dict(
@@ -340,7 +342,7 @@ async def update_quota(request: web.Request) -> web.Response:
         await log_manager_api_entry(log, "update_quota", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
-            await volume.update_quota(params["input"])
+            await volume.set_quota_metadata(params["input"])
             return web.Response(status=204)
 
 
@@ -689,7 +691,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("GET", "/folder/metadata", get_metadata)
     app.router.add_route("POST", "/folder/metadata", set_metadata)
     app.router.add_route("GET", "/volume/quota", get_quota)
-    app.router.add_route("PATCH", "/volume/quota", update_quota)
+    app.router.add_route("PATCH", "/volume/quota", set_quota_metadata)
     app.router.add_route("GET", "/volume/qtree", get_qtree_config)
     app.router.add_route("PATCH", "/volume/qtree", update_qtree_config)
     app.router.add_route("GET", "/volume/qos", get_qos)

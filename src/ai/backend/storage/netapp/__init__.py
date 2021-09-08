@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import FrozenSet
+from typing import Any, FrozenSet, Mapping
 from uuid import UUID
 
-from ai.backend.common.types import HardwareMetadata
+from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_METRIC, CAP_VFOLDER
 from ..exception import ExecutionError
@@ -101,7 +101,7 @@ class NetAppVolume(BaseVolume):
         # assign qtree info after netapp_client and quotamanager are initiated
         self.netapp_volume_uuid = await self.netapp_client.get_volume_uuid_by_name()
         default_qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
-        self.netapp_qtree_name = default_qtree['name'] if default_qtree.get('name') else self.config["netapp_qtree_name"]
+        self.netapp_qtree_name = default_qtree.get('name', self.config["name"])
         self.netapp_qtree_id = await self.get_qtree_id_by_name(self.netapp_qtree_name)
 
         # adjust mount path (volume + qtree)
@@ -268,7 +268,10 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
-    async def get_quota(self) -> Mapping[str, Any]:
+    async def get_quota(self, vfid: UUID) -> BinarySize:
+        raise NotImplementedError
+
+    async def get_quota_metadata(self) -> Mapping[str, Any]:
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
 
@@ -276,7 +279,10 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
-    async def update_quota(self, quota):
+    async def set_quota(self, quota):
+        raise NotImplementedError
+
+    async def set_quota_metadata(self, quota):
         qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         resp = await self.quota_manager.get_quota(qtree["name"])
         rule_uuid = resp["uuid"]
@@ -375,7 +381,7 @@ class NetAppVolume(BaseVolume):
         self.mount_path = (
             self.mount_path.parent / Path(self.netapp_qtree_name)
         ).resolve()
-        test_var = await self.netapp_client.get_default_qtree_by_volume_id(
+        await self.netapp_client.get_default_qtree_by_volume_id(
             self.netapp_volume_uuid
         )
         if "error" in resp:

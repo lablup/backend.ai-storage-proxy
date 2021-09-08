@@ -2,7 +2,7 @@ import asyncio
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List, Mapping
 from uuid import UUID
 
 from ai.backend.common.types import BinarySize
@@ -177,6 +177,9 @@ class XfsVolume(BaseVolume):
         if not str(vfid).startswith(proj_name):
             raise ExecutionError("vfid and project name does not match")
         return BinarySize.finite_from_str(quota)
+
+    async def get_quota_metadata(self) -> Mapping[str, Any]:
+        raise NotImplementedError
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         await run(

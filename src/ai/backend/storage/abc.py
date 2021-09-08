@@ -129,15 +129,23 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    async def get_performance_metric(self) -> FSPerfMetric:
+        pass
+
+    @abstractmethod
     async def get_quota(self, vfid: UUID) -> BinarySize:
         pass
 
     @abstractmethod
-    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
+    async def get_quota_metadata(self) -> Mapping[str, Any]:
         pass
 
     @abstractmethod
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
+        pass
+
+    @abstractmethod
+    async def set_quota_metadata(self, quota: Mapping[str, Any]):
         pass
 
     @abstractmethod
@@ -145,27 +153,27 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def update_qtree_config(self):
+    async def update_qtree_config(self, config: Mapping[str, Any]):
         pass
 
     @abstractmethod
-    async def get_qos(self):
+    async def get_qos(self, qos_name: str):
         pass
 
     @abstractmethod
-    async def create_qos(self):
+    async def create_qos(self, qos: Mapping[str, Any]):
         pass
 
     @abstractmethod
-    async def update_qos(self):
+    async def update_qos(self, qos: Mapping[str, Any]):
         pass
 
     @abstractmethod
-    async def delete_qos(self):
+    async def delete_qos(self, qos: Mapping[str, Any]):
         pass
 
     @abstractmethod
-    async def update_volume_config(self):
+    async def update_volume_config(self, config: Mapping[str, Any]):
         pass
 
     @abstractmethod
