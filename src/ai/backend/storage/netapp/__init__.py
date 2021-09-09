@@ -101,7 +101,7 @@ class NetAppVolume(BaseVolume):
         # assign qtree info after netapp_client and quotamanager are initiated
         self.netapp_volume_uuid = await self.netapp_client.get_volume_uuid_by_name()
         default_qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
-        self.netapp_qtree_name = default_qtree.get('name', self.config["name"])
+        self.netapp_qtree_name = default_qtree.get('name', self.config["netapp_qtree_name"])
         self.netapp_qtree_id = await self.get_qtree_id_by_name(self.netapp_qtree_name)
 
         # adjust mount path (volume + qtree)
