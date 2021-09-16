@@ -479,6 +479,41 @@ async def update_volume_config(request: web.Request) -> web.Response:
             return web.Response(status=200)
 
 
+async def get_config(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict({
+            t.Key("volume"): t.String,
+            t.Key('config_info', default=None): t.Null | t.Mapping(t.String, t.Any),
+        }),
+    ) as params:
+        await log_manager_api_entry(log, "get_config", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            config = await volume.get_config(params["config_info"])
+            return web.json_response({
+                "config": config
+            })
+
+
+async def set_config(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict({
+            t.Key("volume"): t.String,
+            t.Key("input"): t.Mapping(t.String, t.Any),
+        }),
+    ) as params:
+        await log_manager_api_entry(log, "set_config", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            config = {
+                "input": params["input"],
+            }
+            await volume.set_config(config)
+            return web.Response(status=200)
+
+
 async def mkdir(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -681,23 +716,25 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app["ctx"] = ctx
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
+    app.router.add_route("GET", "/volume/config", get_config)
+    app.router.add_route("POST", "/volume/config", set_config)
     app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)
     app.router.add_route("POST", "/folder/create", create_vfolder)
     app.router.add_route("POST", "/folder/delete", delete_vfolder)
     app.router.add_route("POST", "/folder/clone", clone_vfolder)
     app.router.add_route("GET", "/folder/mount", get_vfolder_mount)
     app.router.add_route("GET", "/volume/performance-metric", get_performance_metric)
-    app.router.add_route("PATCH", "/volume/config", update_volume_config)
-    app.router.add_route("GET", "/folder/metadata", get_metadata)
-    app.router.add_route("POST", "/folder/metadata", set_metadata)
-    app.router.add_route("GET", "/volume/quota", get_quota)
-    app.router.add_route("PATCH", "/volume/quota", set_quota_metadata)
-    app.router.add_route("GET", "/volume/qtree", get_qtree_config)
-    app.router.add_route("PATCH", "/volume/qtree", update_qtree_config)
-    app.router.add_route("GET", "/volume/qos", get_qos)
-    app.router.add_route("POST", "/volume/qos", create_qos)
-    app.router.add_route("PATCH", "/volume/qos", update_qos)
-    app.router.add_route("DELETE", "/volume/qos", delete_qos)
+    # app.router.add_route("PATCH", "/volume/config", update_volume_config)
+    # app.router.add_route("GET", "/folder/metadata", get_metadata)
+    # app.router.add_route("POST", "/folder/metadata", set_metadata)
+    # app.router.add_route("GET", "/volume/quota", get_quota)
+    # app.router.add_route("PATCH", "/volume/quota", set_quota_metadata)
+    # app.router.add_route("GET", "/volume/qtree", get_qtree_config)
+    # app.router.add_route("PATCH", "/volume/qtree", update_qtree_config)
+    # app.router.add_route("GET", "/volume/qos", get_qos)
+    # app.router.add_route("POST", "/volume/qos", create_qos)
+    # app.router.add_route("PATCH", "/volume/qos", update_qos)
+    # app.router.add_route("DELETE", "/volume/qos", delete_qos)
     app.router.add_route("GET", "/folder/usage", get_vfolder_usage)
     app.router.add_route("GET", "/folder/fs-usage", get_vfolder_fs_usage)
     app.router.add_route("POST", "/folder/file/mkdir", mkdir)

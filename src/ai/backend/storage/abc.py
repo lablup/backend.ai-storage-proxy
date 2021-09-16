@@ -136,45 +136,53 @@ class AbstractVolume(metaclass=ABCMeta):
     async def get_quota(self, vfid: UUID) -> BinarySize:
         pass
 
-    @abstractmethod
-    async def get_quota_metadata(self) -> Mapping[str, Any]:
-        pass
+    # @abstractmethod
+    # async def get_quota_metadata(self) -> Mapping[str, Any]:
+    #     pass
 
     @abstractmethod
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         pass
 
     @abstractmethod
-    async def set_quota_metadata(self, quota: Mapping[str, Any]):
+    async def get_config(self, config_info: Mapping[str, Any] = None):
         pass
 
     @abstractmethod
-    async def get_qtree_config(self):
+    async def set_config(self, config: Mapping[str, Any]):
         pass
 
-    @abstractmethod
-    async def update_qtree_config(self, config: Mapping[str, Any]):
-        pass
+    # @abstractmethod
+    # async def set_quota_metadata(self, quota: Mapping[str, Any]):
+    #     pass
 
-    @abstractmethod
-    async def get_qos(self, qos_name: str):
-        pass
+    # @abstractmethod
+    # async def get_qtree_config(self):
+    #     pass
 
-    @abstractmethod
-    async def create_qos(self, qos: Mapping[str, Any]):
-        pass
+    # @abstractmethod
+    # async def update_qtree_config(self, config: Mapping[str, Any]):
+    #     pass
 
-    @abstractmethod
-    async def update_qos(self, qos: Mapping[str, Any]):
-        pass
+    # @abstractmethod
+    # async def get_qos(self, qos_name: str):
+    #     pass
 
-    @abstractmethod
-    async def delete_qos(self, qos: Mapping[str, Any]):
-        pass
+    # @abstractmethod
+    # async def create_qos(self, qos: Mapping[str, Any]):
+    #     pass
 
-    @abstractmethod
-    async def update_volume_config(self, config: Mapping[str, Any]):
-        pass
+    # @abstractmethod
+    # async def update_qos(self, qos: Mapping[str, Any]):
+    #     pass
+
+    # @abstractmethod
+    # async def delete_qos(self, qos: Mapping[str, Any]):
+    #     pass
+
+    # @abstractmethod
+    # async def update_volume_config(self, config: Mapping[str, Any]):
+    #     pass
 
     @abstractmethod
     async def get_fs_usage(self) -> FSUsage:
