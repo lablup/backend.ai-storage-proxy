@@ -39,6 +39,21 @@ class FSUsage:
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
+class QoS:
+# TODO: define attributes that QoS Policy has
+
+
+@attr.s(auto_attribs=True, slots=True, frozen=True)
+class QTree:
+# TODO: define attributes that QTree has
+
+
+@attr.s(auto_attribs=True, slots=True, frozen=True)
+class Quota:
+# TODO: define attributes that Quota has
+
+
+@attr.s(auto_attribs=True, slots=True, frozen=True)
 class VolumeInfo:
     backend: str
     path: Path
