@@ -146,17 +146,6 @@ class NetAppClient:
             id = str(data["records"][0]["id"]) if data["num_records"] > 0 else ""
         return id
 
-    async def get_qtree_path(self, qtree_id) -> Mapping[str, Any]:
-        volume_uuid = await self.get_volume_uuid_by_name()
-        async with self._session.get(
-            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}/{qtree_id}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=True,
-        ) as resp:
-            data = await resp.json()
-        return data["path"]
-
     async def list_qtrees_by_volume_id(self, volume_uuid) -> List[Mapping[str, Any]]:
         if not volume_uuid:
             volume_uuid = await self.get_volume_uuid_by_name()
@@ -169,64 +158,6 @@ class NetAppClient:
             data = await resp.json()
         return data["records"]
 
-    # For now, Only Read / Update operation for qtree is available
-    # in NetApp ONTAP Plugin of Backend.AI
-    async def create_qtree(self, name) -> Mapping[str, Any]:
-
-        payload = {
-            "svm": {"name": self.svm},
-            "volume": {"name": self.volume_name},
-            "name": name,
-            "security_style": "unix",
-            "unix_permissions": 777,
-            "export_policy": {"name": "default"},
-        }
-
-        headers = {"content-type": "application/json", "accept": "application/hal+json"}
-
-        async with self._session.post(
-            f"{self.endpoint}/api/storage/qtrees",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            headers=headers,
-            raise_for_status=True,
-            data=json.dumps(payload),
-        ) as resp:
-            return await resp.json()
-
-    async def update_qtree(self, config) -> Mapping[str, Any]:
-        payload = {
-            "name": config.get("name"),
-            "security_style": config.get("security_style"),
-        }
-        qtree_id = config["id"]
-        volume_uuid = await self.get_volume_uuid_by_name()
-        headers = {"content-type": "application/json", "accept": "application/hal+json"}
-        async with self._session.patch(
-            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}/{qtree_id}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            headers=headers,
-            raise_for_status=True,
-            data=json.dumps(payload),
-        ) as resp:
-            data = await resp.json()
-        return data
-
-    # For now, Only Read / Update operation for qtree is available
-    # in NetApp ONTAP Plugin of Backend.AI
-    async def delete_qtree(self, qtree_id) -> Mapping[str, Any]:
-        volume_uuid = await self.get_volume_uuid_by_name()
-        headers = {"content-type": "application/json", "accept": "application/hal+json"}
-        async with self._session.delete(
-            f"{self.endpoint}/api/storage/qtrees/{volume_uuid}/{qtree_id}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            headers=headers,
-            raise_for_status=True,
-        ) as resp:
-            return await resp.json()
-
     async def get_qtree_info(self, qtree_id) -> Mapping[str, Any]:
         uuid = await self.get_volume_uuid_by_name()
         async with self._session.get(
@@ -237,19 +168,6 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
         return data
-
-    async def get_qtree_config(self, qtree_id) -> Mapping[str, Any]:
-        qtree = await self.get_qtree_info(qtree_id)
-        qtree_config = {
-            "qtree_name": qtree["name"],
-            "security_style": qtree["security_style"],
-            "export_policy": qtree["export_policy"]["name"],
-        }
-        return qtree_config
-
-    async def update_qtree_config(self, config) -> Mapping[str, Any]:
-        resp = await self.update_qtree(config)
-        return resp
 
     async def get_qos_policies(self) -> List[Mapping[str, Any]]:
         async with self._session.get(
@@ -299,84 +217,3 @@ class NetAppClient:
             data = await resp.json()
         return data["qos"]
 
-    async def get_qos_by_qos_name(self, qos_name) -> Mapping[str, Any]:
-        async with self._session.get(
-            f"{self.endpoint}/api/storage/qos/policies?name={qos_name}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=True,
-        ) as resp:
-            data = await resp.json()
-            qos = {}
-            if data["num_records"]:
-                qos_metadata = data["records"][0]
-                raw_qos = await self.get_qos_by_uuid(qos_metadata["uuid"])
-                qos = {
-                    "uuid": raw_qos["uuid"],
-                    "name": raw_qos["name"],
-                    "svm": raw_qos["svm"],
-                    "fixed": raw_qos["fixed"],
-                }
-            return qos
-
-    async def create_qos(self, qos) -> ClientResponse:
-        payload = {
-            "name": qos["name"],
-            "fixed": qos["input"]["fixed"],
-            "svm": qos["input"]["svm"],
-        }
-
-        headers = {"content-type": "application/json", "accept": "application/hal+json"}
-
-        async with self._session.post(
-            f"{self.endpoint}/api/storage/qos/policies",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            headers=headers,
-            raise_for_status=True,
-            data=json.dumps(payload),
-        ) as resp:
-            return await resp.json()
-
-    async def update_qos(self, qos):
-        name = qos["input"].get("name", None)
-        payload = {
-            "fixed": qos["input"]["fixed"],
-        }
-        if name:
-            payload.update({"name": name})
-        headers = {"content-type": "application/json", "accept": "application/hal+json"}
-
-        async with self._session.patch(
-            f"{self.endpoint}/api/storage/qos/policies/{qos['input']['uuid']}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            headers=headers,
-            raise_for_status=True,
-            data=json.dumps(payload),
-        ) as resp:
-            return await resp.json()
-
-    async def delete_qos(self, qos_name):
-        qos_metadata = await self.get_qos_by_qos_name(qos_name)
-
-        async with self._session.delete(
-            f"{self.endpoint}/api/storage/qos/policies/{qos_metadata['uuid']}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=True,
-        ) as resp:
-            return await resp.json()
-
-    async def update_volume_config(self, config):
-        uuid = await self.get_volume_uuid_by_name()
-        headers = {"content-type": "application/json", "accept": "application/hal+json"}
-        async with self._session.patch(
-            f"{self.endpoint}/api/storage/volumes/{uuid}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            headers=headers,
-            raise_for_status=True,
-            data=json.dumps(config["input"]),
-        ) as resp:
-            return await resp.json()

@@ -60,22 +60,6 @@ class QuotaManager:
         self.qtrees = qtrees
         return qtrees
 
-    async def get_quota(self, quota_name) -> Mapping[str, Any]:
-        async with self._session.get(
-            f"{self.endpoint}/api/storage/quota/rules?qtree={quota_name}&volume={self.volume_name}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=False,
-        ) as resp:
-            data = await resp.json()
-            quota = {}
-            if data.get("num_records") > 0:
-                # the first record is quota
-                quota_metadata = data["records"][0]
-                quota = await self.get_quota_by_rule(quota_metadata["uuid"])
-                quota["uuid"] = quota_metadata["uuid"]
-        return quota
-
     async def get_quota_by_rule(self, rule_uuid) -> Mapping[str, Any]:
         async with self._session.get(
             f"{self.endpoint}/api/storage/quota/rules/{rule_uuid}",
