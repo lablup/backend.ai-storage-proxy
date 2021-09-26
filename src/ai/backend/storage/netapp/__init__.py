@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from typing import Any, FrozenSet, Mapping
 from uuid import UUID
@@ -112,6 +113,11 @@ class NetAppVolume(BaseVolume):
 
     async def get_hwinfo(self) -> HardwareMetadata:
         metadata = await self.netapp_client.get_metadata()
+        qtree_info = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
+        self.netapp_qtree_name = qtree_info["name"]
+        quota = await self.quota_manager.get_quota_by_qtree_name(self.netapp_qtree_name)
+        # add quota in hwinfo
+        metadata.update({'quota': json.dumps(quota)})
         return {"status": "healthy", "status_info": None, "metadata": {**metadata}}
 
     async def get_fs_usage(self) -> FSUsage:
@@ -159,7 +165,6 @@ class NetAppVolume(BaseVolume):
         await self.quota_manager.aclose()
 
     # ------ volume operations ------
-
     async def get_list_volumes(self):
         resp = await self.netapp_client.get_list_volumes()
 
@@ -189,20 +194,6 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
-    async def get_qtree_info(self, qtree_id):
-        resp = await self.netapp_client.get_qtree_info(qtree_id)
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def get_qtree_name_by_id(self, qtree_id):
-        resp = await self.netapp_client.get_qtree_name_by_id(qtree_id)
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
     async def get_qtree_id_by_name(self, qtree_name):
         qtree_name = (
             qtree_name if qtree_name else await self.get_default_qtree_by_volume_id()
@@ -213,208 +204,9 @@ class NetAppVolume(BaseVolume):
             raise ExecutionError("api error")
         return resp
 
-    async def get_qtree_path(self, qtree_id):
-        resp = await self.netapp_client.get_qtree_path(self, qtree_id)
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    # For now, Only Read / Update operation for qtree is available
-    # in NetApp ONTAP Plugin of Backend.AI
-    async def create_qtree(self, name: str):
-        resp = await self.netapp_client.create_qtree(name)
-
-        if "error" in resp:
-            raise ExecutionError("qtree creation was not succesfull")
-        return resp
-
-    async def update_qtree(
-        self, qtree_id, qtree_name, security_style, unix_permission, export_policy_name
-    ):
-        resp = await self.netapp_client.update_qtree(
-            self,
-            qtree_id,
-            qtree_name,
-            security_style,
-            unix_permission,
-            export_policy_name,
-        )
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    # For now, Only Read / Update operation for qtree is available
-    # in NetApp ONTAP Plugin of Backend.AI
-    async def delete_qtree(self, qtree_id):
-        resp = await self.netapp_client.delete_qtree(self, qtree_id)
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def list_quotarules(self):
-        resp = await self.quota_manager.list_quotarules()
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def list_all_qtrees_with_quotas(self):
-        resp = await self.quota_manager.list_all_qtrees_with_quotas(self)
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
     async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
 
-    async def get_quota_metadata(self) -> Mapping[str, Any]:
-        qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
-        resp = await self.quota_manager.get_quota(qtree["name"])
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def set_quota(self, quota):
+    async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         raise NotImplementedError
 
-    async def set_quota_metadata(self, quota):
-        qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
-        resp = await self.quota_manager.get_quota(qtree["name"])
-        rule_uuid = resp["uuid"]
-
-        await self.update_quotarule_qtree(
-            quota["space"]["hard_limit"],
-            quota["space"]["soft_limit"],
-            quota["files"]["hard_limit"],
-            quota["files"]["soft_limit"],
-            rule_uuid,
-        )
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-
-    async def get_quota_by_rule(self, rule_uuid):
-        resp = await self.quota_manager.get_quota_by_rule(self, rule_uuid)
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    # For now, Only Read / Update operation for qtree is available
-    # in NetApp ONTAP Plugin of Backend.AI
-    async def create_quotarule_qtree(
-        self,
-        qtree_name,
-        space_hard_limit,
-        space_soft_limit,
-        files_hard_limit,
-        files_soft_limit,
-    ):
-        resp = await self.quota_manager.create_quotarule_qtree(
-            self,
-            qtree_name,
-            space_hard_limit,
-            space_soft_limit,
-            files_hard_limit,
-            files_soft_limit,
-        )
-
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def update_quotarule_qtree(
-        self,
-        # qtree_name,
-        space_hard_limit,
-        space_soft_limit,
-        files_hard_limit,
-        files_soft_limit,
-        rule_uuid,
-    ):
-        resp = await self.quota_manager.update_quotarule_qtree(
-            # qtree_name,
-            space_hard_limit,
-            space_soft_limit,
-            files_hard_limit,
-            files_soft_limit,
-            rule_uuid,
-        )
-        if "error" in resp:
-            raise ExecutionError("api error")
-
-    # For now, Only Read / Update operation for qtree is available
-    # in NetApp ONTAP Plugin of Backend.AI
-    async def delete_quotarule_qtree(self, rule_uuid):
-        resp = await self.quota_manager.update_quotarule_qtree(rule_uuid)
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def get_qtree_config(self):
-        qtree_metadata = await self.netapp_client.get_default_qtree_by_volume_id(
-            self.netapp_volume_uuid
-        )
-        resp = await self.netapp_client.get_qtree_config(qtree_metadata.get("id"))
-        if "error" in resp:
-            raise ExecutionError("api error")
-        return resp
-
-    async def update_qtree_config(self, raw_config):
-        qtree_metadata = await self.get_default_qtree_by_volume_id(
-            self.netapp_volume_uuid
-        )
-        config = {
-            "name": raw_config["input"]["name"],
-            "security_style": raw_config["input"]["security_style"],
-        }
-        config.update({"id": qtree_metadata.get("id")})
-        resp = await self.netapp_client.update_qtree_config(config)
-
-        # adjust mount path (volume + qtree) according to qtree_name
-        self.netapp_qtree_name = config["name"]
-        self.mount_path = (
-            self.mount_path.parent / Path(self.netapp_qtree_name)
-        ).resolve()
-        await self.netapp_client.get_default_qtree_by_volume_id(
-            self.netapp_volume_uuid
-        )
-        if "error" in resp:
-            raise ExecutionError("api error")
-
-    async def get_qos(self, qos_name):
-        resp = await self.netapp_client.get_qos_by_qos_name(qos_name)
-        if resp and "error" in resp:
-            raise ExecutionError
-        return resp
-
-    async def create_qos(self, qos):
-        resp = await self.netapp_client.create_qos(qos)
-        # if successfully created when resp will be an empty dict
-        if resp and "error" in resp:
-            raise ExecutionError("api error")
-
-    async def update_qos(self, qos):
-        resp = await self.netapp_client.update_qos(qos)
-        # if successfully created when resp will be an empty dict
-        if resp and "error" in resp:
-            raise ExecutionError("api error")
-
-    async def delete_qos(self, qos_list):
-        qos_names = qos_list["input"]["name_list"]
-        for name in qos_names:
-            resp = await self.netapp_client.delete_qos(name)
-            # if successfully created when resp will be an empty dict
-            if resp and "error" in resp:
-                raise ExecutionError("api error")
-
-    async def update_volume_config(self, config):
-        resp = await self.netapp_client.update_volume_config(config)
-        # if successfully created when resp will be an empty dict
-        if resp and "error" in resp:
-            raise ExecutionError("api error")
