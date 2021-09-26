@@ -4,7 +4,6 @@ import json
 from typing import Any, List, Mapping
 
 import aiohttp
-from aiohttp.client_reqrep import ClientResponse
 
 
 class NetAppClient:
@@ -216,4 +215,3 @@ class NetAppClient:
         ) as resp:
             data = await resp.json()
         return data["qos"]
-

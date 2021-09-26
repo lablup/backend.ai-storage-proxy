@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, FrozenSet, Mapping
+from typing import FrozenSet
 from uuid import UUID
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
@@ -101,8 +101,12 @@ class NetAppVolume(BaseVolume):
 
         # assign qtree info after netapp_client and quotamanager are initiated
         self.netapp_volume_uuid = await self.netapp_client.get_volume_uuid_by_name()
-        default_qtree = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
-        self.netapp_qtree_name = default_qtree.get('name', self.config["netapp_qtree_name"])
+        default_qtree = await self.get_default_qtree_by_volume_id(
+            self.netapp_volume_uuid
+        )
+        self.netapp_qtree_name = default_qtree.get(
+            "name", self.config["netapp_qtree_name"]
+        )
         self.netapp_qtree_id = await self.get_qtree_id_by_name(self.netapp_qtree_name)
 
         # adjust mount path (volume + qtree)
@@ -112,12 +116,12 @@ class NetAppVolume(BaseVolume):
         return frozenset([CAP_VFOLDER, CAP_METRIC])
 
     async def get_hwinfo(self) -> HardwareMetadata:
-        metadata = await self.netapp_client.get_metadata()
+        raw_metadata = await self.netapp_client.get_metadata()
         qtree_info = await self.get_default_qtree_by_volume_id(self.netapp_volume_uuid)
         self.netapp_qtree_name = qtree_info["name"]
         quota = await self.quota_manager.get_quota_by_qtree_name(self.netapp_qtree_name)
         # add quota in hwinfo
-        metadata.update({'quota': json.dumps(quota)})
+        metadata = {"quota": json.dumps(quota), **raw_metadata}
         return {"status": "healthy", "status_info": None, "metadata": {**metadata}}
 
     async def get_fs_usage(self) -> FSUsage:
@@ -209,4 +213,3 @@ class NetAppVolume(BaseVolume):
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         raise NotImplementedError
-
