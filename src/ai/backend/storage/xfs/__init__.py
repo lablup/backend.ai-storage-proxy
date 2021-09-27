@@ -178,9 +178,6 @@ class XfsVolume(BaseVolume):
             raise ExecutionError("vfid and project name does not match")
         return BinarySize.finite_from_str(quota)
 
-    async def get_quota_metadata(self) -> Mapping[str, Any]:
-        raise NotImplementedError
-
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         await run(
             f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}"'
