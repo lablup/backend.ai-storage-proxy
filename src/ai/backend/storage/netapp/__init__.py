@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import FrozenSet
 from uuid import UUID
 
+import aiofiles
+
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_METRIC, CAP_VFOLDER
@@ -16,22 +18,14 @@ from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
 
 
-async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
-    def _read():
-        with open(filename, "r") as fr:
-            return fr.read()
-
-    return await loop.run_in_executor(None, lambda: _read())
+async def read_file(filename: str) -> str:
+    async with aiofiles.open(filename, mode="r") as fr:
+        return await fr.read()
 
 
-async def write_file(
-    loop: asyncio.AbstractEventLoop, filename: str, contents: str, perm="w"
-):
-    def _write():
-        with open(filename, perm) as fw:
-            fw.write(contents)
-
-    await loop.run_in_executor(None, lambda: _write())
+async def write_file(filename: str, contents: str, perm="w"):
+    async with aiofiles.open(filename, mode=perm) as fw:
+        await fw.write(contents)
 
 
 async def run(cmd: str) -> str:
@@ -56,26 +50,6 @@ class NetAppVolume(BaseVolume):
     netapp_qtree_id: str
 
     async def init(self) -> None:
-        # Temporaily comment out volume mount checking
-        # available = True
-        # try:
-        #     proc = await asyncio.create_subprocess_exec(
-        #         b"mount",
-        #         stdout=asyncio.subprocess.PIPE,
-        #         stderr=asyncio.subprocess.STDOUT,
-        #     )
-
-        # except FileNotFoundError:
-        #     available = False
-        # else:
-        #     try:
-        #         stdout, stderr = await proc.communicate()
-        #         if b"type nfs" not in stdout or proc.returncode != 0:
-        #             available = False
-        #     finally:
-        #         await proc.wait()
-        # if not available:
-        #     raise RuntimeError("NetApp volumes are not mounted or not supported.")
 
         self.endpoint = self.config["netapp_endpoint"]
         self.netapp_admin = self.config["netapp_admin"]
@@ -141,10 +115,6 @@ class NetAppVolume(BaseVolume):
     async def get_performance_metric(self) -> FSPerfMetric:
         uuid = await self.get_volume_uuid_by_name()
         volume_info = await self.get_volume_info(uuid)
-        # if volume_info is None:
-        #     raise RuntimeError(
-        #         "no metric found for the configured netapp ontap filesystem"
-        #     )
         metric = volume_info["metric"]
         return FSPerfMetric(
             iops_read=metric["iops"]["read"],

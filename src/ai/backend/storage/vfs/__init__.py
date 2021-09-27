@@ -7,7 +7,7 @@ import os
 import secrets
 import shutil
 from pathlib import Path, PurePosixPath
-from typing import Any, AsyncIterator, FrozenSet, Mapping, Sequence, Union
+from typing import AsyncIterator, FrozenSet, Sequence, Union
 from uuid import UUID
 
 import janus
@@ -151,13 +151,7 @@ class BaseVolume(AbstractVolume):
     async def get_quota(self, vfid: UUID) -> BinarySize:
         raise NotImplementedError
 
-    async def get_quota_metadata(self) -> Mapping[str, Any]:
-        raise NotImplementedError
-
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
-        raise NotImplementedError
-
-    async def set_quota_metadata(self, quota: Mapping[str, Any]):
         raise NotImplementedError
 
     async def get_performance_metric(self) -> FSPerfMetric:
