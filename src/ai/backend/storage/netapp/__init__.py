@@ -18,16 +18,6 @@ from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
 
 
-async def read_file(filename: str) -> str:
-    async with aiofiles.open(filename, mode="r") as fr:
-        return await fr.read()
-
-
-async def write_file(filename: str, contents: str, perm="w"):
-    async with aiofiles.open(filename, mode=perm) as fw:
-        await fw.write(contents)
-
-
 async def run(cmd: str) -> str:
     proc = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
