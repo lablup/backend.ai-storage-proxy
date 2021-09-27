@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import FrozenSet
 from uuid import UUID
 
-import aiofiles
-
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_METRIC, CAP_VFOLDER
