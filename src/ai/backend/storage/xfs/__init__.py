@@ -2,7 +2,7 @@ import asyncio
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Mapping
+from typing import Dict, List
 from uuid import UUID
 
 from ai.backend.common.types import BinarySize
