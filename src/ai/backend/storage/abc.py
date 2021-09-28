@@ -25,7 +25,7 @@ from .types import (
 
 # Available capabilities of a volume implementation
 CAP_VFOLDER: Final = "vfolder"
-CAP_VFHOST_QUOTA: Final = "vhost"
+CAP_VFHOST_QUOTA: Final = "vfhost-quota"
 CAP_METRIC: Final = "metric"
 CAP_QUOTA: Final = "quota"
 CAP_FAST_SCAN: Final = "fast-scan"
