@@ -8,7 +8,7 @@ from uuid import UUID
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
-from ..abc import CAP_METRIC, CAP_VFOLDER
+from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER
 from ..exception import ExecutionError
 from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions
 from ..vfs import BaseVolume
@@ -75,7 +75,7 @@ class NetAppVolume(BaseVolume):
         self.mount_path = (self.mount_path / Path(self.netapp_qtree_name)).resolve()
 
     async def get_capabilities(self) -> FrozenSet[str]:
-        return frozenset([CAP_VFOLDER, CAP_METRIC])
+        return frozenset([CAP_VFOLDER, CAP_VFHOST_QUOTA, CAP_METRIC])
 
     async def get_hwinfo(self) -> HardwareMetadata:
         raw_metadata = await self.netapp_client.get_metadata()
