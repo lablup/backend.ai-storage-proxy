@@ -18,7 +18,7 @@ storage-specific optimization support.
   - `purestorage`
     - PureStorage's FlashBlade-optimized backend with RapidFile Toolkit (formerly PureTools)
   - `netapp`
-    - Reflecting the status of heterogeneous Netapp storages by facing NetApp ONTAP Rest API
+    - NetApp QTree integration backend based on the NetApp ONTAP REST API
   - `cephfs` (TODO)
     - CephFS-optimized backend with quota limit support
 
