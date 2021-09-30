@@ -75,7 +75,10 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
 
         def _delete_vfolder():
-            shutil.rmtree(vfpath)
+            try:
+                shutil.rmtree(vfpath)
+            except FileNotFoundError:
+                pass
             # remove intermediate prefix directories if they become empty
             if not os.listdir(vfpath.parent):
                 vfpath.parent.rmdir()
