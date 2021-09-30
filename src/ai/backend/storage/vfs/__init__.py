@@ -282,18 +282,26 @@ class BaseVolume(AbstractVolume):
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
     ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
-        if not src_path.is_file():
-            raise InvalidAPIParameters(msg=f"source path {str(src_path)} is not a file")
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
-        )
-        await loop.run_in_executor(None, src_path.rename, dst_path)
+        if src_path.is_dir():
+            await loop.run_in_executor(
+                None, lambda: shutil.move(str(src_path), str(dst_path))
+            )
+        elif src_path.is_file():
+            await loop.run_in_executor(
+                None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
+            )
+            await loop.run_in_executor(None, src_path.rename, dst_path)
+        else:
+            raise InvalidAPIParameters(
+                msg=f"source path {str(src_path)} is not a file or dir"
+            )
 
     async def move_tree(
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
     ) -> None:
+        print("Use move_file instead. move tree will be deprecated")
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_dir():
             raise InvalidAPIParameters(
