@@ -81,7 +81,9 @@ such as nginx and the storage proxy daemon itself should be run without SSL.
 
 * Local device mounted under `/vfroot`
 * Native support for XFS filesystem
+  - Mounting XFS volume with an option `-o pquota` to enable project quota
 * Access to root shell
+  - `root` or no password sudo user to execute `xfs_quota` command
 
 #### Creating virtual XFS device for testing
 
@@ -106,6 +108,7 @@ to use the storage for testing:
 # mkdir -p /vfroot/xfs
 # mount -o loop -o pquota $LODEVICE /vfroot/xfs
 ```
+
 
 ### PureStorage FlashBlade
 
