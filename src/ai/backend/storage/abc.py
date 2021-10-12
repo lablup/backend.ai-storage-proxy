@@ -25,6 +25,7 @@ from .types import (
 
 # Available capabilities of a volume implementation
 CAP_VFOLDER: Final = "vfolder"
+CAP_VFHOST_QUOTA: Final = "vfhost-quota"
 CAP_METRIC: Final = "metric"
 CAP_QUOTA: Final = "quota"
 CAP_FAST_SCAN: Final = "fast-scan"
@@ -129,15 +130,15 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    async def get_performance_metric(self) -> FSPerfMetric:
+        pass
+
+    @abstractmethod
     async def get_quota(self, vfid: UUID) -> BinarySize:
         pass
 
     @abstractmethod
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
-        pass
-
-    @abstractmethod
-    async def get_performance_metric(self) -> FSPerfMetric:
         pass
 
     @abstractmethod

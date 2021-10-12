@@ -5,3 +5,43 @@ include_trailing_comma = true
 src_paths = ["src", "tests"]
 known_first_party = ["ai.backend.common"]
 ensure_newline_before_comments = true
+
+
+[tool.towncrier]
+package = "ai.backend.agent"
+filename = "CHANGELOG.md"
+directory = "changes/"
+title_format = "{version} ({project_date})"
+template = "changes/template.md"
+issue_format = "([#{issue}](https://github.com/lablup/backend.ai-storage-proxy/issues/{issue}))"
+underlines = ["-", "", ""]
+
+[[tool.towncrier.type]]
+    directory = "breaking"
+    name = "Breaking Changes"
+    showcontent = true
+
+[[tool.towncrier.type]]
+    directory = "feature"
+    name = "Features"
+    showcontent = true
+
+[[tool.towncrier.type]]
+    directory = "deprecation"
+    name = "Deprecations"
+    showcontent = true
+
+[[tool.towncrier.type]]
+    directory = "fix"
+    name = "Fixes"
+    showcontent = true
+
+[[tool.towncrier.type]]
+    directory = "doc"
+    name = "Documentation Changes"
+    showcontent = true
+
+[[tool.towncrier.type]]
+    directory = "misc"
+    name = "Miscellaneous"
+    showcontent = true

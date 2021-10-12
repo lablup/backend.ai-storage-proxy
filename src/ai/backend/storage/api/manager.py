@@ -308,6 +308,41 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
             )
 
 
+async def get_quota(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+                t.Key("vfid", default=None): t.Null | t.String,
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "get_quota", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            quota = await volume.get_quota(params["vfid"])
+            return web.json_response(quota)
+
+
+async def set_quota(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+                t.Key("vfid", default=None): t.Null | t.String,
+                t.Key("size_bytes"): tx.BinarySize,
+            }
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "update_quota", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            await volume.set_quota(params["vfid"], params["size_bytes"])
+            return web.Response(status=204)
+
+
 async def mkdir(request: web.Request) -> web.Response:
     async with check_params(
         request,
@@ -518,6 +553,8 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("GET", "/volume/performance-metric", get_performance_metric)
     app.router.add_route("GET", "/folder/metadata", get_metadata)
     app.router.add_route("POST", "/folder/metadata", set_metadata)
+    app.router.add_route("GET", "/volume/quota", get_quota)
+    app.router.add_route("PATCH", "/volume/quota", set_quota)
     app.router.add_route("GET", "/folder/usage", get_vfolder_usage)
     app.router.add_route("GET", "/folder/fs-usage", get_vfolder_fs_usage)
     app.router.add_route("POST", "/folder/file/mkdir", mkdir)

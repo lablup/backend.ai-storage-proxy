@@ -17,8 +17,8 @@ import zipstream
 from aiohttp import hdrs, web
 
 from ai.backend.common import validators as tx
+from ai.backend.common.files import AsyncFileWriter
 from ai.backend.common.logging import BraceStyleAdapter
-from ai.backend.common.utils import AsyncFileWriter
 
 from ..abc import AbstractVolume
 from ..context import Context
@@ -244,7 +244,6 @@ async def tus_upload_part(request: web.Request) -> web.Response:
             upload_temp_path = vfpath / ".upload" / token_data["session"]
 
             async with AsyncFileWriter(
-                loop=asyncio.get_running_loop(),
                 target_filename=upload_temp_path,
                 access_mode="ab",
                 max_chunks=DEFAULT_INFLIGHT_CHUNKS,
