@@ -82,6 +82,8 @@ such as nginx and the storage proxy daemon itself should be run without SSL.
 * Local device mounted under `/vfroot`
 * Native support for XFS filesystem
   - Mounting XFS volume with an option `-o pquota` to enable project quota
+  - To turn on quotas on the root filesystem, the quota mount flags must be
+    set with the `rootflags=` boot parameter. Usually, this is not recommended.
 * Access to root shell
   - `root` or no password sudo user to execute `xfs_quota` command
 
