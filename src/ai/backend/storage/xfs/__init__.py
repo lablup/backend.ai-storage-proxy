@@ -94,9 +94,7 @@ class XfsVolume(BaseVolume):
             project_id = self.project_id_pool[-1] + 1
 
         vfpath = self.mangle_vfpath(vfid)
-        if (
-            options is None or options.quota is None
-        ):  # max quota i.e. the whole fs size
+        if options is None or options.quota is None:  # max quota i.e. the whole fs size
             fs_usage = await self.get_fs_usage()
             quota = fs_usage.capacity_bytes
         else:
