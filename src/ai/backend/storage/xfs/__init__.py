@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+import subprocess
 from typing import Dict, List
 from uuid import UUID
 
@@ -15,46 +16,38 @@ from ..vfs import BaseVolume, run
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
 
-async def read_file(filename: str) -> str:
-    def _read():
-        with open(filename, "r") as fr:
-            return fr.read()
+class Singleton(type):
+    _instances: dict = {}
 
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, lambda: _read())
-
-
-async def write_file(filename: str, contents: str, mode: str = "w"):
-    def _write():
-        with open(filename, mode) as fw:
-            fw.write(contents)
-
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, lambda: _write())
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
-class XfsProjectRegistry:
-    file_projects: str = "/etc/projects"
-    file_projid: str = "/etc/projid"
+class XfsProjectRegistry(metaclass=Singleton):
+    file_projects: Path = Path("/etc/projects")
+    file_projid: Path = Path("/etc/projid")
     backend: BaseVolume
+
     name_id_map: Dict[UUID, int] = dict()
     project_id_pool: List[int] = list()
 
-    def __init__(self, backend: BaseVolume) -> None:
-        self.backend = backend
-
-    async def init(self) -> None:
-        if Path(self.file_projid).is_file():
-            raw_projid = await read_file(self.file_projid)
+    def __init__(self) -> None:
+        if self.file_projid.is_file():
+            raw_projid = self.file_projid.read_text()
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(":")[:2]
                 self.project_id_pool.append(int(proj_id))
                 self.name_id_map[UUID(proj_name)] = int(proj_id)
             self.project_id_pool = sorted(self.project_id_pool)
         else:
-            await run(f"sudo touch {self.file_projid}")
+            subprocess.run(["sudo", "touch", self.file_projid])
         if not Path(self.file_projects).is_file():
-            await run(f"sudo touch {self.file_projects}")
+            subprocess.run(["sudo", "touch", self.file_projects])
+
+    async def init(self, backend: BaseVolume) -> None:
+        self.backend = backend
 
     async def add_project_entry(
         self,
@@ -116,8 +109,8 @@ class XfsVolume(BaseVolume):
     async def init(self, uid: int = None, gid: int = None) -> None:
         self.uid = uid if uid is not None else os.getuid()
         self.gid = gid if gid is not None else os.getgid()
-        self.registry = XfsProjectRegistry(self)
-        await self.registry.init()
+        self.registry = XfsProjectRegistry()
+        await self.registry.init(self)
 
     # ----- volume opeartions -----
     async def create_vfolder(
