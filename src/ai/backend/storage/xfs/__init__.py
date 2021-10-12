@@ -13,43 +13,34 @@ from ..exception import (
     VFolderNotFoundError,
 )
 from ..types import FSUsage, VFolderCreationOptions
-from ..vfs import BaseVolume
+from ..vfs import BaseVolume, run
 
 
-async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
+async def read_file(filename: str) -> str:
     def _read():
         with open(filename, "r") as fr:
             return fr.read()
 
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: _read())
 
 
-async def write_file(
-    loop: asyncio.AbstractEventLoop, filename: str, contents: str, perm="w"
-):
+async def write_file(filename: str, contents: str, mode: str = "w"):
     def _write():
-        with open(filename, perm) as fw:
+        with open(filename, mode) as fw:
             fw.write(contents)
 
+    loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, lambda: _write())
 
 
-async def run(cmd: str) -> str:
-    proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    out, err = await proc.communicate()
-    if err:
-        raise ExecutionError(err.decode())
-    return out.decode()
-
-
 class XfsVolume(BaseVolume):
-    loop: asyncio.AbstractEventLoop
     registry: Dict[str, int]
     project_id_pool: List[int]
 
-    async def init(self, uid=None, gid=None, loop=None) -> None:
+    async def init(self, uid=None, gid=None) -> None:
+        loop = asyncio.get_running_loop()
+
         self.registry = {}
         self.project_id_pool = []
         if uid is not None:
@@ -60,27 +51,30 @@ class XfsVolume(BaseVolume):
             self.gid = gid
         else:
             self.gid = os.getgid()
-        self.loop = loop or asyncio.get_running_loop()
 
-        if os.path.isfile("/etc/projid"):
-            raw_projid = await read_file(self.loop, "/etc/projid")
+        if Path("/etc/projid").is_file():
+            raw_projid = await read_file("/etc/projid")
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(":")[:2]
                 self.project_id_pool.append(int(proj_id))
                 self.registry[proj_name] = int(proj_id)
             self.project_id_pool = sorted(self.project_id_pool)
         else:
-            await self.loop.run_in_executor(None, lambda: Path("/etc/projid").touch())
+            await loop.run_in_executor(None, lambda: Path("/etc/projid").touch())
 
-        if not os.path.isfile("/etc/projects"):
-            await self.loop.run_in_executor(None, lambda: Path("/etc/projects").touch())
+        if not Path("/etc/projects").is_file():
+            await loop.run_in_executor(None, lambda: Path("/etc/projects").touch())
 
     # ----- volume opeartions -----
     async def create_vfolder(
-        self, vfid: UUID, options: VFolderCreationOptions = None
+        self,
+        vfid: UUID,
+        options: VFolderCreationOptions = None,
     ) -> None:
+        loop = asyncio.get_running_loop()
+
         if str(vfid) in self.registry.keys():
-            raise VFolderCreationError("VFolder id {} already exists".format(str(vfid)))
+            raise VFolderCreationError("VFolder ID {} already exists".format(str(vfid)))
 
         project_id = -1
         # set project_id to the smallest integer not being used
@@ -99,17 +93,15 @@ class XfsVolume(BaseVolume):
             quota = fs_usage.capacity_bytes
         else:
             quota = options.quota
-        await self.loop.run_in_executor(
+        await loop.run_in_executor(
             None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
         )
-        await self.loop.run_in_executor(
+        await loop.run_in_executor(
             None, lambda: os.chown(vfpath, self.uid, self.gid)
         )
 
-        await write_file(
-            self.loop, "/etc/projects", f"{project_id}:{vfpath}\n", perm="a"
-        )
-        await write_file(self.loop, "/etc/projid", f"{vfid}:{project_id}\n", perm="a")
+        await write_file("/etc/projects", f"{project_id}:{vfpath}\n", mode="a")
+        await write_file("/etc/projid", f"{vfid}:{project_id}\n", mode="a")
         await run(f'sudo xfs_quota -x -c "project -s {vfid}" {self.mount_path}')
         await run(
             f'sudo xfs_quota -x -c "limit -p bhard={int(quota)} {vfid}" {self.mount_path}'
@@ -119,6 +111,8 @@ class XfsVolume(BaseVolume):
         self.project_id_pool.sort()
 
     async def delete_vfolder(self, vfid: UUID) -> None:
+        loop = asyncio.get_running_loop()
+
         if str(vfid) not in self.registry.keys():
             raise VFolderNotFoundError("VFolder with id {} does not exist".format(vfid))
 
@@ -126,8 +120,8 @@ class XfsVolume(BaseVolume):
             f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}'
         )
 
-        raw_projects = await read_file(self.loop, "/etc/projects")
-        raw_projid = await read_file(self.loop, "/etc/projid")
+        raw_projects = await read_file("/etc/projects")
+        raw_projid = await read_file("/etc/projid")
         new_projects = ""
         new_projid = ""
         for line in raw_projects.splitlines():
@@ -138,8 +132,8 @@ class XfsVolume(BaseVolume):
             if line.startswith(str(vfid) + ":"):
                 continue
             new_projid += line + "\n"
-        await write_file(self.loop, "/etc/projects", new_projects)
-        await write_file(self.loop, "/etc/projid", new_projid)
+        await write_file("/etc/projects", new_projects)
+        await write_file("/etc/projid", new_projid)
 
         vfpath = self.mangle_vfpath(vfid)
 
@@ -150,7 +144,7 @@ class XfsVolume(BaseVolume):
             if not os.listdir(vfpath.parent.parent):
                 vfpath.parent.parent.rmdir()
 
-        await self.loop.run_in_executor(None, lambda: _delete_vfolder())
+        await loop.run_in_executor(None, lambda: _delete_vfolder())
         self.project_id_pool.remove(self.registry[str(vfid)])
         del self.registry[str(vfid)]
 
