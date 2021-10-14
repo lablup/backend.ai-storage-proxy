@@ -82,6 +82,7 @@ class XfsProjectRegistry(metaclass=Singleton):
 
     async def read_project_info(self):
         # TODO: how to handle if /etc/proj* files are deleted by external reason?
+        # TODO: do we need to use /etc/proj* files to enlist the project information?
         if self.file_projid.is_file():
             project_id_pool = []
             self.name_id_map = {}
@@ -112,18 +113,10 @@ class XfsProjectRegistry(metaclass=Singleton):
         await run(
             f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\""
         )
-        # self.name_id_map[vfid] = project_id
-        # self.project_id_pool.append(project_id)
-        # self.project_id_pool.sort()
 
     async def remove_project_entry(self, vfid: UUID) -> None:
         await run(f"sudo sed -i.bak '/{vfid.hex[4:]}/d' {self.file_projects}")
         await run(f"sudo sed -i.bak '/{vfid}/d' {self.file_projid}")
-        # try:
-        #     self.project_id_pool.remove(self.name_id_map[vfid])
-        # except ValueError:
-        #     pass
-        # self.name_id_map.pop(vfid, None)
 
     def get_project_id(self) -> int:
         """
