@@ -80,7 +80,7 @@ class XfsProjectRegistry(metaclass=Singleton):
     async def init(self, backend: BaseVolume) -> None:
         self.backend = backend
 
-    async def _read_project_info(self):
+    async def read_project_info(self):
         # TODO: how to handle if /etc/proj* files are deleted by external reason?
         if self.file_projid.is_file():
             project_id_pool = []
@@ -104,7 +104,6 @@ class XfsProjectRegistry(metaclass=Singleton):
         project_id: int = None,
     ) -> None:
         vfpath = self.backend.mangle_vfpath(vfid)
-        await self._read_project_info()
         if project_id is None:
             project_id = self.get_project_id()
         await run(
@@ -113,19 +112,18 @@ class XfsProjectRegistry(metaclass=Singleton):
         await run(
             f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\""
         )
-        self.name_id_map[vfid] = project_id
-        self.project_id_pool.append(project_id)
-        self.project_id_pool.sort()
+        # self.name_id_map[vfid] = project_id
+        # self.project_id_pool.append(project_id)
+        # self.project_id_pool.sort()
 
     async def remove_project_entry(self, vfid: UUID) -> None:
-        await self._read_project_info()
         await run(f"sudo sed -i.bak '/{vfid.hex[4:]}/d' {self.file_projects}")
         await run(f"sudo sed -i.bak '/{vfid}/d' {self.file_projid}")
-        try:
-            self.project_id_pool.remove(self.name_id_map[vfid])
-        except ValueError:
-            pass
-        self.name_id_map.pop(vfid, None)
+        # try:
+        #     self.project_id_pool.remove(self.name_id_map[vfid])
+        # except ValueError:
+        #     pass
+        # self.name_id_map.pop(vfid, None)
 
     def get_project_id(self) -> int:
         """
@@ -178,6 +176,7 @@ class XfsVolume(BaseVolume):
         try:
             async with FileLock(LOCK_FILE):
                 log.info("setting project quota (f:{}, q:{})", vfid, str(quota))
+                await self.registry.read_project_info()
                 await self.registry.add_project_entry(vfid=vfid, quota=quota)
                 await self.set_quota(vfid, quota)
         except (asyncio.CancelledError, asyncio.TimeoutError) as e:
@@ -191,6 +190,7 @@ class XfsVolume(BaseVolume):
 
     async def delete_vfolder(self, vfid: UUID) -> None:
         async with FileLock(LOCK_FILE):
+            await self.registry.read_project_info()
             if vfid in self.registry.name_id_map.keys():
                 try:
                     log.info("removing project quota (f:{})", vfid)
