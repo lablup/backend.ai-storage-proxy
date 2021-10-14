@@ -16,7 +16,7 @@ from ..vfs import BaseVolume, run
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
-LOCK_FILE = Path('/tmp/backendai-xfs-file-lock')
+LOCK_FILE = Path("/tmp/backendai-xfs-file-lock")
 Path(LOCK_FILE).touch()
 
 
@@ -107,8 +107,12 @@ class XfsProjectRegistry(metaclass=Singleton):
         await self._read_project_info()
         if project_id is None:
             project_id = self.get_project_id()
-        await run(f"sudo sh -c \"echo '{project_id}:{vfpath}' >> {self.file_projects}\"")
-        await run(f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\"")
+        await run(
+            f"sudo sh -c \"echo '{project_id}:{vfpath}' >> {self.file_projects}\""
+        )
+        await run(
+            f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\""
+        )
         self.name_id_map[vfid] = project_id
         self.project_id_pool.append(project_id)
         self.project_id_pool.sort()
@@ -148,6 +152,7 @@ class XfsVolume(BaseVolume):
     This backend requires `root` or no password `sudo` permission to run
     `xfs_quota` command and write to `/etc/projects` and `/etc/projid`.
     """
+
     registry: XfsProjectRegistry
 
     async def init(self, uid: int = None, gid: int = None) -> None:
