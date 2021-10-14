@@ -1,8 +1,9 @@
 import asyncio
+import fcntl
 import logging
 import os
 from pathlib import Path
-import subprocess
+import time
 from typing import Dict, List
 from uuid import UUID
 
@@ -14,6 +15,50 @@ from ..types import VFolderCreationOptions
 from ..vfs import BaseVolume, run
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
+
+LOCK_FILE = Path('/tmp/backendai-xfs-file-lock')
+Path(LOCK_FILE).touch()
+
+
+class FileLock:
+    default_timeout: int = 3  # not allow infinite timeout for safety
+    locked: bool = False
+
+    def __init__(self, path: Path, *, mode: str = "rb", timeout: int = None):
+        self._path = path
+        self._mode = mode
+        self._timeout = timeout if timeout is not None else self.default_timeout
+
+    async def __aenter__(self):
+        def _lock():
+            start_time = time.perf_counter()
+            self._fp = open(self._path, self._mode)
+            while True:
+                try:
+                    fcntl.flock(self._fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    self.locked = True
+                    log.debug("file lock acquired: {}", self._path)
+                    return self._fp
+                except BlockingIOError:
+                    # Failed to get file lock. Waiting until timeout ...
+                    if time.perf_counter() - start_time > self._timeout:
+                        raise TimeoutError(f"failed to lock file: {self._path}")
+                time.sleep(0.1)
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _lock)
+
+    async def __aexit__(self, *args):
+        def _unlock():
+            if self.locked:
+                fcntl.flock(self._fp, fcntl.LOCK_UN)
+                self.locked = False
+                log.debug("file lock released: {}", self._path)
+            self._fp.close()
+            self.f_fp = None
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _unlock)
 
 
 class Singleton(type):
@@ -29,25 +74,27 @@ class XfsProjectRegistry(metaclass=Singleton):
     file_projects: Path = Path("/etc/projects")
     file_projid: Path = Path("/etc/projid")
     backend: BaseVolume
-
     name_id_map: Dict[UUID, int] = dict()
     project_id_pool: List[int] = list()
 
-    def __init__(self) -> None:
+    async def init(self, backend: BaseVolume) -> None:
+        self.backend = backend
+
+    async def _read_project_info(self):
+        # TODO: how to handle if /etc/proj* files are deleted by external reason?
         if self.file_projid.is_file():
+            project_id_pool = []
+            self.name_id_map = {}
             raw_projid = self.file_projid.read_text()
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(":")[:2]
-                self.project_id_pool.append(int(proj_id))
+                project_id_pool.append(int(proj_id))
                 self.name_id_map[UUID(proj_name)] = int(proj_id)
-            self.project_id_pool = sorted(self.project_id_pool)
+            self.project_id_pool = sorted(project_id_pool)
         else:
-            subprocess.run(["sudo", "touch", self.file_projid])
+            await run(f"sudo touch {self.file_projid}")
         if not Path(self.file_projects).is_file():
-            subprocess.run(["sudo", "touch", self.file_projects])
-
-    async def init(self, backend: BaseVolume) -> None:
-        self.backend = backend
+            await run(f"sudo touch {self.file_projects}")
 
     async def add_project_entry(
         self,
@@ -56,23 +103,20 @@ class XfsProjectRegistry(metaclass=Singleton):
         quota: int,
         project_id: int = None,
     ) -> None:
+        vfpath = self.backend.mangle_vfpath(vfid)
+        await self._read_project_info()
         if project_id is None:
             project_id = self.get_project_id()
-
-        # Register project entry.
-        vfpath = self.backend.mangle_vfpath(vfid)
         await run(f"sudo sh -c \"echo '{project_id}:{vfpath}' >> {self.file_projects}\"")
         await run(f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\"")
-
         self.name_id_map[vfid] = project_id
         self.project_id_pool.append(project_id)
         self.project_id_pool.sort()
 
     async def remove_project_entry(self, vfid: UUID) -> None:
-        # Remove project entry.
+        await self._read_project_info()
         await run(f"sudo sed -i.bak '/{vfid.hex[4:]}/d' {self.file_projects}")
         await run(f"sudo sed -i.bak '/{vfid}/d' {self.file_projid}")
-
         try:
             self.project_id_pool.remove(self.name_id_map[vfid])
         except ValueError:
@@ -126,27 +170,35 @@ class XfsVolume(BaseVolume):
             quota = fs_usage.capacity_bytes
         else:
             quota = options.quota
-        if quota:
-            try:
+        try:
+            async with FileLock(LOCK_FILE):
                 log.info("setting project quota (f:{}, q:{})", vfid, str(quota))
                 await self.registry.add_project_entry(vfid=vfid, quota=quota)
                 await self.set_quota(vfid, quota)
-            except Exception as e:
-                log.exception("vfolder creation error", exc_info=e)
-                await self.delete_vfolder(vfid)
-                raise VFolderCreationError("problem in setting vfolder quota")
+        except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+            log.exception("vfolder creation timeout", exc_info=e)
+            await self.delete_vfolder(vfid)
+            raise
+        except Exception as e:
+            log.exception("vfolder creation error", exc_info=e)
+            await self.delete_vfolder(vfid)
+            raise VFolderCreationError("problem in setting vfolder quota")
 
     async def delete_vfolder(self, vfid: UUID) -> None:
-        if vfid in self.registry.name_id_map.keys():
-            try:
-                log.info("removing project quota (f:{})", vfid)
-                await self.set_quota(vfid, BinarySize(0))
-            except Exception as e:
-                log.exception("vfolder deletion error", exc_info=e)
-                pass  # Pass to delete the physical directlry anyway.
-            finally:
-                await self.registry.remove_project_entry(vfid)
-        await super().delete_vfolder(vfid)
+        async with FileLock(LOCK_FILE):
+            if vfid in self.registry.name_id_map.keys():
+                try:
+                    log.info("removing project quota (f:{})", vfid)
+                    await self.set_quota(vfid, BinarySize(0))
+                except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+                    log.exception("vfolder deletion timeout", exc_info=e)
+                    pass  # Pass to delete the physical directlry anyway.
+                except Exception as e:
+                    log.exception("vfolder deletion error", exc_info=e)
+                    pass  # Pass to delete the physical directlry anyway.
+                finally:
+                    await self.registry.remove_project_entry(vfid)
+            await super().delete_vfolder(vfid)
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
         report = await run(
