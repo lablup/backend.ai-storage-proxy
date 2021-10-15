@@ -61,16 +61,7 @@ class FileLock:
         await loop.run_in_executor(None, _unlock)
 
 
-class Singleton(type):
-    _instances: dict = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class XfsProjectRegistry(metaclass=Singleton):
+class XfsProjectRegistry:
     file_projects: Path = Path("/etc/projects")
     file_projid: Path = Path("/etc/projid")
     backend: BaseVolume
