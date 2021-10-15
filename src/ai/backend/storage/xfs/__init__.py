@@ -167,6 +167,7 @@ class XfsVolume(BaseVolume):
                 await self.registry.read_project_info()
                 await self.registry.add_project_entry(vfid=vfid, quota=quota)
                 await self.set_quota(vfid, quota)
+                await self.registry.read_project_info()
         except (asyncio.CancelledError, asyncio.TimeoutError) as e:
             log.exception("vfolder creation timeout", exc_info=e)
             await self.delete_vfolder(vfid)
@@ -192,6 +193,7 @@ class XfsVolume(BaseVolume):
                 finally:
                     await self.registry.remove_project_entry(vfid)
             await super().delete_vfolder(vfid)
+            await self.registry.read_project_info()
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
         report = await run(
@@ -206,7 +208,6 @@ class XfsVolume(BaseVolume):
         return BinarySize.finite_from_str(quota)
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
-        await self.registry.read_project_info()
         if vfid not in self.registry.name_id_map.keys():
             await run(f"sudo xfs_quota -x -c 'project -s {vfid}' {self.mount_path}")
         await run(
