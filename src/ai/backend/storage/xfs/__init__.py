@@ -215,6 +215,7 @@ class XfsVolume(BaseVolume):
         return BinarySize.finite_from_str(quota)
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
+        await self.registry.read_project_info()
         if vfid not in self.registry.name_id_map.keys():
             await run(f"sudo xfs_quota -x -c 'project -s {vfid}' {self.mount_path}")
         await run(
