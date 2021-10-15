@@ -1,0 +1,1 @@
+Fixed some bugs related to the project quota of the XFS backend. Introduced `FileLock` async context manager to avoid a race condition on accessing `/etc/proj*` files between multiple Storage-Proxy processes/threads. For easier management of project entries, `XfsProjectRegistry` is also introduced and fixed some typing errors.
