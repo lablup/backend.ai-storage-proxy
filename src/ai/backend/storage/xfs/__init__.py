@@ -161,11 +161,15 @@ class XfsVolume(BaseVolume):
         await super().create_vfolder(vfid, options)
 
         # NOTE: Do we need to register project ID for a directory without quota?
-        if options is None or options.quota is None:  # max quota i.e. the whole fs size
-            fs_usage = await self.get_fs_usage()
-            quota = fs_usage.capacity_bytes
-        else:
-            quota = options.quota
+        #       I don't think so.
+        # if options is None or options.quota is None:  # max quota i.e. the whole fs size
+        #     fs_usage = await self.get_fs_usage()
+        #     quota = fs_usage.capacity_bytes
+        # else:
+        #     quota = options.quota
+        quota = options.quota if options and options.quota else None
+        if not quota:
+            return
         try:
             async with FileLock(LOCK_FILE):
                 log.info("setting project quota (f:{}, q:{})", vfid, str(quota))
