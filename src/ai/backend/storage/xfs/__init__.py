@@ -201,7 +201,7 @@ class XfsVolume(BaseVolume):
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
         full_report = await run(f"sudo xfs_quota -x -c 'report -h' {self.mount_path}")
-        for line in full_report.split('\n'):
+        for line in full_report.split("\n"):
             if str(vfid) in line:
                 report = line
                 break
@@ -222,9 +222,11 @@ class XfsVolume(BaseVolume):
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):
-        full_report = await run(f"sudo xfs_quota -x -c 'report -pbih' {self.mount_path}")
-        report = ''
-        for line in full_report.split('\n'):
+        full_report = await run(
+            f"sudo xfs_quota -x -c 'report -pbih' {self.mount_path}",
+        )
+        report = ""
+        for line in full_report.split("\n"):
             if str(vfid) in line:
                 report = line
                 break
