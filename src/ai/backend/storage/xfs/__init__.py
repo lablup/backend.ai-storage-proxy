@@ -144,7 +144,10 @@ class XfsVolume(BaseVolume):
         vfpath = self.mangle_vfpath(vfid)
 
         def _delete_vfolder():
-            shutil.rmtree(vfpath)
+            try:
+                shutil.rmtree(vfpath)
+            except FileNotFoundError:
+                pass
             if not os.listdir(vfpath.parent):
                 vfpath.parent.rmdir()
             if not os.listdir(vfpath.parent.parent):
