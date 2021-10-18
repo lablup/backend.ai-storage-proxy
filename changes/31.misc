@@ -1,1 +1,1 @@
-change function(move file) can handle both file and folder
+Update the `move_file` API to handle both move of files and folders and deprecate the `move_tree` API
