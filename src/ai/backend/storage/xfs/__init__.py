@@ -200,10 +200,11 @@ class XfsVolume(BaseVolume):
             await self.registry.read_project_info()
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
-        report = await run(
-            f"sudo xfs_quota -x -c 'report -h' {self.mount_path}"
-            f" | grep {str(vfid)[:-5]}",
-        )
+        full_report = await run(f"sudo xfs_quota -x -c 'report -h' {self.mount_path}")
+        for line in full_report.split('\n'):
+            if str(vfid) in line:
+                report = line
+                break
         if len(report.split()) != 6:
             raise ExecutionError("unexpected format for xfs_quota report")
         proj_name, _, _, quota, _, _ = report.split()
@@ -221,10 +222,12 @@ class XfsVolume(BaseVolume):
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):
-        report = await run(
-            f"sudo xfs_quota -x -c 'report -pbih' {self.mount_path}"
-            f" | grep {str(vfid)[:-5]}"
-        )
+        full_report = await run(f"sudo xfs_quota -x -c 'report -pbih' {self.mount_path}")
+        report = ''
+        for line in full_report.split('\n'):
+            if str(vfid) in line:
+                report = line
+                break
         if len(report.split()) != 11:
             raise ExecutionError("unexpected format for xfs_quota report")
         proj_name, used_size, _, _, _, _, inode_used, _, _, _, _ = report.split()

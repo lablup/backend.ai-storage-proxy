@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 import secrets
+import shlex
 import shutil
 from pathlib import Path, PurePosixPath
 from typing import AsyncIterator, FrozenSet, Sequence, Union
@@ -38,8 +39,9 @@ log = BraceStyleAdapter(logging.getLogger(__name__))
 
 
 async def run(cmd: str) -> str:
-    proc = await asyncio.create_subprocess_shell(
-        cmd,
+    split_cmd = shlex.split(cmd)
+    proc = await asyncio.create_subprocess_exec(
+        *split_cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
