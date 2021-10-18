@@ -39,7 +39,9 @@ log = BraceStyleAdapter(logging.getLogger(__name__))
 
 async def run(cmd: str) -> str:
     proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     out, err = await proc.communicate()
     if err:
@@ -62,12 +64,15 @@ class BaseVolume(AbstractVolume):
         }
 
     async def create_vfolder(
-        self, vfid: UUID, options: VFolderCreationOptions = None
+        self,
+        vfid: UUID,
+        options: VFolderCreationOptions = None,
     ) -> None:
         vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
+            None,
+            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
         )
 
     async def delete_vfolder(self, vfid: UUID) -> None:
@@ -75,7 +80,10 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
 
         def _delete_vfolder():
-            shutil.rmtree(vfpath)
+            try:
+                shutil.rmtree(vfpath)
+            except FileNotFoundError:
+                pass
             # remove intermediate prefix directories if they become empty
             if not os.listdir(vfpath.parent):
                 vfpath.parent.rmdir()
@@ -166,7 +174,9 @@ class BaseVolume(AbstractVolume):
         )
 
     async def get_usage(
-        self, vfid: UUID, relpath: PurePosixPath = None
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath = None,
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
@@ -228,7 +238,7 @@ class BaseVolume(AbstractVolume):
                                     created=fstime2datetime(entry_stat.st_ctime),
                                 ),
                                 symlink_target=symlink_target,
-                            )
+                            ),
                         )
                         count += 1
                         if limit > 0 and count == limit:
@@ -272,14 +282,21 @@ class BaseVolume(AbstractVolume):
         )
 
     async def rmdir(
-        self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath,
+        *,
+        recursive: bool = False,
     ) -> None:
         target_path = self.sanitize_vfpath(vfid, relpath)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, target_path.rmdir)
 
     async def move_file(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_file():
@@ -287,27 +304,35 @@ class BaseVolume(AbstractVolume):
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
+            None,
+            lambda: dst_path.parent.mkdir(parents=True, exist_ok=True),
         )
         await loop.run_in_executor(None, src_path.rename, dst_path)
 
     async def move_tree(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_dir():
             raise InvalidAPIParameters(
-                msg=f"source path {str(src_path)} is not a directory"
+                msg=f"source path {str(src_path)} is not a directory",
             )
         dst_path = self.sanitize_vfpath(vfid, dst)
         src_path = self.sanitize_vfpath(vfid, src)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: shutil.move(str(src_path), str(dst_path))
+            None,
+            lambda: shutil.move(str(src_path), str(dst_path)),
         )
 
     async def copy_file(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_file():
@@ -315,10 +340,12 @@ class BaseVolume(AbstractVolume):
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
+            None,
+            lambda: dst_path.parent.mkdir(parents=True, exist_ok=True),
         )
         await loop.run_in_executor(
-            None, lambda: shutil.copyfile(str(src_path), str(dst_path))
+            None,
+            lambda: shutil.copyfile(str(src_path), str(dst_path)),
         )
 
     async def prepare_upload(self, vfid: UUID) -> str:
@@ -336,7 +363,10 @@ class BaseVolume(AbstractVolume):
         return session_id
 
     async def add_file(
-        self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath,
+        payload: AsyncIterator[bytes],
     ) -> None:
         target_path = self.sanitize_vfpath(vfid, relpath)
         q: janus.Queue[bytes] = janus.Queue()
@@ -416,7 +446,10 @@ class BaseVolume(AbstractVolume):
         return _aiter()
 
     async def delete_files(
-        self, vfid: UUID, relpaths: Sequence[PurePosixPath], recursive: bool = False
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False,
     ) -> None:
         target_paths = [self.sanitize_vfpath(vfid, p) for p in relpaths]
 

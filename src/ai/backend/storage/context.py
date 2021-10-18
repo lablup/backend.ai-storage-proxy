@@ -31,7 +31,10 @@ class Context:
     local_config: Mapping[str, Any]
 
     def __init__(
-        self, pid: int, local_config: Mapping[str, Any], etcd: AsyncEtcd
+        self,
+        pid: int,
+        local_config: Mapping[str, Any],
+        etcd: AsyncEtcd,
     ) -> None:
         self.pid = pid
         self.etcd = etcd

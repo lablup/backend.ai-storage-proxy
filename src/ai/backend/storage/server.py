@@ -109,7 +109,7 @@ async def server_main(
         uid = local_config["storage-proxy"]["user"]
         gid = local_config["storage-proxy"]["group"]
         os.setgroups(
-            [g.gr_gid for g in grp.getgrall() if pwd.getpwuid(uid).pw_name in g.gr_mem]
+            [g.gr_gid for g in grp.getgrall() if pwd.getpwuid(uid).pw_name in g.gr_mem],
         )
         os.setgid(gid)
         os.setuid(uid)
@@ -174,14 +174,16 @@ def main(cli_ctx, config_path, debug):
     if cli_ctx.invoked_subcommand is None:
         local_config["storage-proxy"]["pid-file"].write_text(str(os.getpid()))
         log_sockpath = Path(
-            f"/tmp/backend.ai/ipc/storage-proxy-logger-{os.getpid()}.sock"
+            f"/tmp/backend.ai/ipc/storage-proxy-logger-{os.getpid()}.sock",
         )
         log_sockpath.parent.mkdir(parents=True, exist_ok=True)
         log_endpoint = f"ipc://{log_sockpath}"
         local_config["logging"]["endpoint"] = log_endpoint
         try:
             logger = Logger(
-                local_config["logging"], is_master=True, log_endpoint=log_endpoint
+                local_config["logging"],
+                is_master=True,
+                log_endpoint=log_endpoint,
             )
             with logger:
                 setproctitle("backend.ai: storage-proxy")

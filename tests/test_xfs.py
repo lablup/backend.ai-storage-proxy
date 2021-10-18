@@ -32,7 +32,7 @@ def read_etc_projects():
 
 async def run(cmd: str) -> str:
     proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
     )
     out, err = await proc.communicate()
     print(out.decode())
@@ -170,7 +170,7 @@ async def test_xfs_get_used_bytes(xfs):
 
     used_bytes = await xfs.get_used_bytes(vfid)
     report = await run(
-        f"sudo xfs_quota -x -c 'report -h' {xfs.mount_path} | grep {str(vfid)[:-5]}"
+        f"sudo xfs_quota -x -c 'report -h' {xfs.mount_path} | grep {str(vfid)[:-5]}",
     )
     assert len(report.split()) == 6
     proj_name, xfs_used, _, _, _, _ = report.split()
