@@ -72,12 +72,16 @@ class XfsProjectRegistry:
         self.backend = backend
 
     async def read_project_info(self):
+        def _read_projid_file():
+            return self.file_projid.read_text()
+
         # TODO: how to handle if /etc/proj* files are deleted by external reason?
         # TODO: do we need to use /etc/proj* files to enlist the project information?
         if self.file_projid.is_file():
             project_id_pool = []
             self.name_id_map = {}
-            raw_projid = self.file_projid.read_text()
+            loop = asyncio.get_running_loop()
+            raw_projid = await loop.run_in_executor(None, _read_projid_file)
             for line in raw_projid.splitlines():
                 proj_name, proj_id = line.split(":")[:2]
                 project_id_pool.append(int(proj_id))
