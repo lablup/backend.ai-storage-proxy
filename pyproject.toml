@@ -11,10 +11,10 @@ ensure_newline_before_comments = true
 package = "ai.backend.agent"
 filename = "CHANGELOG.md"
 directory = "changes/"
-title_format = "{version} ({project_date})"
+title_format = "## {version} ({project_date})"
 template = "changes/template.md"
 issue_format = "([#{issue}](https://github.com/lablup/backend.ai-storage-proxy/issues/{issue}))"
-underlines = ["-", "", ""]
+underlines = ["", "", ""]
 
 [[tool.towncrier.type]]
     directory = "breaking"

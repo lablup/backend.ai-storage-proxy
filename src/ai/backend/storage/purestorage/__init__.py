@@ -46,7 +46,7 @@ class FlashBladeVolume(BaseVolume):
         if not available:
             raise RuntimeError(
                 "PureStorage RapidFile Toolkit is not installed. "
-                "You cannot use the PureStorage backend for the stroage proxy."
+                "You cannot use the PureStorage backend for the stroage proxy.",
             )
         self.purity_client = PurityClient(
             self.config["purity_endpoint"],
@@ -63,7 +63,7 @@ class FlashBladeVolume(BaseVolume):
                 CAP_VFOLDER,
                 CAP_METRIC,
                 CAP_FAST_SCAN,
-            ]
+            ],
         )
 
     async def get_hwinfo(self) -> HardwareMetadata:
@@ -81,7 +81,8 @@ class FlashBladeVolume(BaseVolume):
         async with self.purity_client as client:
             usage = await client.get_usage(self.config["purity_fs_name"])
         return FSUsage(
-            capacity_bytes=usage["capacity_bytes"], used_bytes=usage["used_bytes"]
+            capacity_bytes=usage["capacity_bytes"],
+            used_bytes=usage["used_bytes"],
         )
 
     async def copy_tree(
@@ -111,7 +112,7 @@ class FlashBladeVolume(BaseVolume):
     async def get_performance_metric(self) -> FSPerfMetric:
         async with self.purity_client as client:
             async with aclosing(
-                client.get_nfs_metric(self.config["purity_fs_name"])
+                client.get_nfs_metric(self.config["purity_fs_name"]),
             ) as items:
                 async for item in items:
                     return FSPerfMetric(
@@ -124,11 +125,13 @@ class FlashBladeVolume(BaseVolume):
                     )
                 else:
                     raise RuntimeError(
-                        "no metric found for the configured flashblade filesystem"
+                        "no metric found for the configured flashblade filesystem",
                     )
 
     async def get_usage(
-        self, vfid: UUID, relpath: PurePosixPath = None
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath = None,
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
@@ -226,7 +229,10 @@ class FlashBladeVolume(BaseVolume):
         return _aiter()
 
     async def copy_file(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
         dst_path = self.sanitize_vfpath(vfid, dst)
@@ -243,7 +249,10 @@ class FlashBladeVolume(BaseVolume):
             raise RuntimeError(f'"pcp" command failed: {stderr.decode()}')
 
     async def delete_files(
-        self, vfid: UUID, relpaths: Sequence[PurePosixPath], recursive: bool = False
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False,
     ) -> None:
         target_paths = [bytes(self.sanitize_vfpath(vfid, p)) for p in relpaths]
         proc = await asyncio.create_subprocess_exec(

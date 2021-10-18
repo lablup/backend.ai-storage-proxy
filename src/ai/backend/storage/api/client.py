@@ -40,7 +40,7 @@ download_token_data_iv = t.Dict(
         t.Key("relpath"): t.String,
         t.Key("archive", default=False): t.Bool,
         t.Key("unmanaged_path", default=None): t.Null | t.String,
-    }
+    },
 ).allow_extra(
     "*"
 )  # allow JWT-intrinsic keys
@@ -53,7 +53,7 @@ upload_token_data_iv = t.Dict(
         t.Key("relpath"): t.String,
         t.Key("session"): t.String,
         t.Key("size"): t.Int,
-    }
+    },
 ).allow_extra(
     "*"
 )  # allow JWT-intrinsic keys
@@ -67,11 +67,12 @@ async def download(request: web.Request) -> web.StreamResponse:
         t.Dict(
             {
                 t.Key("token"): tx.JsonWebToken(
-                    secret=secret, inner_iv=download_token_data_iv
+                    secret=secret,
+                    inner_iv=download_token_data_iv,
                 ),
                 t.Key("archive", default=False): t.ToBool,
                 t.Key("no_cache", default=False): t.ToBool,
-            }
+            },
         ),
         read_from=CheckParamSource.QUERY,
     ) as params:
@@ -92,7 +93,7 @@ async def download(request: web.Request) -> web.StreamResponse:
                         {
                             "title": "File not found",
                             "type": "https://api.backend.ai/probs/storage/file-not-found",
-                        }
+                        },
                     ),
                     content_type="application/problem+json",
                 )
@@ -122,7 +123,7 @@ async def download(request: web.Request) -> web.StreamResponse:
             [
                 "attachment;" f'filename="{ascii_filename}";',  # RFC-2616 sec2.2
                 f"filename*=UTF-8''{encoded_filename}",  # RFC-5987
-            ]
+            ],
         ),
     }
     if params["no_cache"]:
@@ -187,9 +188,9 @@ async def download_directory_as_archive(
                 [
                     "attachment;" f'filename="{ascii_filename}";',  # RFC-2616 sec2.2
                     f"filename*=UTF-8''{encoded_filename}",  # RFC-5987
-                ]
+                ],
             ),
-        }
+        },
     )
     await response.prepare(request)
     async for chunk in _iter2aiter(zf):
@@ -208,9 +209,10 @@ async def tus_check_session(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("token"): tx.JsonWebToken(
-                    secret=secret, inner_iv=upload_token_data_iv
+                    secret=secret,
+                    inner_iv=upload_token_data_iv,
                 ),
-            }
+            },
         ),
         read_from=CheckParamSource.QUERY,
     ) as params:
@@ -231,9 +233,10 @@ async def tus_upload_part(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("token"): tx.JsonWebToken(
-                    secret=secret, inner_iv=upload_token_data_iv
+                    secret=secret,
+                    inner_iv=upload_token_data_iv,
                 ),
-            }
+            },
         ),
         read_from=CheckParamSource.QUERY,
     ) as params:
@@ -259,7 +262,8 @@ async def tus_upload_part(request: web.Request) -> web.Response:
                 try:
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(
-                        None, lambda: upload_temp_path.parent.rmdir()
+                        None,
+                        lambda: upload_temp_path.parent.rmdir(),
                     )
                 except OSError:
                     pass
@@ -284,7 +288,7 @@ async def tus_options(request: web.Request) -> web.Response:
     headers["Tus-Resumable"] = "1.0.0"
     headers["Tus-Version"] = "1.0.0"
     headers["Tus-Max-Size"] = str(
-        int(ctx.local_config["storage-proxy"]["max-upload-size"])
+        int(ctx.local_config["storage-proxy"]["max-upload-size"]),
     )
     headers["X-Content-Type-Options"] = "nosniff"
     return web.Response(headers=headers)
@@ -303,7 +307,7 @@ async def prepare_tus_session_headers(
                 {
                     "title": "No such upload session",
                     "type": "https://api.backend.ai/probs/storage/no-such-upload-session",
-                }
+                },
             ),
             content_type="application/problem+json",
         )

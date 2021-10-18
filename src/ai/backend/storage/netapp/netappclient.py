@@ -16,7 +16,12 @@ class NetAppClient:
     volume_name: str
 
     def __init__(
-        self, endpoint: str, user: str, password: str, svm: str, volume_name: str
+        self,
+        endpoint: str,
+        user: str,
+        password: str,
+        svm: str,
+        volume_name: str,
     ) -> None:
         self.endpoint = endpoint
         self.user = user

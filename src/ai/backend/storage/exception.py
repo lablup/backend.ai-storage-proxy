@@ -47,5 +47,6 @@ class InvalidAPIParameters(web.HTTPBadRequest):
         if data is not None:
             payload["data"] = data
         super().__init__(
-            text=json.dumps(payload), content_type="application/problem+json"
+            text=json.dumps(payload),
+            content_type="application/problem+json",
         )

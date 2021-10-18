@@ -25,7 +25,10 @@ async def read_file(loop: asyncio.AbstractEventLoop, filename: str) -> str:
 
 
 async def write_file(
-    loop: asyncio.AbstractEventLoop, filename: str, contents: str, perm="w"
+    loop: asyncio.AbstractEventLoop,
+    filename: str,
+    contents: str,
+    perm="w",
 ):
     def _write():
         with open(filename, perm) as fw:
@@ -36,7 +39,9 @@ async def write_file(
 
 async def run(cmd: str) -> str:
     proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     out, err = await proc.communicate()
     if err:
@@ -77,7 +82,9 @@ class XfsVolume(BaseVolume):
 
     # ----- volume opeartions -----
     async def create_vfolder(
-        self, vfid: UUID, options: VFolderCreationOptions = None
+        self,
+        vfid: UUID,
+        options: VFolderCreationOptions = None,
     ) -> None:
         if str(vfid) in self.registry.keys():
             raise VFolderCreationError("VFolder id {} already exists".format(str(vfid)))
@@ -100,19 +107,24 @@ class XfsVolume(BaseVolume):
         else:
             quota = options.quota
         await self.loop.run_in_executor(
-            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
+            None,
+            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
         )
         await self.loop.run_in_executor(
-            None, lambda: os.chown(vfpath, self.uid, self.gid)
+            None,
+            lambda: os.chown(vfpath, self.uid, self.gid),
         )
 
         await write_file(
-            self.loop, "/etc/projects", f"{project_id}:{vfpath}\n", perm="a"
+            self.loop,
+            "/etc/projects",
+            f"{project_id}:{vfpath}\n",
+            perm="a",
         )
         await write_file(self.loop, "/etc/projid", f"{vfid}:{project_id}\n", perm="a")
         await run(f'sudo xfs_quota -x -c "project -s {vfid}" {self.mount_path}')
         await run(
-            f'sudo xfs_quota -x -c "limit -p bhard={int(quota)} {vfid}" {self.mount_path}'
+            f'sudo xfs_quota -x -c "limit -p bhard={int(quota)} {vfid}" {self.mount_path}',
         )
         self.registry[str(vfid)] = project_id
         self.project_id_pool += [project_id]
@@ -123,7 +135,7 @@ class XfsVolume(BaseVolume):
             raise VFolderNotFoundError("VFolder with id {} does not exist".format(vfid))
 
         await run(
-            f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}'
+            f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard=0 {vfid}" {self.mount_path}',
         )
 
         raw_projects = await read_file(self.loop, "/etc/projects")
@@ -172,7 +184,7 @@ class XfsVolume(BaseVolume):
     async def get_quota(self, vfid: UUID) -> BinarySize:
         report = await run(
             f"sudo xfs_quota -x -c 'report -h' {self.mount_path}"
-            f" | grep {str(vfid)[:-5]}"
+            f" | grep {str(vfid)[:-5]}",
         )
         if len(report.split()) != 6:
             raise ExecutionError("xfs_quota report output is in unexpected format")
@@ -184,5 +196,5 @@ class XfsVolume(BaseVolume):
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         await run(
             f'sudo xfs_quota -x -c "limit -p bsoft=0 bhard={int(size_bytes)} {vfid}"'
-            f" {self.mount_path}"
+            f" {self.mount_path}",
         )
