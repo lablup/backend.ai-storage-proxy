@@ -3,7 +3,7 @@ import fcntl
 import logging
 import os
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List
 from uuid import UUID
 
@@ -11,7 +11,7 @@ from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.types import BinarySize
 
 from ..exception import ExecutionError, VFolderCreationError
-from ..types import VFolderCreationOptions
+from ..types import VFolderCreationOptions, VFolderUsage
 from ..vfs import BaseVolume, run
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
@@ -215,3 +215,16 @@ class XfsVolume(BaseVolume):
             f"'limit -p bsoft={int(size_bytes)} bhard={int(size_bytes)} {vfid}' "
             f"{self.mount_path}"
         )
+
+    async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):
+        report = await run(
+            f"sudo xfs_quota -x -c 'report -pbih' {self.mount_path}"
+            f" | grep {str(vfid)[:-5]}"
+        )
+        if len(report.split()) != 11:
+            raise ExecutionError("unexpected format for xfs_quota report")
+        proj_name, used_size, _, _, _, _, inode_used, _, _, _, _ = report.split()
+        used_bytes = int(BinarySize.finite_from_str(used_size))
+        if not str(vfid).startswith(proj_name):
+            raise ExecutionError("vfid and project name does not match")
+        return VFolderUsage(file_count=int(inode_used), used_bytes=used_bytes)
