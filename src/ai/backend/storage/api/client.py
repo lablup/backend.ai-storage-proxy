@@ -42,7 +42,7 @@ download_token_data_iv = t.Dict(
         t.Key("unmanaged_path", default=None): t.Null | t.String,
     },
 ).allow_extra(
-    "*"
+    "*",
 )  # allow JWT-intrinsic keys
 
 upload_token_data_iv = t.Dict(
@@ -55,7 +55,7 @@ upload_token_data_iv = t.Dict(
         t.Key("size"): t.Int,
     },
 ).allow_extra(
-    "*"
+    "*",
 )  # allow JWT-intrinsic keys
 
 

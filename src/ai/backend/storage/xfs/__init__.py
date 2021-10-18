@@ -103,10 +103,10 @@ class XfsProjectRegistry:
         if project_id is None:
             project_id = self.get_project_id()
         await run(
-            f"sudo sh -c \"echo '{project_id}:{vfpath}' >> {self.file_projects}\""
+            f"sudo sh -c \"echo '{project_id}:{vfpath}' >> {self.file_projects}\"",
         )
         await run(
-            f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\""
+            f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\"",
         )
 
     async def remove_project_entry(self, vfid: UUID) -> None:
@@ -218,7 +218,7 @@ class XfsVolume(BaseVolume):
         await run(
             f"sudo xfs_quota -x -c "
             f"'limit -p bsoft={int(size_bytes)} bhard={int(size_bytes)} {vfid}' "
-            f"{self.mount_path}"
+            f"{self.mount_path}",
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):
