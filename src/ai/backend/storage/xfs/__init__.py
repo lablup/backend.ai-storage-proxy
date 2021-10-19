@@ -46,9 +46,9 @@ class XfsProjectRegistry:
                 self.name_id_map[UUID(proj_name)] = int(proj_id)
             self.project_id_pool = sorted(project_id_pool)
         else:
-            await run(f"sudo touch {self.file_projid}")
+            await run(["sudo", "touch", self.file_projid])
         if not Path(self.file_projects).is_file():
-            await run(f"sudo touch {self.file_projects}")
+            await run(["sudo", "touch", self.file_projects])
 
     async def add_project_entry(
         self,
@@ -61,15 +61,25 @@ class XfsProjectRegistry:
         if project_id is None:
             project_id = self.get_project_id()
         await run(
-            f"sudo sh -c \"echo '{project_id}:{vfpath}' >> {self.file_projects}\"",
+            [
+                "sudo",
+                "sh",
+                "-c",
+                f"echo '{project_id}:{vfpath}' >> {self.file_projects}",
+            ]
         )
         await run(
-            f"sudo sh -c \"echo '{str(vfid)}:{project_id}' >> {self.file_projid}\"",
+            [
+                "sudo",
+                "sh",
+                "-c",
+                f"echo '{str(vfid)}:{project_id}' >> {self.file_projid}",
+            ]
         )
 
     async def remove_project_entry(self, vfid: UUID) -> None:
-        await run(f"sudo sed -i.bak '/{vfid.hex[4:]}/d' {self.file_projects}")
-        await run(f"sudo sed -i.bak '/{vfid}/d' {self.file_projid}")
+        await run(["sudo", "sed", "-i.bak", f"/{vfid.hex[4:]}/d", self.file_projects])
+        await run(["sudo", "sed", "-i.bak", f"/{vfid}/d", self.file_projects])
 
     def get_project_id(self) -> int:
         """
@@ -158,7 +168,9 @@ class XfsVolume(BaseVolume):
             await self.registry.read_project_info()
 
     async def get_quota(self, vfid: UUID) -> BinarySize:
-        full_report = await run(f"sudo xfs_quota -x -c 'report -h' {self.mount_path}")
+        full_report = await run(
+            ["sudo", "xfs_quota", "-x", "-c", "report -h", self.mount_path],
+        )
         for line in full_report.split("\n"):
             if str(vfid) in line:
                 report = line
@@ -172,16 +184,30 @@ class XfsVolume(BaseVolume):
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         if vfid not in self.registry.name_id_map.keys():
-            await run(f"sudo xfs_quota -x -c 'project -s {vfid}' {self.mount_path}")
+            await run(
+                [
+                    "sudo",
+                    "xfs_quota",
+                    "-x",
+                    "-c",
+                    f"project -s {vfid}",
+                    self.mount_path,
+                ]
+            )
         await run(
-            f"sudo xfs_quota -x -c "
-            f"'limit -p bsoft={int(size_bytes)} bhard={int(size_bytes)} {vfid}' "
-            f"{self.mount_path}",
+            [
+                "sudo",
+                "xfs_quota",
+                "-x",
+                "-c",
+                f"limit -p bsoft={int(size_bytes)} bhard={int(size_bytes)} {vfid}",
+                self.mount_path,
+            ]
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):
         full_report = await run(
-            f"sudo xfs_quota -x -c 'report -pbih' {self.mount_path}",
+            ["sudo", "xfs_quota", "-x", "-c", "report -pbih", self.mount_path],
         )
         report = ""
         for line in full_report.split("\n"):

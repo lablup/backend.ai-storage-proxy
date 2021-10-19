@@ -5,7 +5,6 @@ import functools
 import logging
 import os
 import secrets
-import shlex
 import shutil
 import time
 from pathlib import Path, PurePosixPath
@@ -39,10 +38,9 @@ from ..utils import fstime2datetime
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
 
-async def run(cmd: str) -> str:
-    split_cmd = shlex.split(cmd)
+async def run(cmd: Sequence[Union[str, Path]]) -> str:
     proc = await asyncio.create_subprocess_exec(
-        *split_cmd,
+        *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -214,7 +212,7 @@ class BaseVolume(AbstractVolume):
 
     async def get_used_bytes(self, vfid: UUID) -> BinarySize:
         vfpath = self.mangle_vfpath(vfid)
-        info = await run(f"du -hs {vfpath}")
+        info = await run(["du", "-hs", vfpath])
         used_bytes, _ = info.split()
         return BinarySize.finite_from_str(used_bytes)
 
