@@ -1,4 +1,3 @@
-import asyncio
 import os
 import uuid
 from pathlib import Path, PurePath
@@ -6,7 +5,7 @@ from pathlib import Path, PurePath
 import pytest
 
 from ai.backend.common.types import BinarySize
-from ai.backend.storage.vfs import run, BaseVolume
+from ai.backend.storage.vfs import BaseVolume, run
 from ai.backend.storage.xfs import XfsVolume
 
 
