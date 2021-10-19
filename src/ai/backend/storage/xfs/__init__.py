@@ -66,7 +66,7 @@ class XfsProjectRegistry:
                 "sh",
                 "-c",
                 f"echo '{project_id}:{vfpath}' >> {self.file_projects}",
-            ]
+            ],
         )
         await run(
             [
@@ -74,7 +74,7 @@ class XfsProjectRegistry:
                 "sh",
                 "-c",
                 f"echo '{str(vfid)}:{project_id}' >> {self.file_projid}",
-            ]
+            ],
         )
 
     async def remove_project_entry(self, vfid: UUID) -> None:
@@ -192,7 +192,7 @@ class XfsVolume(BaseVolume):
                     "-c",
                     f"project -s {vfid}",
                     self.mount_path,
-                ]
+                ],
             )
         await run(
             [
@@ -202,7 +202,7 @@ class XfsVolume(BaseVolume):
                 "-c",
                 f"limit -p bsoft={int(size_bytes)} bhard={int(size_bytes)} {vfid}",
                 self.mount_path,
-            ]
+            ],
         )
 
     async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):

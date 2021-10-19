@@ -16,18 +16,6 @@ from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
 
 
-async def run(cmd: str) -> str:
-    proc = await asyncio.create_subprocess_shell(
-        cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    out, err = await proc.communicate()
-    if err:
-        raise ExecutionError(err.decode())
-    return out.decode()
-
-
 class NetAppVolume(BaseVolume):
 
     endpoint: str
