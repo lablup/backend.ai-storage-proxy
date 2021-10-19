@@ -118,6 +118,14 @@ to use the storage for testing:
 # mount -o loop -o pquota $LODEVICE /vfroot/xfs
 ```
 
+#### Note on operation
+
+XFS keeps quota mapping information on two files: `/etc/projects` and
+`/etc/projid`. If they are deleted or damaged in any way, per-directory quota
+information will also be lost. So, it is crucial not to delete them
+accidentally. If possible, it is a good idea to backup them to a different disk
+or NFS.
+
 
 ### PureStorage FlashBlade
 
