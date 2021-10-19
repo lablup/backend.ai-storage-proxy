@@ -51,7 +51,7 @@ local_config_iv = (
                     t.Key("group", default=None): tx.GroupID(
                         default_gid=_file_perm.st_gid,
                     ),
-                }
+                },
             ),
             t.Key("logging"): logging_config_iv,
             t.Key("api"): t.Dict(

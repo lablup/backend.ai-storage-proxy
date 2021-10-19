@@ -546,7 +546,7 @@ async def create_filebrowser(request: web.Request) -> web.Response:
             {
                 t.Key("vfolders"): t.List(t.String()),  # list of <volume>:<vfid>
                 t.Key("auth_token"): t.String,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "create_filebrowser", params)
@@ -556,7 +556,7 @@ async def create_filebrowser(request: web.Request) -> web.Response:
             {
                 "addr": "<config[filebrowser.service-ip]>:<mapped-port>",
                 "status": "ok",
-            }
+            },
         )
 
 
@@ -566,7 +566,7 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("auth_token"): t.String,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "destroy_filebrowser", params)
@@ -575,7 +575,7 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
         return web.json_response(
             {
                 "status": "ok",
-            }
+            },
         )
 
 
