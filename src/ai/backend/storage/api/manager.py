@@ -2,10 +2,17 @@
 Manager-facing API
 """
 
+import functools
 import logging
 from datetime import datetime
-from typing import Awaitable, Callable, List
+from typing import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    List,
+)
 
+import aiotools
 import attr
 import jwt
 import trafaret as t
@@ -15,6 +22,7 @@ from ai.backend.common import validators as tx
 from ai.backend.common.logging import BraceStyleAdapter
 
 from ..context import Context
+from .. import filebrowser
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -539,22 +547,22 @@ async def delete_files(request: web.Request) -> web.Response:
         )
 
 
-async def create_filebrowser(request: web.Request) -> web.Response:
+async def create_or_update_filebrowser(request: web.Request) -> web.Response:
     async with check_params(
         request,
         t.Dict(
             {
-                t.Key("vfolders"): t.List(t.String()),  # list of <volume>:<vfid>
                 t.Key("auth_token"): t.String,
+                t.Key("vfolders"): t.List(t.String()),  # list of <volume>:<vfid>:<name>:<perm>
             },
         ),
     ) as params:
-        await log_manager_api_entry(log, "create_filebrowser", params)
+        await log_manager_api_entry(log, "create_or_update_filebrowser", params)
         ctx: Context = request.app["ctx"]
-        # TODO: implement
+        host, port = await filebrowser.create_or_update(ctx, params["auth_token"], params["vfolders"])
         return web.json_response(
             {
-                "addr": "<config[filebrowser.service-ip]>:<mapped-port>",
+                "addr": f"http://{host}:{port}",  # TODO: SSL?
                 "status": "ok",
             },
         )
@@ -571,12 +579,22 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
     ) as params:
         await log_manager_api_entry(log, "destroy_filebrowser", params)
         ctx: Context = request.app["ctx"]
-        # TODO: implement
+        await filebrowser.destroy(ctx, params["auth_token"])
         return web.json_response(
             {
                 "status": "ok",
             },
         )
+
+
+async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
+    ctx = app["ctx"]
+    filebrowser_cleanup_task = aiotools.create_timer(
+        functools.partial(filebrowser.cleanup, ctx), 10.0,
+    )
+    yield
+    filebrowser_cleanup_task.cancel()
+    await filebrowser_cleanup_task
 
 
 async def init_manager_app(ctx: Context) -> web.Application:
@@ -607,6 +625,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/download", create_download_session)
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
-    app.router.add_route("POST", "/browser", create_filebrowser)
+    app.router.add_route("POST", "/browser", create_or_update_filebrowser)
     app.router.add_route("DELETE", "/browser", destroy_filebrowser)
+    app.cleanup_ctx.append(filebrowser_ctx)
     return app

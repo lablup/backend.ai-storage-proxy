@@ -63,7 +63,12 @@ async def server_main(
         scope_prefix_map,
         credentials=etcd_credentials,
     )
-    ctx = Context(pid=os.getpid(), local_config=local_config, etcd=etcd)
+    ctx = Context(
+        pid=os.getpid(),
+        pidx=pidx,
+        local_config=local_config,
+        etcd=etcd,
+    )
     client_api_app = await init_client_app(ctx)
     manager_api_app = await init_manager_app(ctx)
 
