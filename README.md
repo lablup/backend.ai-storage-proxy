@@ -84,8 +84,15 @@ such as nginx and the storage proxy daemon itself should be run without SSL.
   - Mounting XFS volume with an option `-o pquota` to enable project quota
   - To turn on quotas on the root filesystem, the quota mount flags must be
     set with the `rootflags=` boot parameter. Usually, this is not recommended.
-* Access to root shell
-  - `root` or no password sudo user to execute `xfs_quota` command
+* Access to root privilege
+  - Execution of `xfs_quota`, which performs quota-related commands, requires
+    the `root` privilege.
+  - Thus, you need to start the Storage-Proxy service by a `root` user or a
+    user with passwordless sudo access.
+  - If the root user starts the Storage-Proxy, the owner of every file created
+    is also root. In some situations, this would not be the desired setting.
+    In that case, it might be better to start the service with a regular user
+    with passwordless sudo privilege.
 
 #### Creating virtual XFS device for testing
 
