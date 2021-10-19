@@ -53,7 +53,7 @@ class VolumeInfo:
                 t.Key("path"): tx.Path(type="dir"),
                 t.Key("fsprefix", default="."): tx.PurePath(relative_only=True),
                 t.Key("options", default=None): t.Null | t.Mapping(t.String, t.Any),
-            }
+            },
         )
 
 

@@ -8,6 +8,7 @@ from ai.backend.common.etcd import AsyncEtcd
 
 from .abc import AbstractVolume
 from .exception import InvalidVolumeError
+from .netapp import NetAppVolume
 from .purestorage import FlashBladeVolume
 from .types import VolumeInfo
 from .vfs import BaseVolume
@@ -17,6 +18,7 @@ BACKENDS: Mapping[str, Type[AbstractVolume]] = {
     "purestorage": FlashBladeVolume,
     "vfs": BaseVolume,
     "xfs": XfsVolume,
+    "netapp": NetAppVolume,
 }
 
 
@@ -29,7 +31,10 @@ class Context:
     local_config: Mapping[str, Any]
 
     def __init__(
-        self, pid: int, local_config: Mapping[str, Any], etcd: AsyncEtcd
+        self,
+        pid: int,
+        local_config: Mapping[str, Any],
+        etcd: AsyncEtcd,
     ) -> None:
         self.pid = pid
         self.etcd = etcd

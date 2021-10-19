@@ -25,6 +25,7 @@ from .types import (
 
 # Available capabilities of a volume implementation
 CAP_VFOLDER: Final = "vfolder"
+CAP_VFHOST_QUOTA: Final = "vfhost-quota"
 CAP_METRIC: Final = "metric"
 CAP_QUOTA: Final = "quota"
 CAP_FAST_SCAN: Final = "fast-scan"
@@ -79,7 +80,9 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def create_vfolder(
-        self, vfid: UUID, options: VFolderCreationOptions = None
+        self,
+        vfid: UUID,
+        options: VFolderCreationOptions = None,
     ) -> None:
         pass
 
@@ -129,6 +132,10 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    async def get_performance_metric(self) -> FSPerfMetric:
+        pass
+
+    @abstractmethod
     async def get_quota(self, vfid: UUID) -> BinarySize:
         pass
 
@@ -137,16 +144,14 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def get_performance_metric(self) -> FSPerfMetric:
-        pass
-
-    @abstractmethod
     async def get_fs_usage(self) -> FSUsage:
         pass
 
     @abstractmethod
     async def get_usage(
-        self, vfid: UUID, relpath: PurePosixPath = None
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath = None,
     ) -> VFolderUsage:
         pass
 
@@ -173,25 +178,38 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def rmdir(
-        self, vfid: UUID, relpath: PurePosixPath, *, recursive: bool = False
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath,
+        *,
+        recursive: bool = False,
     ) -> None:
         pass
 
     @abstractmethod
     async def move_file(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         pass
 
     @abstractmethod
     async def move_tree(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         pass
 
     @abstractmethod
     async def copy_file(
-        self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
+        self,
+        vfid: UUID,
+        src: PurePosixPath,
+        dst: PurePosixPath,
     ) -> None:
         pass
 
@@ -205,7 +223,10 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def add_file(
-        self, vfid: UUID, relpath: PurePosixPath, payload: AsyncIterator[bytes]
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath,
+        payload: AsyncIterator[bytes],
     ) -> None:
         pass
 
@@ -221,6 +242,9 @@ class AbstractVolume(metaclass=ABCMeta):
 
     @abstractmethod
     async def delete_files(
-        self, vfid: UUID, relpaths: Sequence[PurePosixPath], recursive: bool = False
+        self,
+        vfid: UUID,
+        relpaths: Sequence[PurePosixPath],
+        recursive: bool = False,
     ) -> None:
         pass

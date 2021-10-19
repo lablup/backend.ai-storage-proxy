@@ -17,6 +17,8 @@ storage-specific optimization support.
     - `agent`: Implementation of `AbstractVolumeAgent` with XFS support
   - `purestorage`
     - PureStorage's FlashBlade-optimized backend with RapidFile Toolkit (formerly PureTools)
+  - `netapp`
+    - NetApp QTree integration backend based on the NetApp ONTAP REST API
   - `cephfs` (TODO)
     - CephFS-optimized backend with quota limit support
 

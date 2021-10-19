@@ -38,7 +38,7 @@ async def check_params(
                     {
                         "type": "https://api.backend.ai/probs/storage/malformed-request",
                         "title": "Malformed request (request body should be empty)",
-                    }
+                    },
                 ),
                 content_type="application/problem+json",
             )
@@ -62,7 +62,7 @@ async def check_params(
                     "type": "https://api.backend.ai/probs/storage/invalid-api-params",
                     "title": "Invalid API parameters",
                     "data": e.as_dict(),
-                }
+                },
             ),
             content_type="application/problem+json",
         )
@@ -72,7 +72,7 @@ async def check_params(
                 {
                     "type": "https://api.backend.ai/probs/storage/unsupported-operation",
                     "title": "Unsupported operation by the storage backend",
-                }
+                },
             ),
             content_type="application/problem+json",
         )
