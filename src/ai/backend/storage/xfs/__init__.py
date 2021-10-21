@@ -71,14 +71,14 @@ class XfsProjectRegistry:
             _tmp_projid = NamedTemporaryFile(delete=False)
             try:
                 _projects_content = Path(self.file_projects).read_text()
-                if not _projects_content.endswith("\n"):
+                if _projects_content.strip() != "" and not _projects_content.endswith("\n"):
                     _projects_content += "\n"
                 _projects_content += f"{project_id}:{vfpath}\n"
                 _tmp_projects.write(_projects_content.encode("ascii"))
                 temp_name_projects = _tmp_projects.name
 
                 _projid_content = Path(self.file_projid).read_text()
-                if not _projid_content.endswith("\n"):
+                if _projid_content.strip() != "" and not _projid_content.endswith("\n"):
                     _projid_content += "\n"
                 _projid_content += f"{str(vfid)}:{project_id}\n"
                 _tmp_projid.write(_projid_content.encode("ascii"))
@@ -152,15 +152,15 @@ class XfsVolume(BaseVolume):
         await super().create_vfolder(vfid, options)
 
         # NOTE: Do we need to register project ID for a directory without quota?
-        #       I don't think so.
-        # if options is None or options.quota is None:  # max quota i.e. the whole fs size
-        #     fs_usage = await self.get_fs_usage()
-        #     quota = fs_usage.capacity_bytes
-        # else:
-        #     quota = options.quota
-        quota = options.quota if options and options.quota else None
-        if not quota:
-            return
+        #       Yes, to easily get the file size and used bytes of a directory.
+        if options is None or options.quota is None:  # max quota i.e. the whole fs size
+            fs_usage = await self.get_fs_usage()
+            quota = fs_usage.capacity_bytes
+        else:
+            quota = options.quota
+        # quota = options.quota if options and options.quota else None
+        # if not quota:
+        #     return
         try:
             async with FileLock(LOCK_FILE):
                 log.info("setting project quota (f:{}, q:{})", vfid, str(quota))
