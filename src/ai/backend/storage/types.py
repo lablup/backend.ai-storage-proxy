@@ -65,6 +65,11 @@ class VFolderCreationOptions:
     def as_trafaret(cls) -> t.Trafaret:
         return t.Dict({t.Key("quota", default=None): t.Null | tx.BinarySize})
 
+    @classmethod
+    def as_object(cls, dict_opts: Mapping) -> VFolderCreationOptions:
+        quota = dict_opts.get("quota")
+        return VFolderCreationOptions(quota=quota)
+
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)
 class VFolderUsage:
