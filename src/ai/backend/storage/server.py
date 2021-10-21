@@ -32,6 +32,10 @@ log = BraceStyleAdapter(logging.getLogger("ai.backend.storage.server"))
 @aiotools.server
 async def server_main_logwrapper(loop, pidx, _args):
     setproctitle(f"backend.ai: storage-proxy worker-{pidx}")
+    try:
+        asyncio.get_child_watcher()
+    except (AttributeError, NotImplementedError):
+        pass
     log_endpoint = _args[1]
     logger = Logger(_args[0]["logging"], is_master=False, log_endpoint=log_endpoint)
     with logger:
@@ -198,7 +202,6 @@ def main(cli_ctx, config_path, debug):
                     pprint(local_config)
                 if local_config["storage-proxy"]["event-loop"] == "uvloop":
                     import uvloop
-
                     uvloop.install()
                     log.info("Using uvloop as the event loop backend")
                 aiotools.start_server(
