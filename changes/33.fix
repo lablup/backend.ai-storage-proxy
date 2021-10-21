@@ -1,1 +1,0 @@
-Register every (XFS) virtual folder to XFS projects even if no quota is set, to easily fetch the inode count and used bytes those are provided by the filesystem.

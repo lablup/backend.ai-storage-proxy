@@ -16,6 +16,14 @@ Changes
 
 .. towncrier release notes start
 
+21.03.2 (2021-10-21)
+--------------------
+
+### Fixes
+* Explicitly call `asyncio.get_child_watcher()` to initiallize subprocess child watchers used by several storage backends ([#32](https://github.com/lablup/backend.ai-storage-proxy/issues/32))
+* Register every (XFS) virtual folder to XFS projects even if no quota is set, to easily fetch the inode count and used bytes those are provided by the filesystem. ([#33](https://github.com/lablup/backend.ai-storage-proxy/issues/33))
+
+
 21.03.1 (2021-10-21)
 --------------------
 
