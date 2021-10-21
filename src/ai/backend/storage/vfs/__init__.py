@@ -301,7 +301,7 @@ class BaseVolume(AbstractVolume):
     async def move_tree(
         self, vfid: UUID, src: PurePosixPath, dst: PurePosixPath
     ) -> None:
-        print("Use move_file instead. move tree will be deprecated")
+        warnings.warn("Use move_file() instead. move_tree() will be deprecated", DeprecationWarning, stacklevel=2)
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_dir():
             raise InvalidAPIParameters(
