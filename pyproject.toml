@@ -8,7 +8,7 @@ ensure_newline_before_comments = true
 
 
 [tool.towncrier]
-package = "ai.backend.agent"
+package = "ai.backend.storage"
 filename = "CHANGELOG.md"
 directory = "changes/"
 title_format = "## {version} ({project_date})"
