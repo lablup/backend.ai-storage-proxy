@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path, PurePosixPath
+from tempfile import NamedTemporaryFile
 from typing import Dict, List
 from uuid import UUID
 
@@ -60,26 +61,51 @@ class XfsProjectRegistry:
         vfpath = self.backend.mangle_vfpath(vfid)
         if project_id is None:
             project_id = self.get_project_id()
-        await run(
-            [
-                "sudo",
-                "sh",
-                "-c",
-                f"echo '{project_id}:{vfpath}' >> {self.file_projects}",
-            ],
-        )
-        await run(
-            [
-                "sudo",
-                "sh",
-                "-c",
-                f"echo '{str(vfid)}:{project_id}' >> {self.file_projid}",
-            ],
-        )
+
+        temp_name_projects = ""
+        temp_name_projid = ""
+
+        def _create_temp_files():
+            nonlocal temp_name_projects, temp_name_projid
+            try:
+                _projects_content = Path(self.file_projects).read_text()
+                _projects_content += f"{project_id}:{vfpath}\n"
+                _tmp_projects = NamedTemporaryFile(delete=False)
+                _tmp_projects.write(_projects_content.encode("ascii"))
+                temp_name_projects = _tmp_projects.name
+
+                _projid_content = Path(self.file_projid).read_text()
+                _projid_content += f"{str(vfid)}:{project_id}\n"
+                _tmp_projid = NamedTemporaryFile(delete=False)
+                _tmp_projid.write(_projid_content.encode("ascii"))
+                temp_name_projid = _tmp_projid.name
+            finally:
+                if _tmp_projects:
+                    _tmp_projects.close()
+                if _tmp_projid:
+                    _tmp_projid.close()
+
+        def _delete_temp_files():
+            try:
+                os.unlink(temp_name_projects)
+            except FileNotFoundError:
+                pass
+            try:
+                os.unlink(temp_name_projid)
+            except FileNotFoundError:
+                pass
+
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(None, _create_temp_files)
+            await run(["sudo", "cp", "-rp", temp_name_projects, self.file_projects])
+            await run(["sudo", "cp", "-rp", temp_name_projid, self.file_projid])
+        finally:
+            await loop.run_in_executor(None, _delete_temp_files)
 
     async def remove_project_entry(self, vfid: UUID) -> None:
         await run(["sudo", "sed", "-i.bak", f"/{vfid.hex[4:]}/d", self.file_projects])
-        await run(["sudo", "sed", "-i.bak", f"/{vfid}/d", self.file_projects])
+        await run(["sudo", "sed", "-i.bak", f"/{vfid}/d", self.file_projid])
 
     def get_project_id(self) -> int:
         """
