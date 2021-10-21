@@ -71,7 +71,9 @@ class XfsProjectRegistry:
             _tmp_projid = NamedTemporaryFile(delete=False)
             try:
                 _projects_content = Path(self.file_projects).read_text()
-                if _projects_content.strip() != "" and not _projects_content.endswith("\n"):
+                if _projects_content.strip() != "" and not _projects_content.endswith(
+                    "\n"
+                ):
                     _projects_content += "\n"
                 _projects_content += f"{project_id}:{vfpath}\n"
                 _tmp_projects.write(_projects_content.encode("ascii"))
