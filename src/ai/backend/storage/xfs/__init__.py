@@ -72,7 +72,7 @@ class XfsProjectRegistry:
             try:
                 _projects_content = Path(self.file_projects).read_text()
                 if _projects_content.strip() != "" and not _projects_content.endswith(
-                    "\n"
+                    "\n",
                 ):
                     _projects_content += "\n"
                 _projects_content += f"{project_id}:{vfpath}\n"
