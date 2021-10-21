@@ -32,6 +32,10 @@ log = BraceStyleAdapter(logging.getLogger("ai.backend.storage.server"))
 @aiotools.server
 async def server_main_logwrapper(loop, pidx, _args):
     setproctitle(f"backend.ai: storage-proxy worker-{pidx}")
+    try:
+        asyncio.get_child_watcher()
+    except (AttributeError, NotImplementedError):
+        pass
     log_endpoint = _args[1]
     logger = Logger(_args[0]["logging"], is_master=False, log_endpoint=log_endpoint)
     with logger:
