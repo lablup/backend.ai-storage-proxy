@@ -41,7 +41,7 @@ async def get_status(request: web.Request) -> web.Response:
         return web.json_response(
             {
                 "status": "ok",
-            }
+            },
         )
 
 
@@ -66,7 +66,7 @@ async def get_volumes(request: web.Request) -> web.Response:
                     }
                     for name, info in volumes.items()
                 ],
-            }
+            },
         )
 
 
@@ -76,7 +76,7 @@ async def get_hwinfo(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("volume"): t.String(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_hwinfo", params)
@@ -95,13 +95,14 @@ async def create_vfolder(request: web.Request) -> web.Response:
                 t.Key("vfid"): tx.UUID(),
                 t.Key("options", default=None): t.Null
                 | VFolderCreationOptions.as_trafaret(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "create_vfolder", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
-            await volume.create_vfolder(params["vfid"], params["options"])
+            obj_opts = VFolderCreationOptions.as_object(params["options"])
+            await volume.create_vfolder(params["vfid"], obj_opts)
             return web.Response(status=204)
 
 
@@ -112,7 +113,7 @@ async def delete_vfolder(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "delete_vfolder", params)
@@ -133,7 +134,7 @@ async def clone_vfolder(request: web.Request) -> web.Response:
                 t.Key("dst_vfid"): tx.UUID(),
                 t.Key("options", default=None): t.Null
                 | VFolderCreationOptions.as_trafaret(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "clone_vfolder", params)
@@ -141,7 +142,9 @@ async def clone_vfolder(request: web.Request) -> web.Response:
         async with ctx.get_volume(params["src_volume"]) as src_volume:
             async with ctx.get_volume(params["dst_volume"]) as dst_volume:
                 await src_volume.clone_vfolder(
-                    params["src_vfid"], dst_volume, params["dst_vfid"]
+                    params["src_vfid"],
+                    dst_volume,
+                    params["dst_vfid"],
                 )
         return web.Response(status=204)
 
@@ -153,7 +156,7 @@ async def get_vfolder_mount(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_container_mount", params)
@@ -163,7 +166,7 @@ async def get_vfolder_mount(request: web.Request) -> web.Response:
             return web.json_response(
                 {
                     "path": str(mount_path),
-                }
+                },
             )
 
 
@@ -173,7 +176,7 @@ async def get_performance_metric(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("volume"): t.String(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_performance_metric", params)
@@ -183,7 +186,7 @@ async def get_performance_metric(request: web.Request) -> web.Response:
             return web.json_response(
                 {
                     "metric": attr.asdict(metric),
-                }
+                },
             )
 
 
@@ -199,7 +202,7 @@ async def fetch_file(request: web.Request) -> web.StreamResponse:
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpath"): tx.PurePath(relative_only=True),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "fetch_file", params)
@@ -234,14 +237,14 @@ async def get_metadata(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_metadata", params)
         return web.json_response(
             {
                 "status": "ok",
-            }
+            },
         )
 
 
@@ -253,14 +256,14 @@ async def set_metadata(request: web.Request) -> web.Response:
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
                 t.Key("payload"): t.Bytes(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "set_metadata", params)
         return web.json_response(
             {
                 "status": "ok",
-            }
+            },
         )
 
 
@@ -270,7 +273,7 @@ async def get_vfolder_fs_usage(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("volume"): t.String(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_vfolder_fs_usage", params)
@@ -281,7 +284,7 @@ async def get_vfolder_fs_usage(request: web.Request) -> web.Response:
                 {
                     "capacity_bytes": fs_usage.capacity_bytes,
                     "used_bytes": fs_usage.used_bytes,
-                }
+                },
             )
 
 
@@ -292,7 +295,7 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_vfolder_usage", params)
@@ -303,7 +306,7 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
                 {
                     "file_count": usage.file_count,
                     "used_bytes": usage.used_bytes,
-                }
+                },
             )
 
 
@@ -314,7 +317,7 @@ async def get_quota(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("vfid", default=None): t.Null | t.String,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_quota", params)
@@ -332,7 +335,7 @@ async def set_quota(request: web.Request) -> web.Response:
                 t.Key("volume"): t.String(),
                 t.Key("vfid", default=None): t.Null | t.String,
                 t.Key("size_bytes"): tx.BinarySize,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "update_quota", params)
@@ -352,7 +355,7 @@ async def mkdir(request: web.Request) -> web.Response:
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("parents", default=True): t.ToBool,
                 t.Key("exist_ok", default=False): t.ToBool,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "mkdir", params)
@@ -375,7 +378,7 @@ async def list_files(request: web.Request) -> web.Response:
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpath"): tx.PurePath(relative_only=True),
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "list_files", params)
@@ -401,7 +404,7 @@ async def list_files(request: web.Request) -> web.Response:
         return web.json_response(
             {
                 "items": items,
-            }
+            },
         )
 
 
@@ -415,7 +418,7 @@ async def rename_file(request: web.Request) -> web.Response:
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("new_name"): t.String(),
                 t.Key("is_dir"): t.ToBool,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "rename_file", params)
@@ -447,7 +450,7 @@ async def create_download_session(request: web.Request) -> web.Response:
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("archive", default=False): t.ToBool,
                 t.Key("unmanaged_path", default=None): t.Null | t.String,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "create_download_session", params)
@@ -468,7 +471,7 @@ async def create_download_session(request: web.Request) -> web.Response:
         return web.json_response(
             {
                 "token": token,
-            }
+            },
         )
 
 
@@ -481,7 +484,7 @@ async def create_upload_session(request: web.Request) -> web.Response:
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("size"): t.ToInt,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "create_upload_session", params)
@@ -506,7 +509,7 @@ async def create_upload_session(request: web.Request) -> web.Response:
         return web.json_response(
             {
                 "token": token,
-            }
+            },
         )
 
 
@@ -519,19 +522,21 @@ async def delete_files(request: web.Request) -> web.Response:
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpaths"): t.List(tx.PurePath(relative_only=True)),
                 t.Key("recursive", default=False): t.ToBool,
-            }
+            },
         ),
     ) as params:
         await log_manager_api_entry(log, "delete_files", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
             await volume.delete_files(
-                params["vfid"], params["relpaths"], params["recursive"]
+                params["vfid"],
+                params["relpaths"],
+                params["recursive"],
             )
         return web.json_response(
             {
                 "status": "ok",
-            }
+            },
         )
 
 
@@ -539,7 +544,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app = web.Application(
         middlewares=[
             token_auth_middleware,
-        ]
+        ],
     )
     app["ctx"] = ctx
     app.router.add_route("GET", "/", get_status)

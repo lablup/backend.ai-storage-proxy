@@ -1,4 +1,3 @@
-import asyncio
 import os
 import uuid
 from pathlib import Path, PurePath
@@ -6,7 +5,7 @@ from pathlib import Path, PurePath
 import pytest
 
 from ai.backend.common.types import BinarySize
-from ai.backend.storage.vfs import BaseVolume
+from ai.backend.storage.vfs import BaseVolume, run
 from ai.backend.storage.xfs import XfsVolume
 
 
@@ -28,15 +27,6 @@ def read_etc_projects():
         proj_id, vfpath = line.split(":")[:2]
         vfpath_id_dict[int(proj_id)] = vfpath
     return vfpath_id_dict
-
-
-async def run(cmd: str) -> str:
-    proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    out, err = await proc.communicate()
-    print(out.decode())
-    return out.decode()
 
 
 def create_sample_dir_tree(vfpath: Path) -> int:
@@ -169,9 +159,14 @@ async def test_xfs_get_used_bytes(xfs):
     (vfpath / "inner" / "world.txt").write_bytes(b"901")
 
     used_bytes = await xfs.get_used_bytes(vfid)
-    report = await run(
-        f"sudo xfs_quota -x -c 'report -h' {xfs.mount_path} | grep {str(vfid)[:-5]}"
+    full_report = await run(
+        ["sudo", "xfs_quota", "-x", "-c", "report -h", xfs.mount_path],
     )
+    report = ""
+    for line in full_report.split("\n"):
+        if str(vfid) in line:
+            report = line
+            break
     assert len(report.split()) == 6
     proj_name, xfs_used, _, _, _, _ = report.split()
     assert str(vfid)[:-5] == proj_name

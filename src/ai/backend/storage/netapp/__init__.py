@@ -16,16 +16,6 @@ from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
 
 
-async def run(cmd: str) -> str:
-    proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    out, err = await proc.communicate()
-    if err:
-        raise ExecutionError(err.decode())
-    return out.decode()
-
-
 class NetAppVolume(BaseVolume):
 
     endpoint: str
@@ -64,10 +54,11 @@ class NetAppVolume(BaseVolume):
         # assign qtree info after netapp_client and quotamanager are initiated
         self.netapp_volume_uuid = await self.netapp_client.get_volume_uuid_by_name()
         default_qtree = await self.get_default_qtree_by_volume_id(
-            self.netapp_volume_uuid
+            self.netapp_volume_uuid,
         )
         self.netapp_qtree_name = default_qtree.get(
-            "name", self.config["netapp_qtree_name"]
+            "name",
+            self.config["netapp_qtree_name"],
         )
         self.netapp_qtree_id = await self.get_qtree_id_by_name(self.netapp_qtree_name)
 
@@ -97,7 +88,8 @@ class NetAppVolume(BaseVolume):
         else:
             capacity_bytes = volume_usage["capacity_bytes"]
         return FSUsage(
-            capacity_bytes=capacity_bytes, used_bytes=volume_usage["used_bytes"]
+            capacity_bytes=capacity_bytes,
+            used_bytes=volume_usage["used_bytes"],
         )
 
     async def get_performance_metric(self) -> FSPerfMetric:
@@ -114,12 +106,15 @@ class NetAppVolume(BaseVolume):
         )
 
     async def create_vfolder(
-        self, vfid: UUID, options: VFolderCreationOptions = None
+        self,
+        vfid: UUID,
+        options: VFolderCreationOptions = None,
     ) -> None:
         vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False)
+            None,
+            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
         )
 
     async def shutdown(self) -> None:

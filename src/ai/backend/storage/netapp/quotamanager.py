@@ -16,7 +16,12 @@ class QuotaManager:
     volume_name: str
 
     def __init__(
-        self, endpoint: str, user: str, password: str, svm: str, volume_name: str
+        self,
+        endpoint: str,
+        user: str,
+        password: str,
+        svm: str,
+        volume_name: str,
     ) -> None:
         self.endpoint = endpoint
         self.user = user
@@ -90,7 +95,12 @@ class QuotaManager:
     # For now, Only Read / Update operation for qtree is available
     # in NetApp ONTAP Plugin of Backend.AI
     async def create_quotarule_qtree(
-        self, qtree_name: str, spahali: int, spasoli: int, fihali: int, fisoli: int
+        self,
+        qtree_name: str,
+        spahali: int,
+        spasoli: int,
+        fihali: int,
+        fisoli: int,
     ) -> Mapping[str, Any]:
         dataobj = {
             "svm": {"name": self.svm},
