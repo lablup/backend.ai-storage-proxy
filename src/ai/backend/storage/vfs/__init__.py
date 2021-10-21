@@ -6,6 +6,7 @@ import logging
 import os
 import secrets
 import shutil
+import time
 from pathlib import Path, PurePosixPath
 from typing import AsyncIterator, FrozenSet, Sequence, Union
 from uuid import UUID
@@ -37,9 +38,11 @@ from ..utils import fstime2datetime
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
 
-async def run(cmd: str) -> str:
-    proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+async def run(cmd: Sequence[Union[str, Path]]) -> str:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     out, err = await proc.communicate()
     if err:
@@ -174,9 +177,11 @@ class BaseVolume(AbstractVolume):
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
         total_count = 0
+        start_time = time.monotonic()
 
         def _calc_usage(target_path: os.PathLike) -> None:
             nonlocal total_size, total_count
+            _timeout = 3
             with os.scandir(target_path) as scanner:
                 for entry in scanner:
                     if entry.is_dir():
@@ -186,14 +191,23 @@ class BaseVolume(AbstractVolume):
                         stat = entry.stat(follow_symlinks=False)
                         total_size += stat.st_size
                         total_count += 1
+                    if total_count % 1000 == 0:
+                        # Cancel if this I/O operation takes too much time.
+                        if time.monotonic() - start_time > _timeout:
+                            raise TimeoutError
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _calc_usage, target_path)
+        try:
+            await loop.run_in_executor(None, _calc_usage, target_path)
+        except TimeoutError:
+            # -1 indicates "too many"
+            total_size = -1
+            total_count = -1
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
 
     async def get_used_bytes(self, vfid: UUID) -> BinarySize:
         vfpath = self.mangle_vfpath(vfid)
-        info = await run(f"du -hs {vfpath}")
+        info = await run(["du", "-hs", vfpath])
         used_bytes, _ = info.split()
         return BinarySize.finite_from_str(used_bytes)
 
