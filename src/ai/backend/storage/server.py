@@ -202,6 +202,7 @@ def main(cli_ctx, config_path, debug):
                     pprint(local_config)
                 if local_config["storage-proxy"]["event-loop"] == "uvloop":
                     import uvloop
+
                     uvloop.install()
                     log.info("Using uvloop as the event loop backend")
                 aiotools.start_server(
