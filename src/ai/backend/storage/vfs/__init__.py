@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 import asyncio
 import functools
 import logging
