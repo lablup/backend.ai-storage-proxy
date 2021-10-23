@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 import asyncio
 import functools
 import logging
@@ -8,6 +7,7 @@ import os
 import secrets
 import shutil
 import time
+import warnings
 from pathlib import Path, PurePosixPath
 from typing import AsyncIterator, FrozenSet, Sequence, Union
 from uuid import UUID
@@ -316,16 +316,18 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
         if src_path.is_dir():
             await loop.run_in_executor(
-                None, lambda: shutil.move(str(src_path), str(dst_path))
+                None,
+                lambda: shutil.move(str(src_path), str(dst_path)),
             )
         elif src_path.is_file():
             await loop.run_in_executor(
-                None, lambda: dst_path.parent.mkdir(parents=True, exist_ok=True)
+                None,
+                lambda: dst_path.parent.mkdir(parents=True, exist_ok=True),
             )
             await loop.run_in_executor(None, src_path.rename, dst_path)
         else:
             raise InvalidAPIParameters(
-                msg=f"source path {str(src_path)} is not a file or dir"
+                msg=f"source path {str(src_path)} is not a file or dir",
             )
 
     async def move_tree(
@@ -334,7 +336,11 @@ class BaseVolume(AbstractVolume):
         src: PurePosixPath,
         dst: PurePosixPath,
     ) -> None:
-        warnings.warn("Use move_file() instead. move_tree() will be deprecated", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "Use move_file() instead. move_tree() will be deprecated",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_dir():
             raise InvalidAPIParameters(
