@@ -13,7 +13,6 @@ from aiohttp import hdrs, web
 
 from ai.backend.common import validators as tx
 from ai.backend.common.logging import BraceStyleAdapter
-
 from ai.backend.storage.exception import ExecutionError
 
 from ..context import Context
@@ -311,8 +310,10 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
                         "used_bytes": usage.used_bytes,
                     },
                 )
-        except ExecutionError as err:
-            return web.Response(status=500, reason="Storage server is busy. Please try again")
+        except ExecutionError:
+            return web.Response(
+                status=500, reason="Storage server is busy. Please try again"
+            )
 
 
 async def get_quota(request: web.Request) -> web.Response:

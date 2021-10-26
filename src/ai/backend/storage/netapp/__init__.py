@@ -13,7 +13,7 @@ import aiofiles
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
-from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER, AbstractVolume
+from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER
 from ..exception import ExecutionError, StorageProxyError
 from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions, VFolderUsage
 from ..vfs import BaseVolume
@@ -279,7 +279,7 @@ class NetAppVolume(BaseVolume):
 
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, _calc_usage, target_path)
-        except StorageProxyError as err:
+        except StorageProxyError:
             raise ExecutionError(message="Storage server is busy. Please try again")
         except FileNotFoundError:
             available = False
@@ -291,7 +291,7 @@ class NetAppVolume(BaseVolume):
             total_count = -1
         if not available:
             raise RuntimeError(
-                "Cannot access the scan result file. Please check xcp is activated."
+                "Cannot access the scan result file. Please check xcp is activated.",
             )
 
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
