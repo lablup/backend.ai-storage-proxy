@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import glob
 import json
-from pathlib import Path
+import os
+import time
+from pathlib import Path, PurePosixPath
 from typing import FrozenSet
 from uuid import UUID
+
+import aiofiles
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER
 from ..exception import ExecutionError
-from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions
+from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions, VFolderUsage
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
 from .quotamanager import QuotaManager
@@ -34,6 +39,9 @@ class NetAppVolume(BaseVolume):
         self.netapp_password = str(self.config["netapp_password"])
         self.netapp_svm = self.config["netapp_svm"]
         self.netapp_volume_name = self.config["netapp_volume_name"]
+        self.netapp_xcp_hostname = self.config["netapp_xcp_hostname"]
+        self.netapp_xcp_catalog_path = self.config["netapp_xcp_catalog_path"]
+        self.netapp_xcp_container_name = self.config["netapp_xcp_container_name"]
 
         self.netapp_client = NetAppClient(
             str(self.endpoint),
@@ -166,3 +174,109 @@ class NetAppVolume(BaseVolume):
 
     async def set_quota(self, vfid: UUID, size_bytes: BinarySize) -> None:
         raise NotImplementedError
+
+    async def get_usage(
+        self,
+        vfid: UUID,
+        relpath: PurePosixPath = None,
+    ) -> VFolderUsage:
+        target_path = self.sanitize_vfpath(vfid, relpath)
+        total_size = 0
+        total_count = 0
+        raw_target_path = str(target_path).split(self.netapp_qtree_name + "/", 1)[1]
+        nfs_path = f"{self.netapp_xcp_hostname}:/{self.netapp_volume_name}/ \
+                     {self.netapp_qtree_name}/{raw_target_path}"
+        start_time = time.monotonic()
+        available = True
+
+        prev_files_count = 0
+        curr_files_count = 0
+
+        # check the number of scan result files changed
+        # NOTE: if directory contains small amout of files, scan result doesn't get saved
+        files = list(glob.iglob(f"{self.netapp_xcp_catalog_path}/stats/*.json"))
+        prev_files_count = len(files)
+
+        # Measure the exact file sizes and bytes
+        proc = await asyncio.create_subprocess_exec(
+            *["docker", "exec", self.netapp_xcp_container_name,
+              "xcp", "scan", "-q", nfs_path, ],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        try:
+            stdout, stderr = await proc.communicate()
+            if b"xcp: ERROR:" in stdout:
+                available = False
+        finally:
+            available = False if (await proc.wait() != 0) else True
+        try:
+            # get the latest saved file
+            # scan command saves json file when operation completed
+            files = sorted(
+                glob.iglob(f"{self.netapp_xcp_catalog_path}/stats/*.json"),
+                key=os.path.getctime,
+                reverse=True,
+            )
+            curr_files_count = len(files)
+
+            # scan result file has been created
+            if prev_files_count < curr_files_count and available:
+                file = files[0]
+                async with aiofiles.open(file, "r", encoding="utf8") as scan_result:
+                    contents = await scan_result.read()
+                    data = json.loads(contents)
+                    # includes size element
+                    count_keys = [
+                        "numberOfDirectories",
+                        "numberOfHardlinkedFiles",
+                        "numberOfHardlinks",
+                        "numberOfRegularFiles",
+                        "numberOfSpecialFiles",
+                        "numberOfSymbolicLinks",
+                        "numberOfUnreadableDirs",
+                        "numberOfUnreadableFiles",
+                    ]
+                    size_keys = [
+                        "spaceSavedByHardlinks",
+                        "spaceUsedDirectories",
+                        "spaceUsedRegularFiles",
+                        "spaceUsedSpecialFiles",
+                        "spaceUsedSymbolicLinks",
+                    ]
+                    total_count = sum([data[item] for item in count_keys])
+                    total_size = sum([data[item] for item in size_keys])
+            else:
+                # if there's no scan result file, or cannot execute xcp command,
+                # then use the same way in vfs
+                def _calc_usage(target_path: os.PathLike) -> None:
+                    nonlocal total_size, total_count
+                    _timeout = 3
+                    with os.scandir(target_path) as scanner:
+                        for entry in scanner:
+                            if entry.is_dir():
+                                _calc_usage(entry)
+                                continue
+                            if entry.is_file() or entry.is_symlink():
+                                stat = entry.stat(follow_symlinks=False)
+                                total_size += stat.st_size
+                                total_count += 1
+                            if total_count % 1000 == 0:
+                                # Cancel if this I/O operation takes too much time.
+                                if time.monotonic() - start_time > _timeout:
+                                    raise TimeoutError
+
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, _calc_usage, target_path)
+        except FileNotFoundError:
+            available = False
+        except IndexError:
+            available = False
+        except TimeoutError:
+            # -1 indicates "too many"
+            total_size = -1
+            total_count = -1
+        if not available:
+            raise RuntimeError("Cannot access the scan_result file")
+
+        return VFolderUsage(file_count=total_count, used_bytes=total_size)
