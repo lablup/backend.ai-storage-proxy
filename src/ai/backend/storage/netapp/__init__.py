@@ -13,8 +13,8 @@ import aiofiles
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
-from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER
-from ..exception import ExecutionError
+from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER, AbstractVolume
+from ..exception import ExecutionError, StorageProxyError
 from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions, VFolderUsage
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
@@ -184,8 +184,10 @@ class NetAppVolume(BaseVolume):
         total_size = 0
         total_count = 0
         raw_target_path = str(target_path).split(self.netapp_qtree_name + "/", 1)[1]
-        nfs_path = f"{self.netapp_xcp_hostname}:/{self.netapp_volume_name}/ \
-                     {self.netapp_qtree_name}/{raw_target_path}"
+        nfs_path = (
+            f"{self.netapp_xcp_hostname}:/{self.netapp_volume_name}/"
+            + f"{self.netapp_qtree_name}/{raw_target_path}"
+        )
         start_time = time.monotonic()
         available = True
 
@@ -214,10 +216,12 @@ class NetAppVolume(BaseVolume):
         try:
             stdout, stderr = await proc.communicate()
             if b"xcp: ERROR:" in stdout:
+
+                # destination directory is busy for other operations
+                if b"xcp: ERROR: mnt3 MOUNT" in stdout:
+                    raise StorageProxyError
                 available = False
-        finally:
             available = False if (await proc.wait() != 0) else True
-        try:
             # get the latest saved file
             # scan command saves json file when operation completed
             files = sorted(
@@ -275,6 +279,8 @@ class NetAppVolume(BaseVolume):
 
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, _calc_usage, target_path)
+        except StorageProxyError as err:
+            raise ExecutionError(message="Storage server is busy. Please try again")
         except FileNotFoundError:
             available = False
         except IndexError:
@@ -284,6 +290,20 @@ class NetAppVolume(BaseVolume):
             total_size = -1
             total_count = -1
         if not available:
-            raise RuntimeError("Cannot access the scan_result file")
+            raise RuntimeError(
+                "Cannot access the scan result file. Please check xcp is activated."
+            )
 
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
+
+    # async def clone_vfolder(
+    #     self,
+    #     src_vfid: UUID,
+    #     dst_volume: AbstractVolume,
+    #     dst_vfid: UUID,
+    #     options: VFolderCreationOptions = None,
+    # ) -> None:
+    #     # TODO:
+    #     # check if there is enough space in destination
+    #     # create the target vfolder
+    #     # perform clone using xcp copy (exception handling needed)
