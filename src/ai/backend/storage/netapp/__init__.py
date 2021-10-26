@@ -199,8 +199,15 @@ class NetAppVolume(BaseVolume):
 
         # Measure the exact file sizes and bytes
         proc = await asyncio.create_subprocess_exec(
-            *["docker", "exec", self.netapp_xcp_container_name,
-              "xcp", "scan", "-q", nfs_path, ],
+            *[
+                "docker",
+                "exec",
+                self.netapp_xcp_container_name,
+                "xcp",
+                "scan",
+                "-q",
+                nfs_path,
+            ],
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
