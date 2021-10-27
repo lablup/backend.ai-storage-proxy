@@ -186,10 +186,10 @@ class NetAppVolume(BaseVolume):
 
         # arrange directory based on nfs
         src_vfpath = str(self.mangle_vfpath(src_vfid)).split(
-            self.netapp_qtree_name + "/", 1
+            self.netapp_qtree_name + "/", 1,
         )[1]
         dst_vfpath = str(dst_volume.mangle_vfpath(dst_vfid)).split(
-            self.netapp_qtree_name + "/", 1
+            self.netapp_qtree_name + "/", 1,
         )[1]
 
         nfs_src_path = (
@@ -404,7 +404,7 @@ class NetAppVolume(BaseVolume):
             total_count = -1
         if not available:
             raise ExecutionError(
-                message="Cannot access the scan result file. Please check xcp is activated."
+                message="Cannot access the scan result file. Please check xcp is activated.",
             )
 
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
