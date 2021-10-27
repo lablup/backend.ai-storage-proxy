@@ -92,9 +92,9 @@ format = "simple"
 # The default, generic filesystem.
 # It uses the standard syscalls to perform filesystem operations
 # such as scanning the file/directory metadata.
-# This does *NOT* support per-direcotry quota.
+# This does *NOT* support per-directory quota.
 backend = "vfs"
-path = "/vfroot/xfs"
+path = "/vfroot/vfs"
 
 
 [volume.fastlocal]

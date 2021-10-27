@@ -312,7 +312,8 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
                 )
         except ExecutionError:
             return web.Response(
-                status=500, reason="Storage server is busy. Please try again"
+                status=500,
+                reason="Storage server is busy. Please try again",
             )
 
 
