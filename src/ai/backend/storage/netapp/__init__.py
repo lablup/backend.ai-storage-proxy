@@ -13,8 +13,8 @@ import aiofiles
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
-from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER
-from ..exception import ExecutionError, StorageProxyError
+from ..abc import CAP_METRIC, CAP_VFHOST_QUOTA, CAP_VFOLDER, AbstractVolume
+from ..exception import ExecutionError, StorageProxyError, VFolderCreationError
 from ..types import FSPerfMetric, FSUsage, VFolderCreationOptions, VFolderUsage
 from ..vfs import BaseVolume
 from .netappclient import NetAppClient
@@ -125,6 +125,120 @@ class NetAppVolume(BaseVolume):
             lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
         )
 
+    async def delete_vfolder(self, vfid: UUID) -> None:
+        vfpath = self.mangle_vfpath(vfid)
+
+        # extract target_dir from vfpath
+        target_dir = str(vfpath).split(self.netapp_qtree_name + "/", 1)[1].split("/")[0]
+        nfs_path = (
+            f"{self.netapp_xcp_hostname}:/{self.netapp_volume_name}/"
+            + f"{self.netapp_qtree_name}/{target_dir}"
+        )
+
+        async def watch_delete_dir(root_dir):
+            # remove vfolder by xcp command
+            proc = await asyncio.create_subprocess_exec(
+                *[
+                    "docker",
+                    "exec",
+                    self.netapp_xcp_container_name,
+                    "xcp",
+                    "delete",
+                    "-force",  # delete without confirmation
+                    nfs_path,
+                ],
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            # readline and send
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                yield line.rstrip()
+
+        async def read_progress(root_dir):
+            async for line in watch_delete_dir(root_dir):
+                # TODO: line for bgtask
+                pass
+            # remove intermediate prefix directories if they become empty
+            from aiofiles import os as aiofile_os
+
+            await aiofile_os.rmdir(vfpath.parent.parent)
+
+        await read_progress(nfs_path)
+
+    async def clone_vfolder(
+        self,
+        src_vfid: UUID,
+        dst_volume: AbstractVolume,
+        dst_vfid: UUID,
+        options: VFolderCreationOptions = None,
+    ) -> None:
+        # check if there is enough space in destination
+        fs_usage = await dst_volume.get_fs_usage()
+        vfolder_usage = await self.get_usage(src_vfid)
+        if vfolder_usage.used_bytes > fs_usage.capacity_bytes - fs_usage.used_bytes:
+            raise VFolderCreationError("Not enough space available for clone")
+
+        # create the target vfolder
+        await dst_volume.create_vfolder(dst_vfid, options=options)
+
+        # arrange directory based on nfs
+        src_vfpath = str(self.mangle_vfpath(src_vfid)).split(
+            self.netapp_qtree_name + "/", 1
+        )[1]
+        dst_vfpath = str(dst_volume.mangle_vfpath(dst_vfid)).split(
+            self.netapp_qtree_name + "/", 1
+        )[1]
+
+        nfs_src_path = (
+            f"{self.netapp_xcp_hostname}:/{self.netapp_volume_name}/"
+            + f"{self.netapp_qtree_name}/{src_vfpath}"
+        )
+        nfs_dst_path = (
+            f"{self.netapp_xcp_hostname}:/{dst_volume.config['netapp_volume_name']}/"
+            + f"{dst_volume.config['netapp_qtree_name']}/{dst_vfpath}"
+        )
+
+        # perform clone using xcp copy (exception handling needed)
+        try:
+
+            async def watch_copy_dir(src_path, dst_path):
+                proc = await asyncio.create_subprocess_exec(
+                    *[
+                        "docker",
+                        "exec",
+                        self.netapp_xcp_container_name,
+                        "xcp",
+                        "copy",
+                        src_path,
+                        dst_path,
+                    ],
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                )
+                stdout, stderr = await proc.communicate()
+                # readline and send
+                while True:
+                    line = await proc.stdout.readline()
+                    if not line:
+                        break
+                    if b"xcp: ERROR:" in line:
+                        raise Exception
+                    yield line.rstrip()
+
+            async def read_progress(src_path, dst_path):
+                async for line in watch_copy_dir(src_path, dst_path):
+                    # TODO: line for bgtask
+                    pass
+
+            await read_progress(nfs_src_path, nfs_dst_path)
+
+        except Exception:
+            await dst_volume.delete_vfolder(dst_vfid)
+            raise RuntimeError("Copying files from source directories failed.")
+
     async def shutdown(self) -> None:
         await self.netapp_client.aclose()
         await self.quota_manager.aclose()
@@ -216,7 +330,6 @@ class NetAppVolume(BaseVolume):
         try:
             stdout, stderr = await proc.communicate()
             if b"xcp: ERROR:" in stdout:
-
                 # destination directory is busy for other operations
                 if b"xcp: ERROR: mnt3 MOUNT" in stdout:
                     raise StorageProxyError
@@ -290,20 +403,8 @@ class NetAppVolume(BaseVolume):
             total_size = -1
             total_count = -1
         if not available:
-            raise RuntimeError(
-                "Cannot access the scan result file. Please check xcp is activated.",
+            raise ExecutionError(
+                message="Cannot access the scan result file. Please check xcp is activated."
             )
 
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
-
-    # async def clone_vfolder(
-    #     self,
-    #     src_vfid: UUID,
-    #     dst_volume: AbstractVolume,
-    #     dst_vfid: UUID,
-    #     options: VFolderCreationOptions = None,
-    # ) -> None:
-    #     # TODO:
-    #     # check if there is enough space in destination
-    #     # create the target vfolder
-    #     # perform clone using xcp copy (exception handling needed)
