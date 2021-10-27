@@ -12,7 +12,10 @@ async def netapp_volume():
         # TODO: mock options
     }
     netapp = NetAppVolume(
-        {}, Path("/vfroot/netapp"), fsprefix=PurePath("fsprefix"), options=options,
+        {},
+        Path("/vfroot/netapp"),
+        fsprefix=PurePath("fsprefix"),
+        options=options,
     )
     await netapp.init()
     try:

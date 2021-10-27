@@ -186,10 +186,12 @@ class NetAppVolume(BaseVolume):
 
         # arrange directory based on nfs
         src_vfpath = str(self.mangle_vfpath(src_vfid)).split(
-            self.netapp_qtree_name + "/", 1,
+            self.netapp_qtree_name + "/",
+            1,
         )[1]
         dst_vfpath = str(dst_volume.mangle_vfpath(dst_vfid)).split(
-            self.netapp_qtree_name + "/", 1,
+            self.netapp_qtree_name + "/",
+            1,
         )[1]
 
         nfs_src_path = (
