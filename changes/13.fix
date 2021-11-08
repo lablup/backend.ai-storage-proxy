@@ -1,1 +1,0 @@
-Introduced `FileLock` async context manager to avoid a race condition on accessing `/etc/proj*` files, which are needed to set per-directory quota in XFS backend, between multiple Storage-Proxy processes/threads. For easier management of project entries, `XfsProjectRegistry` is also introduced.
