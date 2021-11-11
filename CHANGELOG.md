@@ -16,6 +16,11 @@ Changes
 
 .. towncrier release notes start
 
+## 21.09.1 (2021-11-11)
+
+* Upgrade dependencies for Backend.AI common 21.9.1 and aiohttp 3.8
+
+
 ## 21.09.0 (2021-11-08)
 
 ### Features
