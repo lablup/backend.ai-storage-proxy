@@ -140,3 +140,18 @@ or NFS.
 #### Prerequisites
 
 * FUSE export mounted unde `/vfroot`
+
+
+### NetApp ONTAP
+
+#### Prerequisites
+
+* NFSv3 export mounted under `/vfroot`
+* NetApp ONTAP API access
+* Dockerized NetApp XCP container
+* Create Qtree in Volume explicitly using NetApp ONTAP Sysmgr GUI
+
+
+> NOTE:   
+Qtree name in configuration file(`storage-proxy.toml`) must have the same name created in NetApp ONTAP Sysmgr.
+
