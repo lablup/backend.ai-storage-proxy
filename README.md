@@ -140,3 +140,22 @@ or NFS.
 #### Prerequisites
 
 * FUSE export mounted unde `/vfroot`
+
+
+### NetApp ONTAP
+
+#### Prerequisites
+
+* NFSv3 export mounted under `/vfroot`
+* NetApp ONTAP API access
+* native NetApp XCP or Dockerized NetApp XCP container
+   - To install NetApp XCP, please refer [NetApp XCP install guide](https://xcp.netapp.com/)
+* Create Qtree in Volume explicitly using NetApp ONTAP Sysmgr GUI
+
+
+#### Note on operation
+The volume host of Backend.AI Storage proxy corresponds to Qtree of NetApp ONTAP, not NetApp ONTAP Volume.   
+Please DO NOT remove Backend.AI mapped qtree in NetApp ONTAP Sysmgr GUI. If not, you cannot access to NetApp ONTAP Volume through Backend.AI.
+
+> NOTE:   
+Qtree name in configuration file(`storage-proxy.toml`) must have the same name created in NetApp ONTAP Sysmgr.
