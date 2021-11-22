@@ -136,17 +136,16 @@ class NetAppVolume(BaseVolume):
         )
 
         async def watch_delete_dir(root_dir):
-            # remove vfolder by xcp command
-            proc = await asyncio.create_subprocess_exec(
-                *[
+            delete_cmd = ["xcp", "delete", "-force", nfs_path]
+            if self.netapp_xcp_container_name is not None:
+                delete_cmd = [
                     "docker",
                     "exec",
                     self.netapp_xcp_container_name,
-                    "xcp",
-                    "delete",
-                    "-force",  # delete without confirmation
-                    nfs_path,
-                ],
+                ] + delete_cmd
+            # remove vfolder by xcp command
+            proc = await asyncio.create_subprocess_exec(
+                *delete_cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -207,16 +206,15 @@ class NetAppVolume(BaseVolume):
         try:
 
             async def watch_copy_dir(src_path, dst_path):
-                proc = await asyncio.create_subprocess_exec(
-                    *[
+                copy_cmd = ["xcp", "copy", src_path, dst_path]
+                if self.netapp_xcp_container_name is not None:
+                    copy_cmd = [
                         "docker",
                         "exec",
                         self.netapp_xcp_container_name,
-                        "xcp",
-                        "copy",
-                        src_path,
-                        dst_path,
-                    ],
+                    ] + copy_cmd
+                proc = await asyncio.create_subprocess_exec(
+                    *copy_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
                 )
@@ -315,17 +313,12 @@ class NetAppVolume(BaseVolume):
         files = list(glob.iglob(f"{self.netapp_xcp_catalog_path}/stats/*.json"))
         prev_files_count = len(files)
 
+        scan_cmd = ["xcp", "scan", "-q", nfs_path]
+        if self.netapp_xcp_container_name is not None:
+            scan_cmd = ["docker", "exec", self.netapp_xcp_container_name] + scan_cmd
         # Measure the exact file sizes and bytes
         proc = await asyncio.create_subprocess_exec(
-            *[
-                "docker",
-                "exec",
-                self.netapp_xcp_container_name,
-                "xcp",
-                "scan",
-                "-q",
-                nfs_path,
-            ],
+            *scan_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
