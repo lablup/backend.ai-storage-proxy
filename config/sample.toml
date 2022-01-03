@@ -98,46 +98,46 @@ backend = "vfs"
 path = "/vfroot/vfs"
 
 
-# [volume.fastlocal]
+[volume.fastlocal]
 # An extended version for XFS, which supports per-directory quota
 # based on xfs projects.
-# backend = "xfs"
-# path = "/vfroot/xfs"
+backend = "xfs"
+path = "/vfroot/xfs"
 
 
-# [volume.mypure]
+[volume.mypure]
 # An extended version for PureStorage FlashBlade nodes, which uses
 # RapidFile Tools to perform filesystem metadata queries and the
 # FB REST APIs to configure per-directory quota.
-# backend = "purestorage"
-# path = "/vfroot/fb1"
+backend = "purestorage"
+path = "/vfroot/fb1"
 
-# [volume.mypure.options]
-# purity_endpoint = "https://pure01.example.com"
-# purity_ssl_verify = false
-# purity_api_token = "T-11111111-2222-3333-4444-000000000000"
-# purity_api_version = "1.8"
-# purity_fs_name = "FB-NFS1"  # the name of filesystem used by the filesystem API
+[volume.mypure.options]
+purity_endpoint = "https://pure01.example.com"
+purity_ssl_verify = false
+purity_api_token = "T-11111111-2222-3333-4444-000000000000"
+purity_api_version = "1.8"
+purity_fs_name = "FB-NFS1"  # the name of filesystem used by the filesystem API
 
 
-# [volume.myceph]
+[volume.myceph]
 # An extended version for CephFS, which supports extended inode attributes
 # for per-directory quota and fast metadata queries.
-# backend = "cephfs"
-# path = "/vfroot/ceph-fuse"
+backend = "cephfs"
+path = "/vfroot/ceph-fuse"
 
-# [volume.netapp]
-# backend = "netapp"
-# path = "/vfroot/netapp"
+[volume.netapp]
+backend = "netapp"
+path = "/vfroot/netapp"
 
-# [volume.netapp.options]
-# netapp_endpoint = "https://netapp.example.com"
-# netapp_admin = "signed-in-id"
-# netapp_password = "signed-in-pw"
-# netapp_svm = "svm-name"
-# netapp_volume_name = "netapp-volume-name"
-# netapp_qtree_name = "bai_qtree" # default qtree name for backend.ai exclusive
-# netapp_xcp_container_name = "netapp-xcp" # only required when xcp activated by container
-# netapp_xcp_hostname = "xcp-hostname"
+[volume.netapp.options]
+netapp_endpoint = "https://netapp.example.com"
+netapp_admin = "signed-in-id"
+netapp_password = "signed-in-pw"
+netapp_svm = "svm-name"
+netapp_volume_name = "netapp-volume-name"
+netapp_qtree_name = "bai_qtree" # default qtree name for backend.ai exclusive
+netapp_xcp_container_name = "netapp-xcp" # only required when xcp activated by container
+netapp_xcp_hostname = "xcp-hostname"
 # default xcp catalog path goes to the directory named "catalog" of the first NetApp volume
-# netapp_xcp_catalog_path = "path for xcp-catalog" # Hint: execute command cat /opt/NetApp/xFiles/xcp/xcp.ini and see nfs mount path
+netapp_xcp_catalog_path = "path for xcp-catalog" # Hint: execute command cat /opt/NetApp/xFiles/xcp/xcp.ini and see nfs mount path
