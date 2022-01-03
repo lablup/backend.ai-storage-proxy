@@ -73,6 +73,7 @@ such as nginx and the storage proxy daemon itself should be run without SSL.
 #### Prerequisites
 
 * User account permission to access for the given directory
+  - Make a directory such as `/vfroot/vfs`
 
 
 ### XFS
