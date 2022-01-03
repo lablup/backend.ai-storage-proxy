@@ -86,6 +86,7 @@ format = "simple"
 [volume]
 # volume section may define one or more named subsections with
 # backend-specific configurations.
+# "/vfroot" directory may not exist. Edit the directory or make it.
 
 
 [volume.local]
@@ -93,7 +94,6 @@ format = "simple"
 # It uses the standard syscalls to perform filesystem operations
 # such as scanning the file/directory metadata.
 # This does *NOT* support per-directory quota.
-# "/vfroot" directory may not exist. Edit the directory or make it.
 backend = "vfs"
 path = "/vfroot/vfs"
 
