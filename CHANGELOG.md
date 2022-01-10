@@ -17,6 +17,12 @@ Changes
 .. towncrier release notes start
 
 21.03.3 (2022-01-11)
+
+### Miscellaneous
+* Workaround a mypy regression related with type inference on `os.scandir()` by pinning it to an older version (0.910) ([#37](https://github.com/lablup/backend.ai-storage-proxy/issues/37))
+
+
+21.03.3 (2022-01-11)
 --------------------
 
 ### Fixes
