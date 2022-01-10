@@ -179,7 +179,7 @@ class BaseVolume(AbstractVolume):
         total_count = 0
         start_time = time.monotonic()
 
-        def _calc_usage(target_path: os.PathLike) -> None:
+        def _calc_usage(target_path: os.DirEntry | Path) -> None:
             nonlocal total_size, total_count
             _timeout = 3
             with os.scandir(target_path) as scanner:
