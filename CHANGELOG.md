@@ -24,6 +24,9 @@ Changes
 ### Fixes
 * Update aiotools version to 1.4 to work with the latest common pkg ([#36](https://github.com/lablup/backend.ai-storage-proxy/issues/36))
 
+### Miscellaneous
+* Workaround a mypy regression related with type inference on `os.scandir()` by pinning it to an older version (0.910) ([#37](https://github.com/lablup/backend.ai-storage-proxy/issues/37))
+
 
 ## 21.09.1 (2021-11-11)
 
