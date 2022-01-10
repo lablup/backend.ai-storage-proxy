@@ -16,6 +16,15 @@ Changes
 
 .. towncrier release notes start
 
+## 21.09.2 (2022-01-11)
+
+### Features
+* Enable basic vfolder operation such as caculating usage and cloning vfolder in storage-proxy using NetApp XCP. ([#34](https://github.com/lablup/backend.ai-storage-proxy/issues/34))
+
+### Fixes
+* Update aiotools version to 1.4 to work with the latest common pkg ([#36](https://github.com/lablup/backend.ai-storage-proxy/issues/36))
+
+
 ## 21.09.1 (2021-11-11)
 
 * Upgrade dependencies for Backend.AI common 21.9.1 and aiohttp 3.8
