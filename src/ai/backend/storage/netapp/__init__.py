@@ -368,7 +368,7 @@ class NetAppVolume(BaseVolume):
             else:
                 # if there's no scan result file, or cannot execute xcp command,
                 # then use the same way in vfs
-                def _calc_usage(target_path: os.PathLike) -> None:
+                def _calc_usage(target_path: os.DirEntry | Path) -> None:
                     nonlocal total_size, total_count
                     _timeout = 3
                     with os.scandir(target_path) as scanner:
