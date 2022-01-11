@@ -16,7 +16,7 @@ Changes
 
 .. towncrier release notes start
 
-21.03.0 (2021-03-29)
---------------------
 
-This release has identical features and fixes in the v20.09 series but uses Python 3.9 as the running environment.
+## Older changelogs
+
+* [21.09](https://github.com/lablup/backend.ai-storage-proxy/blob/21.09/CHANGELOG.md)
