@@ -51,6 +51,8 @@ local_config_iv = (
                     t.Key("group", default=None): tx.GroupID(
                         default_gid=_file_perm.st_gid,
                     ),
+                    t.Key("settings_path", default=None): t.String,
+                    t.Key("service_port", default=None): t.Int,
                 },
             ),
             t.Key("logging"): logging_config_iv,
