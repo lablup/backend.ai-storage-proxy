@@ -5,12 +5,7 @@ Manager-facing API
 import functools
 import logging
 from datetime import datetime
-from typing import (
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    List,
-)
+from typing import AsyncIterator, Awaitable, Callable, List
 
 import aiotools
 import attr
@@ -22,8 +17,8 @@ from ai.backend.common import validators as tx
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.storage.exception import ExecutionError
 
-from ..context import Context
 from .. import filebrowser
+from ..context import Context
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -556,24 +551,14 @@ async def delete_files(request: web.Request) -> web.Response:
 
 
 async def create_or_update_filebrowser(request: web.Request) -> web.Response:
-    async with check_params(
-        request,
-        t.Dict(
-            {
-                t.Key("auth_token"): t.String,
-                t.Key("vfolders"): t.List(t.String()),  # list of <volume>:<vfid>:<name>:<perm>
-            },
-        ),
-    ) as params:
-        await log_manager_api_entry(log, "create_or_update_filebrowser", params)
-        ctx: Context = request.app["ctx"]
-        host, port = await filebrowser.create_or_update(ctx, params["auth_token"], params["vfolders"])
-        return web.json_response(
-            {
-                "addr": f"http://{host}:{port}",  # TODO: SSL?
-                "status": "ok",
-            },
-        )
+    ctx: Context = request.app["ctx"]
+    host, port = await filebrowser.create_or_update(ctx)
+    return web.json_response(
+        {
+            "addr": f"http://{host}:{port}",  # TODO: SSL?
+            "status": "ok",
+        },
+    )
 
 
 async def destroy_filebrowser(request: web.Request) -> web.Response:
@@ -598,7 +583,8 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
 async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
     ctx = app["ctx"]
     filebrowser_cleanup_task = aiotools.create_timer(
-        functools.partial(filebrowser.cleanup, ctx), 10.0,
+        functools.partial(filebrowser.cleanup, ctx),
+        10.0,
     )
     yield
     filebrowser_cleanup_task.cancel()
@@ -633,7 +619,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/download", create_download_session)
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
-    app.router.add_route("POST", "/browser", create_or_update_filebrowser)
-    app.router.add_route("DELETE", "/browser", destroy_filebrowser)
+    app.router.add_route("POST", "/browser/create", create_or_update_filebrowser)
+    app.router.add_route("DELETE", "/browser/delete", destroy_filebrowser)
     app.cleanup_ctx.append(filebrowser_ctx)
     return app

@@ -17,59 +17,55 @@ __all__ = (
     "cleanup",
 )
 
-docker = aiodocker.Docker()
-
 
 async def create_or_update(
     ctx: Context,
-    auth_token: str,
-    vfolders: list[str],
 ) -> tuple[str, int]:
 
     image = ctx.local_config["filebrowser"]["image"]
-    service_ip = ctx.local_config["filebrowser"]["service_ip"]
+    service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
-
-    container = await docker.containers.create_or_replace(
-        config={
-            "Cmd": [
-                "/bin/filebrowser",
-                "-c",
-                "/filebrowser_dir/settings.json",
-                "-d",
-                "/filebrowser_dir/filebrowser.db",
-            ],
-            "ExposedPorts": {
-                "f{service_port}/tcp": {},
-            },
-            "Image": image,
-            "HostConfig": {
-                "PortBindings": {
-                    f"{service_port}/tcp": [
-                        {
-                            "HostIp": {service_ip},
-                            "HostPort": f"{service_port}/tcp",
-                        },
-                    ],
-                },
-                "Mounts": [
+    docker = aiodocker.Docker()
+    config = {
+        "Cmd": [
+            "/bin/filebrowser",
+            "-c",
+            "/filebrowser_dir/settings.json",
+            "-d",
+            "/filebrowser_dir/filebrowser.db",
+        ],
+        "ExposedPorts": {
+            f"{service_port}/tcp": {},
+        },
+        "Image": image,
+        "HostConfig": {
+            "PortBindings": {
+                f"{service_port}/tcp": [
                     {
-                        "Target": "/filebrowser_dir/",
-                        "Source": settings_path,
-                        "Type": "bind",
-                    },
-                    {
-                        "Target": "/data/",
-                        "Source": ctx.local_config["volume.volume1"]["path"],
-                        "Type": "bind",
+                        "HostIp": f"{service_ip}",
+                        "HostPort": f"{service_port}/tcp",
                     },
                 ],
             },
+            "Mounts": [
+                {
+                    "Target": "/filebrowser_dir/",
+                    "Source": f"{settings_path}",
+                    "Type": "bind",
+                },
+                {
+                    "Target": "/data/",
+                    "Source": f'{ ctx.local_config["volume"]["volume1"]["path"] }',
+                    "Type": "bind",
+                },
+            ],
         },
+    }
+    container = await docker.containers.create_or_replace(
+        config=config,
         name="FileBrowser",
     )
-
     await container.start()
 
     await docker.close()
