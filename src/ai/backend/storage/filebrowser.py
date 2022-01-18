@@ -74,7 +74,7 @@ async def create_or_update(
 
     await docker.close()
 
-    return "host", 1234
+    return service_ip, service_port
 
 
 async def destroy(ctx: Context, auth_token: str) -> None:
