@@ -120,6 +120,9 @@ async def delete_vfolder(request: web.Request) -> web.Response:
             },
         ),
     ) as params:
+        print("params: ", params)
+        print(await request.json(), request.path, request.headers, request.host)
+        br()
         await log_manager_api_entry(log, "delete_vfolder", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
@@ -552,7 +555,10 @@ async def delete_files(request: web.Request) -> web.Response:
 
 async def create_or_update_filebrowser(request: web.Request) -> web.Response:
     ctx: Context = request.app["ctx"]
-    host, port = await filebrowser.create_or_update(ctx)
+    vfolders = await request.json()
+    print("I received this: ", vfolders)
+    host, port = await filebrowser.create_or_update(ctx, vfolders)
+    print("Got vfolders: ", vfolders)
     return web.json_response(
         {
             "addr": f"http://{host}:{port}",  # TODO: SSL?

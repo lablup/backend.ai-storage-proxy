@@ -53,6 +53,7 @@ local_config_iv = (
                     ),
                     t.Key("settings_path", default=None): t.String,
                     t.Key("service_port", default=None): t.Int,
+                    t.Key("mount_path", default=None): t.String,
                 },
             ),
             t.Key("logging"): logging_config_iv,
