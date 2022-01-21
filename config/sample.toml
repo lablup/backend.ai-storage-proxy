@@ -39,7 +39,19 @@ session-expire = "1d"
 image = "cr.backend.ai/stable/filebrowser:21.02-ubuntu20.04"
 
 # The IP address to expose the filebrowser ports
-service-ip = "0.0.0.0"
+service-ip = "127.0.0.1"
+
+# The service port number by which user will be able to connect to filerowser UI.
+service_port = 8080
+
+# Settings pass to configure filebrowser application in the docker container.
+# The specific file 'settings.json' should be places in given path, 
+# otherwise the default settings file will be genrated in the following pass
+# For more configuration file info see https://filebrowser.org/installation
+settings_path = "/Users/filebrowser/"
+
+# The mount path on the Storage Proxy where filebrowser will mount user directories
+mount_path = "/Users/filebrowser/data/"
 
 # The maxium number of CPU cores available to each filebrowser container
 max-cpu = 1
