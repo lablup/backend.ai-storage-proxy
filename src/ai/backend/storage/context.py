@@ -4,8 +4,6 @@ from contextlib import asynccontextmanager as actxmgr
 from pathlib import Path, PurePosixPath
 from typing import Any, AsyncIterator, Mapping, Type
 
-import attr
-
 from ai.backend.common.etcd import AsyncEtcd
 
 from .abc import AbstractVolume
@@ -24,11 +22,11 @@ BACKENDS: Mapping[str, Type[AbstractVolume]] = {
 }
 
 
-@attr.s(auto_attribs=True, slots=True)
 class Context:
 
+    __slots__ = ("pid", "etcd", "local_config")
+
     pid: int
-    pidx: int
     etcd: AsyncEtcd
     local_config: Mapping[str, Any]
 
