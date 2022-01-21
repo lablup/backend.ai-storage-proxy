@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import json
 import logging
+import pathlib
+from pathlib import Path
 from typing import AsyncIterator
 
 import aiodocker
+import aiofiles
 
 from ai.backend.common.logging import BraceStyleAdapter
 
 from .context import Context
-from pathlib import Path
-import json
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -19,11 +21,6 @@ __all__ = (
     "cleanup",
 )
 
-class Conainer:
-
-    def __init__():
-
-
 
 def mangle_path(mount_path, vfid):
     prefix1 = vfid[0:2]
@@ -32,31 +29,29 @@ def mangle_path(mount_path, vfid):
     return Path(mount_path, prefix1, prefix2, rest)
 
 
+async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int]:
+    vfolders = vfolders["vfolders"]
 
-async def create_or_update(
-    ctx: Context, vfolders: list[str]
-) -> tuple[str, int]:
-    print("Hereee ", vfolders)
-    vfolders= vfolders['vfolders']
-    
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
 
-    filebrowser_settings = {
-                            "port": service_port,
-                            "baseURL": "",
-                            "address": "",
-                            "log": "stdout",
-                            "database": "/filebrowser_dir/filebrowser.db",
-                            "root": "/data/"
-                            } 
-    
-    with open(settings_path + 'settings.json', 'w') as file:
+    settings_file = pathlib.Path(settings_path + "settings.json")
 
-        json.dump( filebrowser_settings, file)
+    if not settings_file.exists():
+        filebrowser_default_settings = {
+            "port": service_port,
+            "baseURL": "",
+            "address": "",
+            "log": "stdout",
+            "database": "/filebrowser_dir/filebrowser.db",
+            "root": "/data/",
+        }
+
+        async with aiofiles.open(settings_path + "settings.json", mode="w") as file:
+            await file.write(json.dumps(filebrowser_default_settings))
 
     docker = aiodocker.Docker()
     config = {
@@ -85,27 +80,25 @@ async def create_or_update(
                     "Target": "/filebrowser_dir/",
                     "Source": f"{settings_path}",
                     "Type": "bind",
-                }
+                },
             ],
         },
     }
 
-
     for vfolder in vfolders:
-        config["HostConfig"]["Mounts"].append({
-            "Target": f"/data/{vfolder['name']}",
-            "Source": f"{mangle_path(mount_path, vfolder['vfid'])}",
-            "Type": "bind",
-            })
-
-    print(config)
+        config["HostConfig"]["Mounts"].append(
+            {
+                "Target": f"/data/{vfolder['name']}",
+                "Source": f"{mangle_path(mount_path, vfolder['vfid'])}",
+                "Type": "bind",
+            },
+        )
 
     container = await docker.containers.create_or_replace(
         config=config,
         name="FileBrowser",
     )
 
-    container_id = container.id
     await container.start()
 
     await docker.close()
