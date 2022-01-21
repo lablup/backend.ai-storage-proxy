@@ -30,6 +30,7 @@ def mangle_path(mount_path, vfid):
 
 
 async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int]:
+
     vfolders = vfolders["vfolders"]
 
     image = ctx.local_config["filebrowser"]["image"]
