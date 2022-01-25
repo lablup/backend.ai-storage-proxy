@@ -29,9 +29,7 @@ def mangle_path(mount_path, vfid):
     return Path(mount_path, prefix1, prefix2, rest)
 
 
-async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int]:
-
-    vfolders = vfolders["vfolders"]
+async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int, str]:
 
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
@@ -99,16 +97,23 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int]
         config=config,
         name="FileBrowser",
     )
-
+    container_id = container._id
     await container.start()
-
     await docker.close()
 
-    return service_ip, service_port
+    return service_ip, service_port, container_id
 
 
-async def destroy(ctx: Context, auth_token: str) -> None:
-    pass
+async def destroy(ctx: Context, container_id: str) -> None:
+    docker = aiodocker.Docker()
+
+    for container in await docker.containers.list():
+
+        if container._id == container_id:
+            await container.stop()
+            await container.delete()
+
+    await docker.close()
 
 
 async def cleanup(ctx: Context, interval: float) -> None:
