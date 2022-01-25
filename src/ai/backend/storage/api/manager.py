@@ -552,12 +552,19 @@ async def delete_files(request: web.Request) -> web.Response:
 
 async def create_or_update_filebrowser(request: web.Request) -> web.Response:
     ctx: Context = request.app["ctx"]
-    vfolders = await request.json()
+    params = await request.json()
 
-    host, port = await filebrowser.create_or_update(ctx, vfolders)
+    host: str
+    port: int
+    conainer_id: str
+
+    host, port, container_id = await filebrowser.create_or_update(
+        ctx, params["vfolders"],
+    )
     return web.json_response(
         {
             "addr": f"http://{host}:{port}",  # TODO: SSL?
+            "container_id": f"{container_id}",
             "status": "ok",
         },
     )
@@ -569,17 +576,25 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
         t.Dict(
             {
                 t.Key("auth_token"): t.String,
+                t.Key("container_id"): t.String,
             },
         ),
     ) as params:
+
         await log_manager_api_entry(log, "destroy_filebrowser", params)
         ctx: Context = request.app["ctx"]
-        await filebrowser.destroy(ctx, params["auth_token"])
-        return web.json_response(
-            {
-                "status": "ok",
-            },
-        )
+
+        try:
+
+            await filebrowser.destroy(ctx, params["container_id"])
+
+            return web.json_response(
+                {
+                    "status": "ok",
+                },
+            )
+        except Exception:
+            raise Exception
 
 
 async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
@@ -622,6 +637,6 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
     app.router.add_route("POST", "/browser/create", create_or_update_filebrowser)
-    app.router.add_route("DELETE", "/browser/delete", destroy_filebrowser)
+    app.router.add_route("DELETE", "/browser/destroy", destroy_filebrowser)
     app.cleanup_ctx.append(filebrowser_ctx)
     return app
