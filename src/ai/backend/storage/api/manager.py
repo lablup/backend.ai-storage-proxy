@@ -559,7 +559,8 @@ async def create_or_update_filebrowser(request: web.Request) -> web.Response:
     conainer_id: str
 
     host, port, container_id = await filebrowser.create_or_update(
-        ctx, params["vfolders"],
+        ctx,
+        params["vfolders"],
     )
     return web.json_response(
         {
