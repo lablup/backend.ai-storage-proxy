@@ -16,6 +16,11 @@ Changes
 
 .. towncrier release notes start
 
+21.03.4 (2022-01-26)
+--------------------
+
+* Upgrade dependencies for Backend.AI common to 21.03.12
+
 21.03.3 (2022-01-11)
 --------------------
 
