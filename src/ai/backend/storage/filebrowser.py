@@ -55,11 +55,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     docker = aiodocker.Docker()
     config = {
         "Cmd": [
-            "/bin/filebrowser",
-            "-c",
-            "/filebrowser_dir/settings.json",
-            "-d",
-            "/filebrowser_dir/filebrowser.db",
+            "/filebrowser_dir/start.sh",
         ],
         "ExposedPorts": {
             f"{service_port}/tcp": {},
