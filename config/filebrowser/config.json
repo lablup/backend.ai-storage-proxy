@@ -25,7 +25,7 @@
             "commands": [],
             "hideDotfiles": false
         },
-        "authMethod": "json",
+        "authMethod": "noauth",
         "branding": {
             "name": "BACKEND.AI Web Browser",
             "disableExternal": true,
