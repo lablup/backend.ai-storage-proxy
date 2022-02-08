@@ -50,17 +50,15 @@ service_port = 8080
 # For more configuration file info see https://filebrowser.org/installation
 settings_path = "/Users/filebrowser/"
 
-# The mount path on the Storage Proxy where filebrowser will mount user directories
-mount_path = "/Users/filebrowser/data/"
+# The location of storage proxy vfolder directory 
+# For example, /Users/vfolder/local/
+mount_path = "/Users/vfolder/local/"
 
 # The maxium number of CPU cores available to each filebrowser container
 max-cpu = 1
 
 # The maximum size of memory available to each filebrowser container
 max-mem = "1g"
-
-# The maximum limit of the number of filebrowser containers
-max-containers = 32
 
 # The user/group to be used by the filebrowser container
 # user = 1000

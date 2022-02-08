@@ -36,6 +36,13 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     service_port = ctx.local_config["filebrowser"]["service_port"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
+    cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
+    memory = ctx.local_config["filebrowser"]["max-mem"]
+
+    if "g" in str(memory):
+        memory = memory * 1e+9
+    elif "m":
+        memory = memory * 1000000
 
     settings_file = pathlib.Path(settings_path + "settings.json")
 
@@ -86,6 +93,8 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
                 "Target": f"/data/{vfolder['name']}",
                 "Source": f"{mangle_path(mount_path, vfolder['vfid'])}",
                 "Type": "bind",
+                "CpuCount": cpu_count,
+                "Memory": memory,
             },
         )
 
