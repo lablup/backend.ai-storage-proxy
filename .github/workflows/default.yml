@@ -17,9 +17,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-lint-${{ hashFiles('setup.cfg') }}
+        key: lint-shared-${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
-          ${{ runner.os }}-pip-lint-
+          lint-shared-${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
         python -m pip install -U pip setuptools
@@ -61,9 +61,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-lint-${{ hashFiles('setup.cfg') }}
+        key: lint-shared-${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
-          ${{ runner.os }}-pip-lint-
+          lint-shared-${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
         python -m pip install -U pip setuptools
@@ -105,9 +105,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-lint-${{ hashFiles('setup.cfg') }}
+        key: lint-shared-${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
-          ${{ runner.os }}-pip-lint-
+          lint-shared-${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
         python -m pip install -U pip setuptools
@@ -149,9 +149,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-typecheck-${{ hashFiles('setup.cfg') }}
+        key: typecheck-mypy-${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
-          ${{ runner.os }}-pip-typecheck-
+          typecheck-mypy-${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
         python -m pip install -U pip setuptools
@@ -192,9 +192,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: test-pytest-${{ runner.os }}-pip-deploy-${{ matrix.python-version }}-${{ hashFiles('setup.cfg') }}
+        key: deploy-pypi-${{ runner.os }}-pip-${{ hashFiles('setup.cfg') }}
         restore-keys: |
-          test-pytest-${{ runner.os }}-pip-deploy-${{ matrix.python-version }}
+          deploy-pypi-${{ runner.os }}-pip-
     - name: Install dependencies
       env:
         REQUIREMENTS_FILE: build
