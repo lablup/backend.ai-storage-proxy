@@ -24,11 +24,12 @@ BACKENDS: Mapping[str, Type[AbstractVolume]] = {
 
 class Context:
 
-    __slots__ = ("pid", "etcd", "local_config")
+    __slots__ = ("pid", "etcd", "local_config", "container_id")
 
     pid: int
     etcd: AsyncEtcd
     local_config: Mapping[str, Any]
+    container_id: Any
 
     def __init__(
         self,
@@ -39,6 +40,13 @@ class Context:
         self.pid = pid
         self.etcd = etcd
         self.local_config = local_config
+
+    def set_container_id(self, container_id):
+        self.container_id = container_id
+
+
+    def get_container_id(self):
+        return self.container_id
 
     def list_volumes(self) -> Mapping[str, VolumeInfo]:
         return {
