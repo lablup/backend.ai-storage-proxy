@@ -17,10 +17,7 @@ from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_VFOLDER, AbstractVolume
-from ..exception import (
-    ExecutionError,
-    InvalidAPIParameters,
-)
+from ..exception import ExecutionError, InvalidAPIParameters
 from ..types import (
     SENTINEL,
     DirEntry,
