@@ -148,7 +148,7 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
         try:
             stat = await loop.run_in_executor(None, metadata_path.stat)
-            if stat.st_size > 10 * (2 ** 20):
+            if stat.st_size > 10 * (2**20):
                 raise RuntimeError("Too large metadata (more than 10 MiB)")
             data = await loop.run_in_executor(None, metadata_path.read_bytes)
             return data
