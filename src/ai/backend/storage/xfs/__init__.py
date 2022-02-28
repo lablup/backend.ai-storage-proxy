@@ -150,8 +150,10 @@ class XfsVolume(BaseVolume):
         self,
         vfid: UUID,
         options: VFolderCreationOptions = None,
+        *,
+        exist_ok: bool = False,
     ) -> None:
-        await super().create_vfolder(vfid, options)
+        await super().create_vfolder(vfid, options, exist_ok=exist_ok)
 
         # NOTE: Do we need to register project ID for a directory without quota?
         #       Yes, to easily get the file size and used bytes of a directory.

@@ -83,6 +83,8 @@ class AbstractVolume(metaclass=ABCMeta):
         self,
         vfid: UUID,
         options: VFolderCreationOptions = None,
+        *,
+        exist_ok: bool = False,
     ) -> None:
         pass
 
