@@ -66,8 +66,11 @@ class VFolderCreationOptions:
         return t.Dict({t.Key("quota", default=None): t.Null | tx.BinarySize})
 
     @classmethod
-    def as_object(cls, dict_opts: Mapping) -> VFolderCreationOptions:
-        quota = dict_opts.get("quota")
+    def as_object(cls, dict_opts: Mapping | None) -> VFolderCreationOptions:
+        if dict_opts is None:
+            quota = None
+        else:
+            quota = dict_opts.get("quota")
         return VFolderCreationOptions(quota=quota)
 
 
