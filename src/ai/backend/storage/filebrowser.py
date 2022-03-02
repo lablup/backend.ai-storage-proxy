@@ -5,13 +5,19 @@ import logging
 import pathlib
 from pathlib import Path
 from typing import AsyncIterator
+from ai.backend.storage.containermanager import ContainerManager
 
 import aiodocker
 import aiofiles
 
+
 from ai.backend.common.logging import BraceStyleAdapter
 
 from .context import Context
+from sqlalchemy import inspect, create_engine, func, select, MetaData, Table, Column, Integer, String, Text
+from datetime import datetime
+
+engine = create_engine('sqlite:///containers.db', echo = True)
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -38,6 +44,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
     memory = ctx.local_config["filebrowser"]["max-mem"]
+    max_containers = ctx.local_config["filebrowser"]["max-containers"]
 
     if "g" in str(memory):
         memory = memory * 1e+9
@@ -106,17 +113,67 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     await container.start()
     await docker.close()
 
+    engine = create_engine('sqlite:///containers.db', echo = True)
+
+    conn = engine.connect()
+    insp = inspect(engine)
+
+    meta = MetaData()
+
+    containers = Table(
+        'containers', meta,
+        Column('container_id', String, primary_key = True),
+        Column('service_ip', String),
+        Column('service_port', Integer),
+        Column('config', Text),
+        Column('status', String),
+        Column('timestamp', String),
+    )
+
+    if "containers" not in insp.get_table_names():
+        meta.create_all(engine)
+
+    rows = conn.execute(containers.select())
+
+    rows_list = [row for row in rows]
+    if len(rows_list) > max_containers:
+        print("Can't create new container. Number of containers exceed the maximum limit.")
+        return 0, 0, 0
+
+    ins = containers.insert().values(container_id=container_id,
+                                     service_ip=service_ip, service_port=int(service_port),
+                                     config=str(config), status="RUNNING",
+                                     timestamp=str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                                    )
+    conn.execute(ins)
+
     return service_ip, service_port, container_id
 
 
 async def destroy(ctx: Context, container_id: str) -> None:
     docker = aiodocker.Docker()
+    engine = create_engine('sqlite:///containers.db', echo = True)
+    conn = engine.connect()
+
+    meta = MetaData()
+
+    containers = Table(
+        'containers', meta,
+        Column('container_id', String, primary_key = True),
+        Column('service_ip', String),
+        Column('service_port', Integer),
+        Column('config', Text),
+        Column('status', String),
+        Column('timestamp', String),
+    )
 
     for container in await docker.containers.list():
 
         if container._id == container_id:
             await container.stop()
             await container.delete()
+            del_sql = containers.delete().where(containers.c.container_id == container_id)
+            conn.execute(del_sql)
 
     await docker.close()
 

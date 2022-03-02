@@ -21,6 +21,8 @@ from .. import filebrowser
 from ..context import Context
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
+from sqlalchemy import inspect, create_engine, func, select, MetaData, Table, Column, Integer, String, Text
+import aiodocker
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -556,7 +558,7 @@ async def create_or_update_filebrowser(request: web.Request) -> web.Response:
 
     host: str
     port: int
-    conainer_id: str
+    container_id: str
 
     host, port, container_id = await filebrowser.create_or_update(
         ctx,
@@ -600,6 +602,7 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
 
 async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
     ctx = app["ctx"]
+
     filebrowser_cleanup_task = aiotools.create_timer(
         functools.partial(filebrowser.cleanup, ctx),
         10.0,
@@ -616,6 +619,58 @@ async def init_manager_app(ctx: Context) -> web.Application:
         ],
     )
     app["ctx"] = ctx
+
+    engine = create_engine('sqlite:///containers.db')
+
+    conn = engine.connect()
+    insp = inspect(engine)
+
+    meta = MetaData()
+
+    containers = Table(
+        'containers', meta,
+        Column('container_id', String, primary_key = True),
+        Column('service_ip', String),
+        Column('service_port', Integer),
+        Column('config', Text),
+        Column('status', String),
+        Column('timestamp', String),
+    )
+
+    if "containers" not in insp.get_table_names():
+        meta.create_all(engine)
+
+    rows = conn.execute(containers.select())
+
+    db_container_list = {}
+    for row in rows:
+        db_container_list[row['container_id']] = row
+
+    docker = aiodocker.Docker()
+    containers = await aiodocker.docker.DockerContainers(docker).list()
+    await docker.close()
+
+    container_id_list = [container._id for container in containers]
+
+    for container_id in db_container_list.keys():
+
+        if container_id not in container_id_list:
+            docker = aiodocker.Docker()
+
+            container = await docker.containers.create_or_replace(container_id,
+                                                                  config=db_container_list[container_id][3],
+                                                                  )
+
+            await container.start()
+            await docker.close()
+
+
+    docker = aiodocker.Docker()
+    stats = await aiodocker.docker.DockerContainer(docker).stats()
+
+    await docker.close()
+
+
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
     app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)
@@ -637,7 +692,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/download", create_download_session)
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
-    app.router.add_route("POST", "/browser/create", create_or_update_filebrowser)
-    app.router.add_route("DELETE", "/browser/destroy", destroy_filebrowser)
+    app.router.add_route("POST", "/storage/filebrowser/create", create_or_update_filebrowser)
+    app.router.add_route("DELETE", "/storage/filebrowser/destroy", destroy_filebrowser)
     app.cleanup_ctx.append(filebrowser_ctx)
     return app
