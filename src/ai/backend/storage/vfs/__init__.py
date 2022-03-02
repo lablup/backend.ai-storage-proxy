@@ -96,7 +96,7 @@ class BaseVolume(AbstractVolume):
         src_vfid: UUID,
         dst_volume: AbstractVolume,
         dst_vfid: UUID,
-        options: VFolderCreationOptions = None,  # ignored; vfolder must be created before.
+        options: VFolderCreationOptions = None,
     ) -> None:
         # check if there is enough space in the destination
         fs_usage = await dst_volume.get_fs_usage()
