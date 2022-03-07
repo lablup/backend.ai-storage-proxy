@@ -16,6 +16,12 @@ Changes
 
 <!-- towncrier release notes start -->
 
+## 21.09.4 (2022-03-07)## 21.09.4 (2022-03-07)
+
+### Fixes
+* Split vfolder creation from vfolder clone with `exist_ok=True` option to allow separate invocation of those two operations when cloning a vfolder to achieve better asynchrony in the manager side ([#38](https://github.com/lablup/backend.ai-storage-proxy/issues/38))
+
+
 ## 21.09.3 (2022-01-26)
 
 * Upgrade dependencies for Backend.AI common to 21.09.6
