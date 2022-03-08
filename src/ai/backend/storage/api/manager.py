@@ -424,26 +424,41 @@ async def rename_file(request: web.Request) -> web.Response:
                 t.Key("vfid"): tx.UUID(),
                 t.Key("relpath"): tx.PurePath(relative_only=True),
                 t.Key("new_name"): t.String(),
-                t.Key("is_dir"): t.ToBool,
+                t.Key("is_dir"): t.ToBool(),
             },
         ),
     ) as params:
         await log_manager_api_entry(log, "rename_file", params)
         ctx: Context = request.app["ctx"]
-        is_dir = params["is_dir"]
         async with ctx.get_volume(params["volume"]) as volume:
-            if is_dir:
-                await volume.move_tree(
-                    params["vfid"],
-                    params["relpath"],
-                    params["relpath"].with_name(params["new_name"]),
-                )
-            else:
-                await volume.move_file(
-                    params["vfid"],
-                    params["relpath"],
-                    params["relpath"].with_name(params["new_name"]),
-                )
+            await volume.move_file(
+                params["vfid"],
+                params["relpath"],
+                params["relpath"].with_name(params["new_name"]),
+            )
+        return web.Response(status=204)
+
+
+async def move_file(request: web.Request) -> web.Response:
+    async with check_params(
+        request,
+        t.Dict(
+            {
+                t.Key("volume"): t.String(),
+                t.Key("vfid"): tx.UUID(),
+                t.Key("src_relpath"): tx.PurePath(relative_only=True),
+                t.Key("dst_relpath"): tx.PurePath(relative_only=True),
+            },
+        ),
+    ) as params:
+        await log_manager_api_entry(log, "move_file", params)
+        ctx: Context = request.app["ctx"]
+        async with ctx.get_volume(params["volume"]) as volume:
+            await volume.move_file(
+                params["vfid"],
+                params["src_relpath"],
+                params["dst_relpath"],
+            )
         return web.Response(status=204)
 
 
@@ -571,6 +586,7 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/mkdir", mkdir)
     app.router.add_route("POST", "/folder/file/list", list_files)
     app.router.add_route("POST", "/folder/file/rename", rename_file)
+    app.router.add_route("POST", "/folder/file/move", move_file)
     app.router.add_route("POST", "/folder/file/fetch", fetch_file)
     app.router.add_route("POST", "/folder/file/download", create_download_session)
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
