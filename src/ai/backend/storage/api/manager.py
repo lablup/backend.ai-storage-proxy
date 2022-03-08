@@ -13,6 +13,7 @@ from aiohttp import hdrs, web
 
 from ai.backend.common import validators as tx
 from ai.backend.common.logging import BraceStyleAdapter
+from ai.backend.storage.exception import ExecutionError
 
 from ..context import Context
 from ..types import VFolderCreationOptions
@@ -298,15 +299,21 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
             },
         ),
     ) as params:
-        await log_manager_api_entry(log, "get_vfolder_usage", params)
-        ctx: Context = request.app["ctx"]
-        async with ctx.get_volume(params["volume"]) as volume:
-            usage = await volume.get_usage(params["vfid"])
-            return web.json_response(
-                {
-                    "file_count": usage.file_count,
-                    "used_bytes": usage.used_bytes,
-                },
+        try:
+            await log_manager_api_entry(log, "get_vfolder_usage", params)
+            ctx: Context = request.app["ctx"]
+            async with ctx.get_volume(params["volume"]) as volume:
+                usage = await volume.get_usage(params["vfid"])
+                return web.json_response(
+                    {
+                        "file_count": usage.file_count,
+                        "used_bytes": usage.used_bytes,
+                    },
+                )
+        except ExecutionError:
+            return web.Response(
+                status=500,
+                reason="Storage server is busy. Please try again",
             )
 
 

@@ -18,11 +18,7 @@ from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_VFOLDER, AbstractVolume
-from ..exception import (
-    ExecutionError,
-    InvalidAPIParameters,
-    VFolderCreationError,
-)
+from ..exception import ExecutionError, InvalidAPIParameters
 from ..types import (
     SENTINEL,
     DirEntry,
@@ -69,12 +65,14 @@ class BaseVolume(AbstractVolume):
         self,
         vfid: UUID,
         options: VFolderCreationOptions = None,
+        *,
+        exist_ok: bool = False,
     ) -> None:
         vfpath = self.mangle_vfpath(vfid)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
-            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
+            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=exist_ok),
         )
 
     async def delete_vfolder(self, vfid: UUID) -> None:
@@ -105,11 +103,11 @@ class BaseVolume(AbstractVolume):
         fs_usage = await dst_volume.get_fs_usage()
         vfolder_usage = await self.get_usage(src_vfid)
         if vfolder_usage.used_bytes > fs_usage.capacity_bytes - fs_usage.used_bytes:
-            raise VFolderCreationError("Not enough space available for clone")
+            raise ExecutionError("Not enough space available for clone.")
 
         # create the target vfolder
         src_vfpath = self.mangle_vfpath(src_vfid)
-        await dst_volume.create_vfolder(dst_vfid, options=options)
+        await dst_volume.create_vfolder(dst_vfid, options=options, exist_ok=True)
         dst_vfpath = dst_volume.mangle_vfpath(dst_vfid)
 
         # perform the file-tree copy
@@ -117,7 +115,8 @@ class BaseVolume(AbstractVolume):
             await self.copy_tree(src_vfpath, dst_vfpath)
         except Exception:
             await dst_volume.delete_vfolder(dst_vfid)
-            raise RuntimeError("Copying files from source directories failed.")
+            log.exception("clone_vfolder: error during copy_tree()")
+            raise ExecutionError("Copying files from source directories failed.")
 
     async def copy_tree(
         self,
@@ -150,7 +149,7 @@ class BaseVolume(AbstractVolume):
         loop = asyncio.get_running_loop()
         try:
             stat = await loop.run_in_executor(None, metadata_path.stat)
-            if stat.st_size > 10 * (2 ** 20):
+            if stat.st_size > 10 * (2**20):
                 raise RuntimeError("Too large metadata (more than 10 MiB)")
             data = await loop.run_in_executor(None, metadata_path.read_bytes)
             return data
@@ -185,7 +184,7 @@ class BaseVolume(AbstractVolume):
         total_count = 0
         start_time = time.monotonic()
 
-        def _calc_usage(target_path: os.PathLike) -> None:
+        def _calc_usage(target_path: os.DirEntry | Path) -> None:
             nonlocal total_size, total_count
             _timeout = 3
             with os.scandir(target_path) as scanner:

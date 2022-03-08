@@ -92,9 +92,9 @@ format = "simple"
 # The default, generic filesystem.
 # It uses the standard syscalls to perform filesystem operations
 # such as scanning the file/directory metadata.
-# This does *NOT* support per-direcotry quota.
+# This does *NOT* support per-directory quota.
 backend = "vfs"
-path = "/vfroot/xfs"
+path = "/vfroot/vfs"
 
 
 [volume.fastlocal]
@@ -124,3 +124,19 @@ purity_fs_name = "FB-NFS1"  # the name of filesystem used by the filesystem API
 # for per-directory quota and fast metadata queries.
 backend = "cephfs"
 path = "/vfroot/ceph-fuse"
+
+[volume.netapp]
+backend = "netapp"
+path = "/vfroot/netapp"
+
+[volume.netapp.options]
+netapp_endpoint = "https://netapp.example.com"
+netapp_admin = "signed-in-id"
+netapp_password = "signed-in-pw"
+netapp_svm = "svm-name"
+netapp_volume_name = "netapp-volume-name"
+netapp_qtree_name = "bai_qtree" # default qtree name for backend.ai exclusive
+netapp_xcp_container_name = "netapp-xcp" # only required when xcp activated by container
+netapp_xcp_hostname = "xcp-hostname"
+# default xcp catalog path goes to the directory named "catalog" of the first NetApp volume
+netapp_xcp_catalog_path = "path for xcp-catalog" # Hint: execute command cat /opt/NetApp/xFiles/xcp/xcp.ini and see nfs mount path
