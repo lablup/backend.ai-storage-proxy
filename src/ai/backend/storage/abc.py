@@ -68,6 +68,10 @@ class AbstractVolume(metaclass=ABCMeta):
             raise PermissionError("cannot access outside of the given vfolder")
         return target_path
 
+    def strip_vfpath(self, vfid: UUID, target_path: Path) -> PurePosixPath:
+        vfpath = self.mangle_vfpath(vfid).resolve()
+        return PurePosixPath(target_path.relative_to(vfpath))
+
     # ------ volume operations -------
 
     @abstractmethod
