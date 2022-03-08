@@ -9,6 +9,7 @@ from ai.backend.common.etcd import AsyncEtcd
 from .abc import AbstractVolume
 from .exception import InvalidVolumeError
 from .netapp import NetAppVolume
+from .dellemc import DellEMCVolume
 from .purestorage import FlashBladeVolume
 from .types import VolumeInfo
 from .vfs import BaseVolume
@@ -19,6 +20,7 @@ BACKENDS: Mapping[str, Type[AbstractVolume]] = {
     "vfs": BaseVolume,
     "xfs": XfsVolume,
     "netapp": NetAppVolume,
+    "dell": DellEMCVolume,
 }
 
 
