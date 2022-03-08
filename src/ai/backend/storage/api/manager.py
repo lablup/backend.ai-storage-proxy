@@ -61,19 +61,17 @@ def handle_fs_errors(
     except OSError as e:
         related_paths = []
         if e.filename:
-            related_paths.append(
-                str(volume.strip_vfpath(vfid, Path(e.filename)))
-            )
+            related_paths.append(str(volume.strip_vfpath(vfid, Path(e.filename))))
         if e.filename2:
-            related_paths.append(
-                str(volume.strip_vfpath(vfid, Path(e.filename2)))
-            )
+            related_paths.append(str(volume.strip_vfpath(vfid, Path(e.filename2))))
         raise web.HTTPBadRequest(
-            body=json.dumps({
-                'msg': e.strerror,
-                'errno': e.errno,
-                'paths': related_paths,
-            }),
+            body=json.dumps(
+                {
+                    "msg": e.strerror,
+                    "errno": e.errno,
+                    "paths": related_paths,
+                },
+            ),
             content_type="application/json",
         )
 
