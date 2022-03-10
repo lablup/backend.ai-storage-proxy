@@ -4,26 +4,24 @@ from typing import Any
 from aiohttp import web
 
 
-class ExecutionError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
-
-
 class StorageProxyError(Exception):
     pass
 
 
-class VFolderCreationError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
+class ExecutionError(StorageProxyError):
+    pass
 
 
-class VFolderNotFoundError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
+class VFolderCreationError(StorageProxyError):
+    pass
+
+
+class VFolderNotFoundError(StorageProxyError):
+    pass
+
+
+class SubpathNotFoundError(StorageProxyError):
+    pass
 
 
 class InvalidVolumeError(StorageProxyError):

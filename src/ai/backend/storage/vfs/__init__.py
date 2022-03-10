@@ -18,7 +18,12 @@ from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
 from ..abc import CAP_VFOLDER, AbstractVolume
-from ..exception import ExecutionError, InvalidAPIParameters
+from ..exception import (
+    ExecutionError,
+    InvalidAPIParameters,
+    SubpathNotFoundError,
+    VFolderNotFoundError,
+)
 from ..types import (
     SENTINEL,
     DirEntry,
@@ -134,8 +139,16 @@ class BaseVolume(AbstractVolume):
             ),
         )
 
-    async def get_vfolder_mount(self, vfid: UUID) -> Path:
-        return self.mangle_vfpath(vfid)
+    async def get_vfolder_mount(self, vfid: UUID, subpath: str) -> Path:
+        vfpath = self.mangle_vfpath(vfid)
+        vfsubpath = (vfpath / subpath).resolve()
+        if not (vfpath.exists() and vfpath.is_dir()):
+            raise VFolderNotFoundError(vfid)
+        if not vfsubpath.exists():
+            raise SubpathNotFoundError(vfid, subpath)
+        if not vfsubpath.is_relative_to(vfpath):
+            raise SubpathNotFoundError(vfid, subpath)
+        return vfpath
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self.mangle_vfpath(vfid)
