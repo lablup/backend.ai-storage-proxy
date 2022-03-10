@@ -280,7 +280,7 @@ class NetAppVolume(BaseVolume):
     async def get_usage(
         self,
         vfid: UUID,
-        relpath: PurePosixPath = None,
+        relpath: PurePosixPath = PurePosixPath("."),
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0

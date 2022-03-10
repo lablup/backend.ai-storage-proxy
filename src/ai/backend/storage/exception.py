@@ -20,7 +20,7 @@ class VFolderNotFoundError(StorageProxyError):
     pass
 
 
-class SubpathNotFoundError(StorageProxyError):
+class InvalidSubpathError(StorageProxyError):
     pass
 
 
