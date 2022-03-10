@@ -135,7 +135,8 @@ class BaseVolume(AbstractVolume):
         )
 
     async def get_vfolder_mount(self, vfid: UUID, subpath: str) -> Path:
-        return self.sanitize_vfpath(vfid, PurePosixPath(subpath))
+        self.sanitize_vfpath(vfid, PurePosixPath(subpath))
+        return self.mangle_vfpath(vfid).resolve()
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self.mangle_vfpath(vfid)
