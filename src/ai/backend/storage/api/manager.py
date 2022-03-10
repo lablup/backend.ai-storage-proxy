@@ -21,7 +21,7 @@ from ai.backend.storage.exception import ExecutionError
 
 from ..abc import AbstractVolume
 from ..context import Context
-from ..exception import VFolderNotFoundError, SubpathNotFoundError
+from ..exception import SubpathNotFoundError, VFolderNotFoundError
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -197,7 +197,7 @@ async def get_vfolder_mount(request: web.Request) -> web.Response:
         async with ctx.get_volume(params["volume"]) as volume:
             try:
                 mount_path = await volume.get_vfolder_mount(
-                    params["vfid"], params["subpath"]
+                    params["vfid"], params["subpath"],
                 )
             except VFolderNotFoundError:
                 raise web.HTTPBadRequest(
@@ -205,7 +205,7 @@ async def get_vfolder_mount(request: web.Request) -> web.Response:
                         {
                             "msg": "VFolder not found",
                             "vfid": str(params["vfid"]),
-                        }
+                        },
                     ),
                     content_type="application/json",
                 )
@@ -216,7 +216,7 @@ async def get_vfolder_mount(request: web.Request) -> web.Response:
                             "msg": "Invalid vfolder subpath",
                             "vfid": str(params["vfid"]),
                             "subpath": str(e.args[1]),
-                        }
+                        },
                     ),
                     content_type="application/json",
                 )
