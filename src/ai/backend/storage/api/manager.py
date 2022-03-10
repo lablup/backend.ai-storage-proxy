@@ -61,6 +61,7 @@ def handle_fs_errors(
         yield
     except OSError as e:
         related_paths = []
+        msg = str(e) if e.strerror is None else e.strerror
         if e.filename:
             related_paths.append(str(volume.strip_vfpath(vfid, Path(e.filename))))
         if e.filename2:
@@ -68,7 +69,7 @@ def handle_fs_errors(
         raise web.HTTPBadRequest(
             body=json.dumps(
                 {
-                    "msg": e.strerror,
+                    "msg": msg,
                     "errno": e.errno,
                     "paths": related_paths,
                 },
