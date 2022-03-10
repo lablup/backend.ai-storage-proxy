@@ -134,8 +134,8 @@ class BaseVolume(AbstractVolume):
             ),
         )
 
-    async def get_vfolder_mount(self, vfid: UUID) -> Path:
-        return self.mangle_vfpath(vfid)
+    async def get_vfolder_mount(self, vfid: UUID, subpath: str) -> Path:
+        return self.sanitize_vfpath(vfid, PurePosixPath(subpath))
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self.mangle_vfpath(vfid)
@@ -177,7 +177,7 @@ class BaseVolume(AbstractVolume):
     async def get_usage(
         self,
         vfid: UUID,
-        relpath: PurePosixPath = None,
+        relpath: PurePosixPath = PurePosixPath("."),
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0

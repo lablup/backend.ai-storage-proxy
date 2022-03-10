@@ -21,6 +21,7 @@ from ai.backend.storage.exception import ExecutionError
 
 from ..abc import AbstractVolume
 from ..context import Context
+from ..exception import InvalidSubpathError, VFolderNotFoundError
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -60,6 +61,7 @@ def handle_fs_errors(
         yield
     except OSError as e:
         related_paths = []
+        msg = str(e) if e.strerror is None else e.strerror
         if e.filename:
             related_paths.append(str(volume.strip_vfpath(vfid, Path(e.filename))))
         if e.filename2:
@@ -67,7 +69,7 @@ def handle_fs_errors(
         raise web.HTTPBadRequest(
             body=json.dumps(
                 {
-                    "msg": e.strerror,
+                    "msg": msg,
                     "errno": e.errno,
                     "paths": related_paths,
                 },
@@ -187,13 +189,39 @@ async def get_vfolder_mount(request: web.Request) -> web.Response:
             {
                 t.Key("volume"): t.String(),
                 t.Key("vfid"): tx.UUID(),
+                t.Key("subpath", default="."): t.String(),
             },
         ),
     ) as params:
         await log_manager_api_entry(log, "get_container_mount", params)
         ctx: Context = request.app["ctx"]
         async with ctx.get_volume(params["volume"]) as volume:
-            mount_path = await volume.get_vfolder_mount(params["vfid"])
+            try:
+                mount_path = await volume.get_vfolder_mount(
+                    params["vfid"],
+                    params["subpath"],
+                )
+            except VFolderNotFoundError:
+                raise web.HTTPBadRequest(
+                    body=json.dumps(
+                        {
+                            "msg": "VFolder not found",
+                            "vfid": str(params["vfid"]),
+                        },
+                    ),
+                    content_type="application/json",
+                )
+            except InvalidSubpathError as e:
+                raise web.HTTPBadRequest(
+                    body=json.dumps(
+                        {
+                            "msg": "Invalid vfolder subpath",
+                            "vfid": str(params["vfid"]),
+                            "subpath": str(e.args[1]),
+                        },
+                    ),
+                    content_type="application/json",
+                )
             return web.json_response(
                 {
                     "path": str(mount_path),
