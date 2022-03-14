@@ -359,7 +359,8 @@ class NetAppVolume(BaseVolume):
                 def _calc_usage(target_path: os.DirEntry | Path) -> None:
                     nonlocal total_size, total_count
                     _timeout = 3
-                    with os.scandir(target_path) as scanner:
+                    # FIXME: Remove "type: ignore" when python/mypy#11964 is resolved.
+                    with os.scandir(target_path) as scanner:  # type: ignore
                         for entry in scanner:
                             if entry.is_dir():
                                 _calc_usage(entry)
