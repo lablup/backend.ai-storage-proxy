@@ -1,1 +1,0 @@
-Enable basic vfolder operation such as caculating usage and cloning vfolder in storage-proxy using NetApp XCP.
