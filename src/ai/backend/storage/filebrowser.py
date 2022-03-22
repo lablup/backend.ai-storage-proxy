@@ -39,13 +39,12 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
-
+    max_containers = ctx.local_config["filebrowser"]["max-containers"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
     settings_file = ctx.local_config["filebrowser"]["settings_file"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
     memory = ctx.local_config["filebrowser"]["max-mem"]
-    max_containers = ctx.local_config["filebrowser"]["max-containers"]
     db_path = ctx.local_config["filebrowser"]["db-path"]
     memory = int(BinarySize().check_and_return(memory))
 
