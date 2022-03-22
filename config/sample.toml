@@ -48,7 +48,8 @@ service_port = 8080
 # The specific file 'settings.json' should be places in given path, 
 # otherwise the default settings file will be genrated in the following pass
 # For more configuration file info see https://filebrowser.org/installation
-settings_path = "/Users/filebrowser/settings.json"
+settings_path = "/Users/lablup/Documents/workspace/filebrowser/"
+settings_file = "settings.json"
 
 # The location of storage proxy vfolder directory 
 # For example, /Users/vfolder/local/

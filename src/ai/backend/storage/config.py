@@ -51,8 +51,8 @@ local_config_iv = (
                     t.Key("group", default=None): tx.GroupID(
                         default_gid=_file_perm.st_gid,
                     ),
-                    t.Key("settings_path", default=None): tx.Path(
-                                                                  type='file',
+                    t.Key("settings_path", default=None): tx.Path(type='dir'),
+                    t.Key("settings_file", default=None): tx.Path(type='file',
                                                                   allow_nonexisting=True,
                                                                   allow_devnull=True,
                                                                   ),

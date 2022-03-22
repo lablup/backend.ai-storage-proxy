@@ -23,6 +23,7 @@ from ai.backend.common.validators import BinarySize
 
 from .context import Context
 from .utils import mangle_path
+from pathlib import Path
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -38,12 +39,14 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
+
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
+    settings_file = ctx.local_config["filebrowser"]["settings_file"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
     memory = ctx.local_config["filebrowser"]["max-mem"]
     max_containers = ctx.local_config["filebrowser"]["max-containers"]
-    db_path = ctx.local_config["filebrowser"]["db_path"]
+    db_path = ctx.local_config["filebrowser"]["db-path"]
     memory = int(BinarySize().check_and_return(memory))
 
     if not settings_path.exists():
@@ -55,7 +58,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
             "database": "/filebrowser_dir/filebrowser.db",
             "root": "/data/",
         }
-        async with aiofiles.open(settings_path + "settings.json", mode="w") as file:
+        async with aiofiles.open(settings_path / settings_file, mode="w") as file:
             await file.write(json.dumps(filebrowser_default_settings))
 
     docker = aiodocker.Docker()
@@ -105,7 +108,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     await container.start()
     await docker.close()
 
-    engine = create_engine("sqlite:///" / db_path, echo=True)
+    engine = create_engine(f"sqlite:///{str(db_path)}" , echo=True)
     conn = engine.connect()
     insp = inspect(engine)
     meta = MetaData()
