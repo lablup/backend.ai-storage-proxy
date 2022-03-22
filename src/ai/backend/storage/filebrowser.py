@@ -44,7 +44,6 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     memory = ctx.local_config["filebrowser"]["max-mem"]
     max_containers = ctx.local_config["filebrowser"]["max-containers"]
     db_path = ctx.local_config["filebrowser"]["db_path"]
-
     memory = int(BinarySize().check_and_return(memory))
 
     if not settings_path.exists():
@@ -56,7 +55,6 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
             "database": "/filebrowser_dir/filebrowser.db",
             "root": "/data/",
         }
-
         async with aiofiles.open(settings_path + "settings.json", mode="w") as file:
             await file.write(json.dumps(filebrowser_default_settings))
 
@@ -108,12 +106,9 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     await docker.close()
 
     engine = create_engine("sqlite:///" / db_path, echo=True)
-
     conn = engine.connect()
     insp = inspect(engine)
-
     meta = MetaData()
-
     containers = Table(
         "containers",
         meta,
@@ -127,7 +122,6 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
 
     if "containers" not in insp.get_table_names():
         meta.create_all(engine)
-
     rows = conn.execute(containers.select())
 
     rows_list = [row for row in rows]
@@ -146,17 +140,16 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
         timestamp=str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
     )
     conn.execute(ins)
-
     return service_ip, service_port, container_id
 
 
 async def destroy(ctx: Context, container_id: str) -> None:
+    db_path = ctx.local_config["filebrowser"]["db_path"]
     docker = aiodocker.Docker()
-    engine = create_engine("sqlite:///containers.db", echo=True)
+    engine = create_engine("sqlite:///" / db_path, echo=True)
     conn = engine.connect()
 
     meta = MetaData()
-
     containers = Table(
         "containers",
         meta,
@@ -169,7 +162,6 @@ async def destroy(ctx: Context, container_id: str) -> None:
     )
 
     for container in await docker.containers.list():
-
         if container._id == container_id:
             await container.stop()
             await container.delete()
@@ -177,7 +169,6 @@ async def destroy(ctx: Context, container_id: str) -> None:
                 containers.c.container_id == container_id,
             )
             conn.execute(del_sql)
-
     await docker.close()
 
 
