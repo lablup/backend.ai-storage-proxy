@@ -48,7 +48,7 @@ service_port = 8080
 # The specific file 'settings.json' should be places in given path, 
 # otherwise the default settings file will be genrated in the following pass
 # For more configuration file info see https://filebrowser.org/installation
-settings_path = "/Users/filebrowser/"
+settings_path = "/Users/filebrowser/settings.json"
 
 # The location of storage proxy vfolder directory 
 # For example, /Users/vfolder/local/
@@ -59,6 +59,12 @@ max-cpu = 1
 
 # The maximum size of memory available to each filebrowser container
 max-mem = "1g"
+
+# The maximum limit of the number of filebrowser containers
+max-containers = 32
+
+# The SQLite db path and name
+db-path = '/Users/filebrowser/containers.db'
 
 # The user/group to be used by the filebrowser container
 # user = 1000

@@ -10,6 +10,7 @@ import trafaret as t
 from aiohttp import web
 
 from ai.backend.common.logging import BraceStyleAdapter
+from pathlib import Path
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -127,3 +128,10 @@ async def log_manager_api_entry(
         "ManagerAPI::{}()",
         name.upper(),
     )
+
+
+def mangle_path(mount_path, vfid):
+    prefix1 = vfid[0:2]
+    prefix2 = vfid[2:4]
+    rest = vfid[4:]
+    return Path(mount_path, prefix1, prefix2, rest)

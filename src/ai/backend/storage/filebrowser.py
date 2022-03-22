@@ -2,22 +2,27 @@ from __future__ import annotations
 
 import json
 import logging
-import pathlib
-from pathlib import Path
+from datetime import datetime
 from typing import AsyncIterator
-from ai.backend.storage.containermanager import ContainerManager
 
 import aiodocker
 import aiofiles
-
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    create_engine,
+    inspect,
+)
 
 from ai.backend.common.logging import BraceStyleAdapter
+from ai.backend.common.validators import BinarySize
 
 from .context import Context
-from sqlalchemy import inspect, create_engine, func, select, MetaData, Table, Column, Integer, String, Text
-from datetime import datetime
-
-engine = create_engine('sqlite:///containers.db', echo = True)
+from .utils import mangle_path
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -26,13 +31,6 @@ __all__ = (
     "destroy",
     "cleanup",
 )
-
-
-def mangle_path(mount_path, vfid):
-    prefix1 = vfid[0:2]
-    prefix2 = vfid[2:4]
-    rest = vfid[4:]
-    return Path(mount_path, prefix1, prefix2, rest)
 
 
 async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int, str]:
@@ -45,15 +43,11 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
     memory = ctx.local_config["filebrowser"]["max-mem"]
     max_containers = ctx.local_config["filebrowser"]["max-containers"]
+    db_path = ctx.local_config["filebrowser"]["db_path"]
 
-    if "g" in str(memory):
-        memory = memory * 1e+9
-    elif "m":
-        memory = memory * 1000000
+    memory = int(BinarySize().check_and_return(memory))
 
-    settings_file = pathlib.Path(settings_path + "settings.json")
-
-    if not settings_file.exists():
+    if not settings_path.exists():
         filebrowser_default_settings = {
             "port": service_port,
             "baseURL": "",
@@ -113,7 +107,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     await container.start()
     await docker.close()
 
-    engine = create_engine('sqlite:///containers.db', echo = True)
+    engine = create_engine("sqlite:///" / db_path, echo=True)
 
     conn = engine.connect()
     insp = inspect(engine)
@@ -121,13 +115,14 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     meta = MetaData()
 
     containers = Table(
-        'containers', meta,
-        Column('container_id', String, primary_key = True),
-        Column('service_ip', String),
-        Column('service_port', Integer),
-        Column('config', Text),
-        Column('status', String),
-        Column('timestamp', String),
+        "containers",
+        meta,
+        Column("container_id", String, primary_key=True),
+        Column("service_ip", String),
+        Column("service_port", Integer),
+        Column("config", Text),
+        Column("status", String),
+        Column("timestamp", String),
     )
 
     if "containers" not in insp.get_table_names():
@@ -137,14 +132,19 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
 
     rows_list = [row for row in rows]
     if len(rows_list) > max_containers:
-        print("Can't create new container. Number of containers exceed the maximum limit.")
-        return 0, 0, 0
+        print(
+            "Can't create new container. Number of containers exceed the maximum limit.",
+        )
+        return ["0", 0, "0"]
 
-    ins = containers.insert().values(container_id=container_id,
-                                     service_ip=service_ip, service_port=int(service_port),
-                                     config=str(config), status="RUNNING",
-                                     timestamp=str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                                    )
+    ins = containers.insert().values(
+        container_id=container_id,
+        service_ip=service_ip,
+        service_port=int(service_port),
+        config=str(config),
+        status="RUNNING",
+        timestamp=str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    )
     conn.execute(ins)
 
     return service_ip, service_port, container_id
@@ -152,19 +152,20 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
 
 async def destroy(ctx: Context, container_id: str) -> None:
     docker = aiodocker.Docker()
-    engine = create_engine('sqlite:///containers.db', echo = True)
+    engine = create_engine("sqlite:///containers.db", echo=True)
     conn = engine.connect()
 
     meta = MetaData()
 
     containers = Table(
-        'containers', meta,
-        Column('container_id', String, primary_key = True),
-        Column('service_ip', String),
-        Column('service_port', Integer),
-        Column('config', Text),
-        Column('status', String),
-        Column('timestamp', String),
+        "containers",
+        meta,
+        Column("container_id", String, primary_key=True),
+        Column("service_ip", String),
+        Column("service_port", Integer),
+        Column("config", Text),
+        Column("status", String),
+        Column("timestamp", String),
     )
 
     for container in await docker.containers.list():
@@ -172,7 +173,9 @@ async def destroy(ctx: Context, container_id: str) -> None:
         if container._id == container_id:
             await container.stop()
             await container.delete()
-            del_sql = containers.delete().where(containers.c.container_id == container_id)
+            del_sql = containers.delete().where(
+                containers.c.container_id == container_id,
+            )
             conn.execute(del_sql)
 
     await docker.close()
