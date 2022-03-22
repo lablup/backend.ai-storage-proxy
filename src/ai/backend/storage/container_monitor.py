@@ -1,4 +1,5 @@
 import asyncio
+
 import aiodocker
 
 
@@ -10,7 +11,6 @@ async def get_filebrowsers():
     containers = await aiodocker.docker.DockerContainers(docker).list()
 
     for container in containers:
-
         stats = await container.stats(stream=False)
         print(container._id, stats)
         name = stats[0]["name"]
@@ -20,7 +20,6 @@ async def get_filebrowsers():
             container_list.append(cnt_id)
 
     await docker.close()
-
     return container_list
 
 
@@ -41,14 +40,11 @@ async def network_monitor(container_id, freq, period, threshold):
     container = aiodocker.docker.DockerContainer(docker, id=container_id)
 
     while True:
-
         stats = await container.stats(stream=False)
-
         network_total_transfer = (
             stats[0]["networks"]["eth0"]["rx_bytes"]
             + stats[0]["networks"]["eth0"]["tx_bytes"]
         )
-
         network_window.append(network_total_transfer)
         print("network total: ", network_total_transfer)
 
@@ -66,9 +62,7 @@ async def network_monitor(container_id, freq, period, threshold):
 async def monitor():
     monitored_list = []
     while True:
-
         browsers = await get_filebrowsers()
-
         if len(browsers) > 0:
             for browser in browsers:
                 if browser not in monitored_list:
