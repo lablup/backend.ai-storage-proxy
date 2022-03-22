@@ -7,11 +7,22 @@ import logging
 from datetime import datetime
 from typing import AsyncIterator, Awaitable, Callable, List
 
+import aiodocker
 import aiotools
 import attr
 import jwt
 import trafaret as t
 from aiohttp import hdrs, web
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    create_engine,
+    inspect,
+)
 
 from ai.backend.common import validators as tx
 from ai.backend.common.logging import BraceStyleAdapter
@@ -21,8 +32,6 @@ from .. import filebrowser
 from ..context import Context
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
-from sqlalchemy import inspect, create_engine, func, select, MetaData, Table, Column, Integer, String, Text
-import aiodocker
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -304,7 +313,10 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
             },
         ),
     ) as params:
+
         try:
+            print("Trigered ")
+
             await log_manager_api_entry(log, "get_vfolder_usage", params)
             ctx: Context = request.app["ctx"]
             async with ctx.get_volume(params["volume"]) as volume:
@@ -555,11 +567,9 @@ async def delete_files(request: web.Request) -> web.Response:
 async def create_or_update_filebrowser(request: web.Request) -> web.Response:
     ctx: Context = request.app["ctx"]
     params = await request.json()
-
     host: str
     port: int
     container_id: str
-
     host, port, container_id = await filebrowser.create_or_update(
         ctx,
         params["vfolders"],
@@ -583,14 +593,10 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
             },
         ),
     ) as params:
-
         await log_manager_api_entry(log, "destroy_filebrowser", params)
         ctx: Context = request.app["ctx"]
-
         try:
-
             await filebrowser.destroy(ctx, params["container_id"])
-
             return web.json_response(
                 {
                     "status": "ok",
@@ -602,7 +608,6 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
 
 async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
     ctx = app["ctx"]
-
     filebrowser_cleanup_task = aiotools.create_timer(
         functools.partial(filebrowser.cleanup, ctx),
         10.0,
@@ -612,6 +617,16 @@ async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
     await filebrowser_cleanup_task
 
 
+async def recreate_container(container_id, config):
+    docker = aiodocker.Docker()
+    container = await docker.containers.create_or_replace(
+        container_id,
+        config=config,
+    )
+    await container.start()
+    await docker.close()
+
+
 async def init_manager_app(ctx: Context) -> web.Application:
     app = web.Application(
         middlewares=[
@@ -619,57 +634,36 @@ async def init_manager_app(ctx: Context) -> web.Application:
         ],
     )
     app["ctx"] = ctx
-
-    engine = create_engine('sqlite:///containers.db')
-
+    db_path = ctx.local_config["filebrowser"]["db-path"]
+    engine = create_engine(f"sqlite:///{str(db_path)}")
     conn = engine.connect()
     insp = inspect(engine)
-
     meta = MetaData()
-
     containers = Table(
-        'containers', meta,
-        Column('container_id', String, primary_key = True),
-        Column('service_ip', String),
-        Column('service_port', Integer),
-        Column('config', Text),
-        Column('status', String),
-        Column('timestamp', String),
+        "containers",
+        meta,
+        Column("container_id", String, primary_key=True),
+        Column("service_ip", String),
+        Column("service_port", Integer),
+        Column("config", Text),
+        Column("status", String),
+        Column("timestamp", String),
     )
-
     if "containers" not in insp.get_table_names():
         meta.create_all(engine)
-
     rows = conn.execute(containers.select())
-
-    db_container_list = {}
+    db_containers_index = {}
     for row in rows:
-        db_container_list[row['container_id']] = row
+        db_containers_index[row["container_id"]] = row
 
     docker = aiodocker.Docker()
-    containers = await aiodocker.docker.DockerContainers(docker).list()
+    docker_containers = await aiodocker.docker.DockerContainers(docker).list()
     await docker.close()
 
-    container_id_list = [container._id for container in containers]
-
-    for container_id in db_container_list.keys():
-
-        if container_id not in container_id_list:
-            docker = aiodocker.Docker()
-
-            container = await docker.containers.create_or_replace(container_id,
-                                                                  config=db_container_list[container_id][3],
-                                                                  )
-
-            await container.start()
-            await docker.close()
-
-
-    docker = aiodocker.Docker()
-    stats = await aiodocker.docker.DockerContainer(docker).stats()
-
-    await docker.close()
-
+    running_containers_list = [container._id for container in docker_containers]
+    for container_id in db_containers_index.keys():
+        if container_id not in running_containers_list:
+            await recreate_container(container_id, config=db_containers_index[container_id][3])
 
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
