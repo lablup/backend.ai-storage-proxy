@@ -55,7 +55,6 @@ async def get_all_containers(engine, conn):
 
 async def insert_new_container(
     conn,
-    table,
     container_id,
     service_ip,
     service_port,
@@ -63,7 +62,18 @@ async def insert_new_container(
     status,
     timestamp,
 ):
-    ins = table.insert().values(
+    meta = MetaData()
+    containers = Table(
+        "containers",
+        meta,
+        Column("container_id", String, primary_key=True),
+        Column("service_ip", String),
+        Column("service_port", Integer),
+        Column("config", Text),
+        Column("status", String),
+        Column("timestamp", String),
+    )
+    ins = containers.insert().values(
         container_id=container_id,
         service_ip=service_ip,
         service_port=int(service_port),
@@ -77,7 +87,7 @@ async def insert_new_container(
 async def delete_container_record(conn, container_id):
 
     meta = MetaData()
-    table = Table(
+    containers = Table(
         "containers",
         meta,
         Column("container_id", String, primary_key=True),
@@ -87,7 +97,7 @@ async def delete_container_record(conn, container_id):
         Column("status", String),
         Column("timestamp", String),
     )
-    del_sql = table.delete().where(
-        table.c.container_id == container_id,
+    del_sql = containers.delete().where(
+        containers.c.container_id == container_id,
     )
     conn.execute(del_sql)

@@ -30,7 +30,7 @@ __all__ = (
 
 
 async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int, str]:
-
+    """ Create or update new docker image. """
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
@@ -103,14 +103,13 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     await docker.close()
 
     engine, conn = await create_connection(db_path)
-    rows, conn = await get_all_containers(engine, conn)
+    rows, _ = await get_all_containers(engine, conn)
     rows_list = [row for row in rows]
     if len(rows_list) > max_containers:
         print(
             "Can't create new container. Number of containers exceed the maximum limit.",
         )
         return ["0", 0, "0"]
-
     await insert_new_container(
         conn,
         container_id,
@@ -120,17 +119,15 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
         "RUNNING",
         str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
     )
-
     return service_ip, service_port, container_id
 
 
 async def recreate_container(container_id, config):
     docker = aiodocker.Docker()
-    container = await docker.containers.create_or_replace(
+    await docker.containers.create_or_replace(
         container_id,
         config=config,
     )
-    await container.start()
     await docker.close()
 
 
