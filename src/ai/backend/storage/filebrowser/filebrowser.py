@@ -123,12 +123,15 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
 
 
 async def recreate_container(container_id, config):
+    pass
+    """ TO-DO
     docker = aiodocker.Docker()
     await docker.containers.create_or_replace(
         container_id,
         config=config,
     )
     await docker.close()
+    """
 
 
 async def destroy(ctx: Context, container_id: str) -> None:
