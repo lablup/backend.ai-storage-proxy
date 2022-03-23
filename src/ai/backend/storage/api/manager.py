@@ -13,23 +13,18 @@ import attr
 import jwt
 import trafaret as t
 from aiohttp import hdrs, web
-from sqlalchemy import (
-    Column,
-    Integer,
-    MetaData,
-    String,
-    Table,
-    Text,
-    create_engine,
-    inspect,
-)
 
 from ai.backend.common import validators as tx
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.storage.exception import ExecutionError
 
-from .. import filebrowser
 from ..context import Context
+from ..filebrowser import filebrowser
+from ..filebrowser.database import (
+    create_connection,
+    get_all_containers,
+    initialize_table_if_not_exist,
+)
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -617,16 +612,6 @@ async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
     await filebrowser_cleanup_task
 
 
-async def recreate_container(container_id, config):
-    docker = aiodocker.Docker()
-    container = await docker.containers.create_or_replace(
-        container_id,
-        config=config,
-    )
-    await container.start()
-    await docker.close()
-
-
 async def init_manager_app(ctx: Context) -> web.Application:
     app = web.Application(
         middlewares=[
@@ -635,23 +620,10 @@ async def init_manager_app(ctx: Context) -> web.Application:
     )
     app["ctx"] = ctx
     db_path = ctx.local_config["filebrowser"]["db-path"]
-    engine = create_engine(f"sqlite:///{str(db_path)}")
-    conn = engine.connect()
-    insp = inspect(engine)
-    meta = MetaData()
-    containers = Table(
-        "containers",
-        meta,
-        Column("container_id", String, primary_key=True),
-        Column("service_ip", String),
-        Column("service_port", Integer),
-        Column("config", Text),
-        Column("status", String),
-        Column("timestamp", String),
-    )
-    if "containers" not in insp.get_table_names():
-        meta.create_all(engine)
-    rows = conn.execute(containers.select())
+    engine, conn = await create_connection(db_path)
+    await initialize_table_if_not_exist(engine, conn)
+    rows, conn = await get_all_containers(engine, conn)
+
     db_containers_index = {}
     for row in rows:
         db_containers_index[row["container_id"]] = row
@@ -663,7 +635,9 @@ async def init_manager_app(ctx: Context) -> web.Application:
     running_containers_list = [container._id for container in docker_containers]
     for container_id in db_containers_index.keys():
         if container_id not in running_containers_list:
-            await recreate_container(container_id, config=db_containers_index[container_id][3])
+            await filebrowser.recreate_container(
+                container_id, config=db_containers_index[container_id][3],
+            )
 
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
@@ -686,7 +660,9 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/download", create_download_session)
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
-    app.router.add_route("POST", "/storage/filebrowser/create", create_or_update_filebrowser)
+    app.router.add_route(
+        "POST", "/storage/filebrowser/create", create_or_update_filebrowser,
+    )
     app.router.add_route("DELETE", "/storage/filebrowser/destroy", destroy_filebrowser)
     app.cleanup_ctx.append(filebrowser_ctx)
     return app
