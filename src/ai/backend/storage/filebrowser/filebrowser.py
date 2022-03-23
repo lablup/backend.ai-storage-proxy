@@ -12,13 +12,13 @@ from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.validators import BinarySize
 
 from ..context import Context
+from ..utils import mangle_path
 from .database import (
     create_connection,
     delete_container_record,
     get_all_containers,
     insert_new_container,
 )
-from ..utils import mangle_path
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -30,7 +30,7 @@ __all__ = (
 
 
 async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int, str]:
-    """ Create or update new docker image. """
+    """Create or update new docker image."""
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
@@ -134,17 +134,63 @@ async def recreate_container(container_id, config):
     """
 
 
-async def destroy(ctx: Context, container_id: str) -> None:
+async def destroy_container_with_ctx(ctx: Context, container_id: str) -> None:
     db_path = ctx.local_config["filebrowser"]["db_path"]
     docker = aiodocker.Docker()
     _, conn = await create_connection(db_path)
-
     for container in await docker.containers.list():
         if container._id == container_id:
             await container.stop()
             await container.delete()
             delete_container_record(conn, container_id)
     await docker.close()
+
+
+async def destroy_container(ctx: Context, container_id: str) -> None:
+    db_path = ctx.local_config["filebrowser"]["db_path"]
+    docker = aiodocker.Docker()
+    _, conn = await create_connection(db_path)
+    for container in await docker.containers.list():
+        if container._id == container_id:
+            await container.stop()
+            await container.delete()
+            delete_container_record(conn, container_id)
+    await docker.close()
+
+
+async def get_container_by_id(container_id: str):
+    docker = aiodocker.Docker()
+    container = aiodocker.docker.DockerContainers(docker).container(
+        container_id=container_id,
+    )
+    await docker.close()
+    return container
+
+
+async def get_filebrowsers():
+    docker = aiodocker.Docker()
+    container_list = []
+    containers = await aiodocker.docker.DockerContainers(docker).list()
+    for container in containers:
+        stats = await container.stats(stream=False)
+        name = stats[0]["name"]
+        cnt_id = stats[0]["id"]
+        if "FileBrowser" in name:
+            container_list.append(cnt_id)
+    await docker.close()
+    return container_list
+
+
+async def get_network_stats(container):
+    stats = await container.stats(stream=False)
+    return (
+        stats[0]["networks"]["eth0"]["rx_bytes"],
+        stats[0]["networks"]["eth0"]["tx_bytes"],
+    )
+
+
+async def get_disk_usage_stats():
+    pass
 
 
 async def cleanup(ctx: Context, interval: float) -> None:
@@ -157,4 +203,7 @@ async def _enumerate_containers() -> AsyncIterator[str]:
 
 
 async def _check_active_connections(container_id: str) -> bool:
-    return True
+    if len(await get_filebrowsers()) > 0:
+        return True
+    else:
+        return False
