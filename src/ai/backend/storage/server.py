@@ -92,7 +92,7 @@ async def server_main(
     manager_api_runner = web.AppRunner(manager_api_app)
     await client_api_runner.setup()
     await manager_api_runner.setup()
-    await monitor(ctx)
+    asyncio.create_task(monitor(ctx))
     client_service_addr = local_config["api"]["client"]["service-addr"]
     manager_service_addr = local_config["api"]["manager"]["service-addr"]
     client_api_site = web.TCPSite(

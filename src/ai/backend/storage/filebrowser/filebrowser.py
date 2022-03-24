@@ -139,14 +139,14 @@ async def recreate_container(container_id, config):
 
 
 async def destroy_container(ctx: Context, container_id: str) -> None:
-    db_path = ctx.local_config["filebrowser"]["db_path"]
+    db_path = ctx.local_config["filebrowser"]["db-path"]
     docker = aiodocker.Docker()
     _, conn = await create_connection(db_path)
     for container in await docker.containers.list():
         if container._id == container_id:
             await container.stop()
             await container.delete()
-            delete_container_record(conn, container_id)
+            await delete_container_record(conn, container_id)
     await docker.close()
 
 
@@ -173,8 +173,14 @@ async def get_filebrowsers():
     return container_list
 
 
-async def get_network_stats(container):
+async def get_network_stats(container_id):
+    docker = aiodocker.Docker()
+    container = aiodocker.docker.DockerContainers(docker).container(
+        container_id=container_id,
+    )
+
     stats = await container.stats(stream=False)
+    await docker.close()
     return (
         stats[0]["networks"]["eth0"]["rx_bytes"],
         stats[0]["networks"]["eth0"]["tx_bytes"],
