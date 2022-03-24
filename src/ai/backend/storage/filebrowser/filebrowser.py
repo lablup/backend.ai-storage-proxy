@@ -10,9 +10,9 @@ import aiofiles
 
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.validators import BinarySize
+from ai.backend.storage.context import Context
+from ai.backend.storage.utils import mangle_path
 
-from ..context import Context
-from ..utils import mangle_path
 from .database import (
     create_connection,
     delete_container_record,
@@ -24,8 +24,12 @@ log = BraceStyleAdapter(logging.getLogger(__name__))
 
 __all__ = (
     "create_or_update",
-    "destroy",
     "cleanup",
+    "destroy_container",
+    "get_container_by_id",
+    "get_filebrowsers",
+    "get_network_stats",
+    "get_disk_usage_stats",
 )
 
 
@@ -89,8 +93,8 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
                 "Target": f"/data/{vfolder['name']}",
                 "Source": f"{mangle_path(mount_path, vfolder['vfid'])}",
                 "Type": "bind",
-                "CpuCount": cpu_count,
-                "Memory": memory,
+                "CpuCount": str(cpu_count),
+                "Memory": str(memory),
             },
         )
 
@@ -109,7 +113,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
         print(
             "Can't create new container. Number of containers exceed the maximum limit.",
         )
-        return ["0", 0, "0"]
+        return ("0", 0, "0")
     await insert_new_container(
         conn,
         container_id,
@@ -132,18 +136,6 @@ async def recreate_container(container_id, config):
     )
     await docker.close()
     """
-
-
-async def destroy_container_with_ctx(ctx: Context, container_id: str) -> None:
-    db_path = ctx.local_config["filebrowser"]["db_path"]
-    docker = aiodocker.Docker()
-    _, conn = await create_connection(db_path)
-    for container in await docker.containers.list():
-        if container._id == container_id:
-            await container.stop()
-            await container.delete()
-            delete_container_record(conn, container_id)
-    await docker.close()
 
 
 async def destroy_container(ctx: Context, container_id: str) -> None:
