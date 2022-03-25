@@ -45,6 +45,13 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     db_path = ctx.local_config["filebrowser"]["db-path"]
     memory = int(BinarySize().check_and_return(memory))
 
+    running_docker_containers = await get_filebrowsers()
+    if len(running_docker_containers) >= max_containers:
+        print(
+            "Can't create new container. Number of containers exceed the maximum limit.",
+        )
+        return ("0", 0, "0")
+
     if not settings_path.exists():
         filebrowser_default_settings = {
             "port": service_port,
@@ -104,14 +111,7 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     await container.start()
     await docker.close()
 
-    engine, conn = await create_connection(db_path)
-    rows, _ = await get_all_containers(engine, conn)
-    rows_list = [row for row in rows]
-    if len(rows_list) > max_containers:
-        print(
-            "Can't create new container. Number of containers exceed the maximum limit.",
-        )
-        return ("0", 0, "0")
+    _, conn = await create_connection(db_path)
     await insert_new_container(
         conn,
         container_id,
