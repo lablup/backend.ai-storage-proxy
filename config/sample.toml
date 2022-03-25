@@ -131,6 +131,8 @@ format = "simple"
 [volume]
 # volume section may define one or more named subsections with
 # backend-specific configurations.
+# It is your job to prepare the "/vfroot" directory and its inner mount
+# points from actual storage devices or using local partitions.
 
 
 [volume.local]

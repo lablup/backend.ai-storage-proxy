@@ -113,18 +113,6 @@ class NetAppVolume(BaseVolume):
             io_usec_write=metric["latency"]["write"],
         )
 
-    async def create_vfolder(
-        self,
-        vfid: UUID,
-        options: VFolderCreationOptions = None,
-    ) -> None:
-        vfpath = self.mangle_vfpath(vfid)
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
-        )
-
     async def delete_vfolder(self, vfid: UUID) -> None:
         vfpath = self.mangle_vfpath(vfid)
 
@@ -181,7 +169,7 @@ class NetAppVolume(BaseVolume):
             raise VFolderCreationError("Not enough space available for clone")
 
         # create the target vfolder
-        await dst_volume.create_vfolder(dst_vfid, options=options)
+        await dst_volume.create_vfolder(dst_vfid, options=options, exist_ok=True)
 
         # arrange directory based on nfs
         src_vfpath = str(self.mangle_vfpath(src_vfid)).split(
@@ -292,7 +280,7 @@ class NetAppVolume(BaseVolume):
     async def get_usage(
         self,
         vfid: UUID,
-        relpath: PurePosixPath = None,
+        relpath: PurePosixPath = PurePosixPath("."),
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
@@ -371,7 +359,8 @@ class NetAppVolume(BaseVolume):
                 def _calc_usage(target_path: os.DirEntry | Path) -> None:
                     nonlocal total_size, total_count
                     _timeout = 3
-                    with os.scandir(target_path) as scanner:
+                    # FIXME: Remove "type: ignore" when python/mypy#11964 is resolved.
+                    with os.scandir(target_path) as scanner:  # type: ignore
                         for entry in scanner:
                             if entry.is_dir():
                                 _calc_usage(entry)
@@ -388,7 +377,7 @@ class NetAppVolume(BaseVolume):
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, _calc_usage, target_path)
         except StorageProxyError:
-            raise ExecutionError(message="Storage server is busy. Please try again")
+            raise ExecutionError("Storage server is busy. Please try again")
         except FileNotFoundError:
             available = False
         except IndexError:
@@ -399,7 +388,7 @@ class NetAppVolume(BaseVolume):
             total_count = -1
         if not available:
             raise ExecutionError(
-                message="Cannot access the scan result file. Please check xcp is activated.",
+                "Cannot access the scan result file. Please check xcp is activated.",
             )
 
         return VFolderUsage(file_count=total_count, used_bytes=total_size)
