@@ -144,9 +144,12 @@ async def destroy_container(ctx: Context, container_id: str) -> None:
     _, conn = await create_connection(db_path)
     for container in await docker.containers.list():
         if container._id == container_id:
-            await container.stop()
-            await container.delete()
-            await delete_container_record(conn, container_id)
+            try:
+                await container.stop()
+                await container.delete()
+                await delete_container_record(conn, container_id)
+            except Exception:
+                pass
     await docker.close()
 
 
@@ -187,12 +190,7 @@ async def get_network_stats(container_id):
     )
 
 
-async def get_disk_usage_stats():
-    pass
-
-
-async def cleanup(ctx: Context, interval: float) -> None:
-    log.info("filebrowser.cleanup")
+async def get_container_disk_usage_stats():
     pass
 
 

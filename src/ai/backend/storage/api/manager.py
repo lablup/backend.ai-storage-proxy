@@ -591,7 +591,7 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
         await log_manager_api_entry(log, "destroy_filebrowser", params)
         ctx: Context = request.app["ctx"]
         try:
-            await filebrowser.destroy(ctx, params["container_id"])
+            await filebrowser.destroy_container(ctx, params["container_id"])
             return web.json_response(
                 {
                     "status": "ok",
@@ -599,17 +599,6 @@ async def destroy_filebrowser(request: web.Request) -> web.Response:
             )
         except Exception:
             raise Exception
-
-
-async def filebrowser_ctx(app: web.Application) -> AsyncIterator[None]:
-    ctx = app["ctx"]
-    filebrowser_cleanup_task = aiotools.create_timer(
-        functools.partial(filebrowser.cleanup, ctx),
-        10.0,
-    )
-    yield
-    filebrowser_cleanup_task.cancel()
-    await filebrowser_cleanup_task
 
 
 async def init_manager_app(ctx: Context) -> web.Application:
@@ -664,5 +653,4 @@ async def init_manager_app(ctx: Context) -> web.Application:
         "POST", "/storage/filebrowser/create", create_or_update_filebrowser,
     )
     app.router.add_route("DELETE", "/storage/filebrowser/destroy", destroy_filebrowser)
-    app.cleanup_ctx.append(filebrowser_ctx)
     return app

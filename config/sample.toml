@@ -71,6 +71,14 @@ db-path = '/Users/filebrowser/containers.db'
 # user = 1000
 # group = 1000
 
+# fequency in seconds for network monitor to acquire network input and output of docker container
+freq = 1
+
+# period in seconds to check for network idle conditions
+period = 30
+
+# idle timeout in seconds. If enabled then auto destroy containers after specified time.
+idle_timeout = 30
 
 [api.client]
 # Client-facing API
