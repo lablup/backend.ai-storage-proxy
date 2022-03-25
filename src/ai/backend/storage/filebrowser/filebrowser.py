@@ -24,12 +24,10 @@ log = BraceStyleAdapter(logging.getLogger(__name__))
 
 __all__ = (
     "create_or_update",
-    "cleanup",
     "destroy_container",
     "get_container_by_id",
     "get_filebrowsers",
     "get_network_stats",
-    "get_disk_usage_stats",
 )
 
 
@@ -188,14 +186,6 @@ async def get_network_stats(container_id):
         stats[0]["networks"]["eth0"]["rx_bytes"],
         stats[0]["networks"]["eth0"]["tx_bytes"],
     )
-
-
-async def get_container_disk_usage_stats():
-    pass
-
-
-async def _enumerate_containers() -> AsyncIterator[str]:
-    pass
 
 
 async def _check_active_connections(container_id: str) -> bool:
