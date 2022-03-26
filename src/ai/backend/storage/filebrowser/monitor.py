@@ -20,7 +20,6 @@ async def network_monitor(ctx: Context, container_id, freq, period):
         network_total_transfer = stats[0] + stats[1]
         network_window.append(network_total_transfer)
         if current_time - start_time > period:
-            print("network timeout")
             network_utilization_change = network_window[-1] - network_window[0]
             if network_utilization_change == 0:
                 start_time = current_time
@@ -36,7 +35,6 @@ async def idle_timeout_monitor(ctx: Context, container_id, idle_timeout):
     start_time = time.time()
     while True:
         current_time = time.time()
-        print("idle timeout ", start_time, current_time, current_time - start_time)
         if current_time - start_time >= idle_timeout:
             await destroy_container(ctx, container_id)
             break
