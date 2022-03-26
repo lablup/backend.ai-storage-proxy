@@ -52,11 +52,6 @@ local_config_iv = (
                         default_gid=_file_perm.st_gid,
                     ),
                     t.Key("settings_path", default=None): tx.Path(type="dir"),
-                    t.Key("settings_file", default=None): tx.Path(
-                        type="file",
-                        allow_nonexisting=True,
-                        allow_devnull=True,
-                    ),
                     t.Key("service_port", default=None): t.Int,
                     t.Key("mount_path", default=None): tx.Path(type="dir"),
                     t.Key("max-containers", default=None): t.Int,
