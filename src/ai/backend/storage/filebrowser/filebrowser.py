@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 
 import aiodocker
-from .config import prepare_filebrowser_app_config
 
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.validators import BinarySize
@@ -15,6 +14,7 @@ from ai.backend.storage.utils import (
     mangle_path,
 )
 
+from .config import prepare_filebrowser_app_config
 from .database import (
     create_connection,
     delete_container_record,
