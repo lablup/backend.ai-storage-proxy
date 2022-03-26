@@ -695,15 +695,13 @@ async def init_manager_app(ctx: Context) -> web.Application:
     docker = aiodocker.Docker()
     docker_containers = await aiodocker.docker.DockerContainers(docker).list()
     await docker.close()
-
     running_containers_list = [container._id for container in docker_containers]
-    for container_id in db_containers_index.keys():
+    for container_id, row in db_containers_index.items():
         if container_id not in running_containers_list:
             await filebrowser.recreate_container(
-                container_id,
-                config=db_containers_index[container_id][3],
+                row["container_name"],
+                config=json.loads(row["config"].replace("'", '"')),
             )
-
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
     app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)

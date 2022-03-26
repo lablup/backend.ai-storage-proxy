@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime
 
 import aiodocker
-import aiofiles
+from .config import prepare_filebrowser_app_config
 
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.validators import BinarySize
@@ -40,7 +39,6 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     service_port = ctx.local_config["filebrowser"]["service_port"]
     max_containers = ctx.local_config["filebrowser"]["max-containers"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
-    settings_file = ctx.local_config["filebrowser"]["settings_file"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
     memory = ctx.local_config["filebrowser"]["max-mem"]
@@ -49,7 +47,6 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
 
     if is_port_in_use(service_port):
         service_port = get_available_port()
-
     running_docker_containers = await get_filebrowsers()
     if len(running_docker_containers) >= max_containers:
         print(
@@ -57,22 +54,13 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
         )
         return ("0", 0, "0")
 
-    if not settings_path.exists():
-        filebrowser_default_settings = {
-            "port": service_port,
-            "baseURL": "",
-            "address": "",
-            "log": "stdout",
-            "database": "/filebrowser_dir/filebrowser.db",
-            "root": "/data/",
-        }
-        async with aiofiles.open(settings_path / settings_file, mode="w") as file:
-            await file.write(json.dumps(filebrowser_default_settings))
+    await prepare_filebrowser_app_config(settings_path, service_port)
 
     docker = aiodocker.Docker()
     config = {
         "Cmd": [
             "/filebrowser_dir/start.sh",
+            f"{service_port}",
         ],
         "ExposedPorts": {
             f"{service_port}/tcp": {},
@@ -87,6 +75,8 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
                     },
                 ],
             },
+            "CpuCount": cpu_count,
+            "Memory": memory,
             "Mounts": [
                 {
                     "Target": "/filebrowser_dir/",
@@ -102,14 +92,12 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
                 "Target": f"/data/{str(vfolder['name'])}",
                 "Source": f"{str(mangle_path(mount_path, vfolder['vfid']))}",
                 "Type": "bind",
-                "CpuCount": f"{str(cpu_count)}",
-                "Memory": f"{str(memory)}",
             },
         )
-
+    container_name = f"FileBrowser-{service_port}"
     container = await docker.containers.create_or_replace(
         config=config,
-        name=f"FileBrowser-{vfolder['name']}-{service_port}",
+        name=container_name,
     )
     container_id = container._id
     await container.start()
@@ -119,6 +107,7 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     await insert_new_container(
         conn,
         container_id,
+        container_name,
         service_ip,
         service_port,
         config,
@@ -128,14 +117,15 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     return service_ip, service_port, container_id
 
 
-async def recreate_container(container_id, config):
+async def recreate_container(container_name, config):
     pass
-    """ TO-DO
+    """
     docker = aiodocker.Docker()
-    await docker.containers.create_or_replace(
-        container_id,
+    container = await docker.containers.create_or_replace(
         config=config,
+        name=container_name,
     )
+    await container.start()
     await docker.close()
     """
 

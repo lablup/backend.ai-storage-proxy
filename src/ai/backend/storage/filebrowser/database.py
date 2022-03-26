@@ -14,6 +14,7 @@ containers = Table(
     "containers",
     meta,
     Column("container_id", String, primary_key=True),
+    Column("container_name", String),
     Column("service_ip", String),
     Column("service_port", Integer),
     Column("config", Text),
@@ -57,6 +58,7 @@ async def get_filebrowser_by_container_id(engine, conn, container_id):
 async def insert_new_container(
     conn,
     container_id,
+    container_name,
     service_ip,
     service_port,
     config,
@@ -65,6 +67,7 @@ async def insert_new_container(
 ):
     ins = containers.insert().values(
         container_id=container_id,
+        container_name=container_name,
         service_ip=service_ip,
         service_port=int(service_port),
         config=str(config),
@@ -79,3 +82,4 @@ async def delete_container_record(conn, container_id):
         containers.c.container_id == container_id,
     )
     conn.execute(del_sql)
+    conn.close()
