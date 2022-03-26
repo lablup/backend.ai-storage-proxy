@@ -1,4 +1,5 @@
 import asyncio
+
 # from asyncio.subprocess import PIPE
 import grp
 import logging
@@ -27,7 +28,6 @@ from .api.manager import init_manager_app
 from .config import local_config_iv
 from .context import Context
 from .filebrowser.monitor import monitor
-
 
 log = BraceStyleAdapter(logging.getLogger("ai.backend.storage.server"))
 
@@ -92,7 +92,8 @@ async def server_main(
     manager_api_runner = web.AppRunner(manager_api_app)
     await client_api_runner.setup()
     await manager_api_runner.setup()
-    asyncio.create_task(monitor(ctx))
+    #asyncio.create_task(monitor(ctx))
+    #print("Monitor Started")
     client_service_addr = local_config["api"]["client"]["service-addr"]
     manager_service_addr = local_config["api"]["manager"]["service-addr"]
     client_api_site = web.TCPSite(
@@ -194,7 +195,6 @@ def main(cli_ctx, config_path, debug):
                 log_endpoint=log_endpoint,
             )
             with logger:
-                setproctitle("backend.ai: storage-proxy")
                 log.info("Backend.AI Storage Proxy", VERSION)
                 log.info("Runtime: {0}", env_info())
                 log.info("Node ID: {0}", local_config["storage-proxy"]["node-id"])

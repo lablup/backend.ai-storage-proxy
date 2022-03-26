@@ -4,13 +4,13 @@ import logging
 from contextlib import asynccontextmanager as actxmgr
 from datetime import datetime
 from datetime import timezone as tz
+from pathlib import Path
 from typing import Any, Optional, Union
 
 import trafaret as t
 from aiohttp import web
 
 from ai.backend.common.logging import BraceStyleAdapter
-from pathlib import Path
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 

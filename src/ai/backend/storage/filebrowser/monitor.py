@@ -57,7 +57,9 @@ async def monitor(ctx: Context):
             for browser in browsers:
                 if browser not in network_monitored_list:
                     network_monitored_list.append(browser)
-                    network_tasks.append(asyncio.create_task(network_monitor(ctx, browser, freq, period)))
+                    network_tasks.append(
+                        asyncio.create_task(network_monitor(ctx, browser, freq, period)),
+                    )
                 if (idle_timeout is not None) and (
                     browser not in idle_time_monitored_list
                 ):

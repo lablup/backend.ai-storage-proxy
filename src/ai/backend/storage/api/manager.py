@@ -22,13 +22,13 @@ from ai.backend.storage.exception import ExecutionError
 
 from ..abc import AbstractVolume
 from ..context import Context
+from ..exception import InvalidSubpathError, VFolderNotFoundError
 from ..filebrowser import filebrowser
 from ..filebrowser.database import (
     create_connection,
     get_all_containers,
     initialize_table_if_not_exist,
 )
-from ..exception import InvalidSubpathError, VFolderNotFoundError
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -642,10 +642,13 @@ async def create_or_update_filebrowser(request: web.Request) -> web.Response:
     host: str
     port: int
     container_id: str
+
+    print(params)
     host, port, container_id = await filebrowser.create_or_update(
         ctx,
         params["vfolders"],
     )
+
     return web.json_response(
         {
             "addr": f"http://{host}:{port}",  # TODO: SSL?

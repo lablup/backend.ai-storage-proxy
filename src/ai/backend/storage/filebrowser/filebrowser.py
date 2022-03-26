@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import AsyncIterator
 
 import aiodocker
 import aiofiles
@@ -16,7 +15,6 @@ from ai.backend.storage.utils import mangle_path
 from .database import (
     create_connection,
     delete_container_record,
-    get_all_containers,
     insert_new_container,
 )
 
@@ -31,7 +29,11 @@ __all__ = (
 )
 
 
-async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int, str]:
+async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int, str]:
+    print("Vfolders ", vfolders)
+    print("Vfolders type ", type(vfolders))
+    print("Vfolder ", vfolders[0], type(vfolders[0]))
+    print("Creating ******")
     """Create or update new docker image."""
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
@@ -93,13 +95,14 @@ async def create_or_update(ctx: Context, vfolders: list[str]) -> tuple[str, int,
     }
 
     for vfolder in vfolders:
+        print(type(vfolder), vfolder["name"], type(vfolder["name"]))
         config["HostConfig"]["Mounts"].append(
             {
-                "Target": f"/data/{vfolder['name']}",
-                "Source": f"{mangle_path(mount_path, vfolder['vfid'])}",
+                "Target": f"/data/{str(vfolder['name'])}",
+                "Source": f"{str(mangle_path(mount_path, vfolder['vfid']))}",
                 "Type": "bind",
-                "CpuCount": str(cpu_count),
-                "Memory": str(memory),
+                "CpuCount": f"{str(cpu_count)}",
+                "Memory": f"{str(memory)}",
             },
         )
 
@@ -179,7 +182,6 @@ async def get_network_stats(container_id):
     container = aiodocker.docker.DockerContainers(docker).container(
         container_id=container_id,
     )
-
     stats = await container.stats(stream=False)
     await docker.close()
     return (

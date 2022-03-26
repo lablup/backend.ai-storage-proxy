@@ -44,7 +44,6 @@ class Context:
     def set_container_id(self, container_id):
         self.container_id = container_id
 
-
     def get_container_id(self):
         return self.container_id
 
