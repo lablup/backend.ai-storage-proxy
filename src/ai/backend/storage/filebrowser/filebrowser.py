@@ -30,10 +30,6 @@ __all__ = (
 
 
 async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int, str]:
-    print("Vfolders ", vfolders)
-    print("Vfolders type ", type(vfolders))
-    print("Vfolder ", vfolders[0], type(vfolders[0]))
-    print("Creating ******")
     """Create or update new docker image."""
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]

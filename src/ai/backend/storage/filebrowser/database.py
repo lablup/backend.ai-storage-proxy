@@ -36,7 +36,6 @@ async def initialize_table_if_not_exist(engine, conn):
 
 async def get_all_containers(engine, conn):
     insp = inspect(engine)
-
     if "containers" not in insp.get_table_names():
         meta.create_all(engine)
     rows = conn.execute(containers.select())
@@ -45,7 +44,6 @@ async def get_all_containers(engine, conn):
 
 async def get_filebrowser_by_container_id(engine, conn, container_id):
     insp = inspect(engine)
-
     if "containers" not in insp.get_table_names():
         meta.create_all(engine)
     rows = conn.execute(

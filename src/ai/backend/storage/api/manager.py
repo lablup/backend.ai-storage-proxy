@@ -637,6 +637,7 @@ async def delete_files(request: web.Request) -> web.Response:
 
 
 async def create_or_update_filebrowser(request: web.Request) -> web.Response:
+    print("Hello")
     ctx: Context = request.app["ctx"]
     params = await request.json()
     host: str
