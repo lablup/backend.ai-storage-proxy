@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager as actxmgr
 from datetime import datetime
 from datetime import timezone as tz
 from pathlib import Path
+from socket import AF_INET, SOCK_STREAM, socket
 from typing import Any, Optional, Union
 
 import trafaret as t
@@ -135,3 +136,14 @@ def mangle_path(mount_path, vfid):
     prefix2 = vfid[2:4]
     rest = vfid[4:]
     return Path(mount_path, prefix1, prefix2, rest)
+
+
+def is_port_in_use(port: int) -> bool:
+    with socket(AF_INET, SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
+
+
+def get_available_port() -> int:
+    with socket() as s:
+        s.bind(("", 0))
+        return int(s.getsockname()[1])

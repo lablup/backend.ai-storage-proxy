@@ -10,7 +10,11 @@ import aiofiles
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.validators import BinarySize
 from ai.backend.storage.context import Context
-from ai.backend.storage.utils import mangle_path
+from ai.backend.storage.utils import (
+    get_available_port,
+    is_port_in_use,
+    mangle_path,
+)
 
 from .database import (
     create_connection,
@@ -42,6 +46,9 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     memory = ctx.local_config["filebrowser"]["max-mem"]
     db_path = ctx.local_config["filebrowser"]["db-path"]
     memory = int(BinarySize().check_and_return(memory))
+
+    if is_port_in_use(service_port):
+        service_port = get_available_port()
 
     running_docker_containers = await get_filebrowsers()
     if len(running_docker_containers) >= max_containers:
@@ -89,9 +96,7 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
             ],
         },
     }
-
     for vfolder in vfolders:
-        print(type(vfolder), vfolder["name"], type(vfolder["name"]))
         config["HostConfig"]["Mounts"].append(
             {
                 "Target": f"/data/{str(vfolder['name'])}",
@@ -104,7 +109,7 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
 
     container = await docker.containers.create_or_replace(
         config=config,
-        name="FileBrowser",
+        name=f"FileBrowser-{vfolder['name']}-{service_port}",
     )
     container_id = container._id
     await container.start()
