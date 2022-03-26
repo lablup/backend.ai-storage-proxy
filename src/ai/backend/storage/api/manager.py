@@ -367,8 +367,6 @@ async def get_vfolder_usage(request: web.Request) -> web.Response:
     ) as params:
 
         try:
-            print("Trigered ")
-
             await log_manager_api_entry(log, "get_vfolder_usage", params)
             ctx: Context = request.app["ctx"]
             async with ctx.get_volume(params["volume"]) as volume:
