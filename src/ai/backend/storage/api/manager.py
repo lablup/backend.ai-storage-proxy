@@ -637,19 +637,15 @@ async def delete_files(request: web.Request) -> web.Response:
 
 
 async def create_or_update_filebrowser(request: web.Request) -> web.Response:
-    print("Hello")
     ctx: Context = request.app["ctx"]
     params = await request.json()
     host: str
     port: int
     container_id: str
-
-    print(params)
     host, port, container_id = await filebrowser.create_or_update(
         ctx,
         params["vfolders"],
     )
-
     return web.json_response(
         {
             "addr": f"http://{host}:{port}",  # TODO: SSL?
@@ -706,7 +702,8 @@ async def init_manager_app(ctx: Context) -> web.Application:
     for container_id in db_containers_index.keys():
         if container_id not in running_containers_list:
             await filebrowser.recreate_container(
-                container_id, config=db_containers_index[container_id][3],
+                container_id,
+                config=db_containers_index[container_id][3],
             )
 
     app.router.add_route("GET", "/", get_status)
@@ -732,7 +729,9 @@ async def init_manager_app(ctx: Context) -> web.Application:
     app.router.add_route("POST", "/folder/file/upload", create_upload_session)
     app.router.add_route("POST", "/folder/file/delete", delete_files)
     app.router.add_route(
-        "POST", "/storage/filebrowser/create", create_or_update_filebrowser,
+        "POST",
+        "/storage/filebrowser/create",
+        create_or_update_filebrowser,
     )
     app.router.add_route("DELETE", "/storage/filebrowser/destroy", destroy_filebrowser)
     return app
