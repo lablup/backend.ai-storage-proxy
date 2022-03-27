@@ -24,7 +24,7 @@ containers = Table(
 
 
 async def create_connection(db_path):
-    engine = create_engine(f"sqlite:///{str(db_path)}", echo=True)
+    engine = create_engine(f"sqlite:///{str(db_path)}", echo=False)
     conn = engine.connect()
     return engine, conn
 

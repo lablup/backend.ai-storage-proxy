@@ -687,11 +687,9 @@ async def init_manager_app(ctx: Context) -> web.Application:
     engine, conn = await create_connection(db_path)
     await initialize_table_if_not_exist(engine, conn)
     rows, conn = await get_all_containers(engine, conn)
-
     db_containers_index = {}
     for row in rows:
         db_containers_index[row["container_id"]] = row
-
     docker = aiodocker.Docker()
     docker_containers = await aiodocker.docker.DockerContainers(docker).list()
     await docker.close()
