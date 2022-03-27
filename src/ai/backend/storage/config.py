@@ -45,12 +45,7 @@ local_config_iv = (
                     t.Key("max-cpu", default=1): t.Int[1:_max_cpu_count],
                     t.Key("max-mem", default="1g"): tx.BinarySize,
                     t.Key("max-containers", default=32): t.Int[1:],
-                    t.Key("user", default=None): tx.UserID(
-                        default_uid=_file_perm.st_uid,
-                    ),
-                    t.Key("group", default=None): tx.GroupID(
-                        default_gid=_file_perm.st_gid,
-                    ),
+                    t.Key("cgroup", default="1000"): t.String,
                     t.Key("settings_path", default=None): tx.Path(type="dir"),
                     t.Key("service_port", default=None): t.Int,
                     t.Key("mount_path", default=None): tx.Path(type="dir"),
