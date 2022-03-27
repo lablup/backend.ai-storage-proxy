@@ -42,8 +42,8 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
     memory = ctx.local_config["filebrowser"]["max-mem"]
-    db_path = ctx.local_config["filebrowser"]["db-path"]
     memory = int(BinarySize().check_and_return(memory))
+    db_path = ctx.local_config["filebrowser"]["db-path"]
 
     if is_port_in_use(service_port):
         service_port = get_available_port()
@@ -119,16 +119,17 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
 
 
 async def recreate_container(container_name, config):
-    pass
-    """
-    docker = aiodocker.Docker()
-    container = await docker.containers.create_or_replace(
-        config=config,
-        name=container_name,
-    )
-    await container.start()
-    await docker.close()
-    """
+    try:
+        docker = aiodocker.Docker()
+        container = await docker.containers.create_or_replace(
+            config=config,
+            name=container_name,
+        )
+        await container.start()
+    except Exception:
+        pass
+    finally:
+        await docker.close()
 
 
 async def destroy_container(ctx: Context, container_id: str) -> None:
