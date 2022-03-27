@@ -23,8 +23,10 @@ async def network_monitor(ctx: Context, container_id, freq, period):
             network_utilization_change = network_window[-1] - network_window[0]
             if network_utilization_change == 0:
                 start_time = current_time
-                await destroy_container(ctx, container_id)
-                break
+                try:
+                    await destroy_container(ctx, container_id)
+                except Exception:
+                    break
             else:
                 network_window = []
                 start_time = current_time
@@ -36,8 +38,10 @@ async def idle_timeout_monitor(ctx: Context, container_id, idle_timeout):
     while True:
         current_time = time.time()
         if current_time - start_time >= idle_timeout:
-            await destroy_container(ctx, container_id)
-            break
+            try:
+                await destroy_container(ctx, container_id)
+            except Exception:
+                break
         await asyncio.sleep(1)
 
 

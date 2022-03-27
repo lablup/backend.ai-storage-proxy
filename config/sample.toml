@@ -66,9 +66,8 @@ max-containers = 32
 # The SQLite db path and name
 db-path = '/Users/filebrowser/containers.db'
 
-# The user/group to be used by the filebrowser container
-# user = 1000
-# group = 1000
+# The group to be used by the filebrowser container
+cgroup = "1000"
 
 # fequency in seconds for network monitor to acquire network input and output of docker container
 freq = 1

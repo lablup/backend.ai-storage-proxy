@@ -14,7 +14,7 @@ from ai.backend.storage.utils import (
     mangle_path,
 )
 
-from .config import prepare_filebrowser_app_config
+from .config_browser_app import prepare_filebrowser_app_config
 from .database import (
     create_connection,
     delete_container_record,
@@ -33,11 +33,11 @@ __all__ = (
 
 
 async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int, str]:
-    """Create or update new docker image."""
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service-ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
     max_containers = ctx.local_config["filebrowser"]["max-containers"]
+    cgroup = ctx.local_config["filebrowser"]["cgroup"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
@@ -77,6 +77,7 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
             },
             "CpuCount": cpu_count,
             "Memory": memory,
+            "Cgroup": cgroup,
             "Mounts": [
                 {
                     "Target": "/filebrowser_dir/",
