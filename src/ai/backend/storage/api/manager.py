@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Awaitable, Callable, Iterator, List
 from uuid import UUID
 
-import aiodocker
 import attr
 import jwt
 import trafaret as t
@@ -24,11 +23,6 @@ from ..abc import AbstractVolume
 from ..context import Context
 from ..exception import InvalidSubpathError, VFolderNotFoundError
 from ..filebrowser import filebrowser
-from ..filebrowser.database import (
-    create_connection,
-    get_all_containers,
-    initialize_table_if_not_exist,
-)
 from ..types import VFolderCreationOptions
 from ..utils import check_params, log_manager_api_entry
 
@@ -683,23 +677,6 @@ async def init_manager_app(ctx: Context) -> web.Application:
         ],
     )
     app["ctx"] = ctx
-    db_path = ctx.local_config["filebrowser"]["db-path"]
-    engine, conn = await create_connection(db_path)
-    await initialize_table_if_not_exist(engine, conn)
-    rows, conn = await get_all_containers(engine, conn)
-    db_containers_index = {}
-    for row in rows:
-        db_containers_index[row["container_id"]] = row
-    docker = aiodocker.Docker()
-    docker_containers = await aiodocker.docker.DockerContainers(docker).list()
-    await docker.close()
-    running_containers_list = [container._id for container in docker_containers]
-    for container_id, row in db_containers_index.items():
-        if container_id not in running_containers_list:
-            await filebrowser.recreate_container(
-                row["container_name"],
-                config=json.loads(row["config"].replace("'", '"')),
-            )
     app.router.add_route("GET", "/", get_status)
     app.router.add_route("GET", "/volumes", get_volumes)
     app.router.add_route("GET", "/volume/hwinfo", get_hwinfo)
