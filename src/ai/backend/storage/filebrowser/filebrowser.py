@@ -123,8 +123,8 @@ async def recreate_container(container_name, config):
             name=container_name,
         )
         await container.start()
-    except Exception as e:
-        print(e)
+    except Exception:
+        pass
     finally:
         await docker.close()
 
@@ -142,9 +142,8 @@ async def destroy_container(ctx: Context, container_id: str) -> None:
                 await docker.close()
                 await sqlite_db.delete_container_record(container_id)
                 break
-            except Exception as e:
+            except Exception:
                 await docker.close()
-                print(e)
     await docker.close()
 
 
