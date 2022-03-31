@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
 
@@ -15,11 +16,7 @@ from ai.backend.storage.utils import (
 )
 
 from .config_browser_app import prepare_filebrowser_app_config
-from .database import (
-    create_connection,
-    delete_container_record,
-    insert_new_container,
-)
+from .database import SQLite_DB
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -57,6 +54,7 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     await prepare_filebrowser_app_config(settings_path, service_port)
 
     docker = aiodocker.Docker()
+
     config = {
         "Cmd": [
             "/filebrowser_dir/start.sh",
@@ -104,9 +102,8 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     await container.start()
     await docker.close()
 
-    _, conn = await create_connection(db_path)
-    await insert_new_container(
-        conn,
+    sqlite_db = SQLite_DB(db_path)
+    await sqlite_db.insert_new_container(
         container_id,
         container_name,
         service_ip,
@@ -126,8 +123,8 @@ async def recreate_container(container_name, config):
             name=container_name,
         )
         await container.start()
-    except Exception:
-        pass
+    except Exception as e:
+        print(e)
     finally:
         await docker.close()
 
@@ -135,15 +132,19 @@ async def recreate_container(container_name, config):
 async def destroy_container(ctx: Context, container_id: str) -> None:
     db_path = ctx.local_config["filebrowser"]["db-path"]
     docker = aiodocker.Docker()
-    _, conn = await create_connection(db_path)
+    sqlite_db = SQLite_DB(db_path)
     for container in await docker.containers.list():
         if container._id == container_id:
             try:
                 await container.stop()
+                await asyncio.sleep(2)
                 await container.delete()
-                await delete_container_record(conn, container_id)
-            except Exception:
-                pass
+                await docker.close()
+                await sqlite_db.delete_container_record(container_id)
+                break
+            except Exception as e:
+                await docker.close()
+                print(e)
     await docker.close()
 
 
