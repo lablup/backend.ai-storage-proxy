@@ -109,8 +109,8 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
         container_id = container._id
         await container.start()
 
-    sqlite_db = FilebrowserTrackerDB(db_path)
-    await sqlite_db.insert_new_container(
+    tracker_db = FilebrowserTrackerDB(db_path)
+    await tracker_db.insert_new_container(
         container_id,
         container_name,
         service_ip,
@@ -137,7 +137,7 @@ async def recreate_container(container_name, config):
 
 async def destroy_container(ctx: Context, container_id: str) -> None:
     db_path = ctx.local_config["filebrowser"]["db_path"]
-    sqlite_db = FilebrowserTrackerDB(db_path)
+    tracker_db = FilebrowserTrackerDB(db_path)
 
     async with closing_async(aiodocker.Docker()) as docker:
 
@@ -146,7 +146,7 @@ async def destroy_container(ctx: Context, container_id: str) -> None:
                 try:
                     await container.stop()
                     await container.delete()
-                    await sqlite_db.delete_container_record(container_id)
+                    await tracker_db.delete_container_record(container_id)
                 except Exception as e:
                     print(f"Failure to destroy container {container_id[0:7]} ", e)
                 else:
