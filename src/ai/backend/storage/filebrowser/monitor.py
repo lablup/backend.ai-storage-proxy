@@ -7,15 +7,17 @@ from .filebrowser import destroy_container, get_filebrowsers, get_network_stats
 
 
 async def network_monitor(ctx: Context, container_id, freq, period):
-    freq = ctx.local_config["filebrowser"]["freq"]
-    period = ctx.local_config["filebrowser"]["period"]
-    start_time = time.time()
+    freq = ctx.local_config["filebrowser"]["activity_check_freq"]
+    period = ctx.local_config["filebrowser"]["activity_check_timeout"]
+    start_time = time.monotonic()
     network_window = []
+
     while True:
-        current_time = time.time()
+        current_time = time.monotonic()
         try:
             stats = await get_network_stats(container_id)
-        except Exception:
+        except Exception as e:
+            print("Failed to get network stats ", e)
             break
         network_total_transfer = stats[0] + stats[1]
         network_window.append(network_total_transfer)
@@ -25,8 +27,12 @@ async def network_monitor(ctx: Context, container_id, freq, period):
                 start_time = current_time
                 try:
                     task = destroy_container(ctx, container_id)
-                    asyncio.gather(asyncio.create_task(task))
-                except Exception:
+                    asyncio.create_task(task)
+                except Exception as e:
+                    print(
+                        f"Failure to destroy container based on networking timeout {container_id}",
+                        e,
+                    )
                     break
             else:
                 network_window = []
@@ -35,32 +41,39 @@ async def network_monitor(ctx: Context, container_id, freq, period):
 
 
 async def idle_timeout_monitor(ctx: Context, container_id, idle_timeout):
-    start_time = time.time()
+    start_time = time.monotonic()
     while True:
-        current_time = time.time()
+        current_time = time.monotonic()
         if current_time - start_time >= idle_timeout:
             try:
                 task = destroy_container(ctx, container_id)
-                asyncio.gather(asyncio.create_task(task))
-            except Exception:
+                asyncio.create_task(task)
+            except Exception as e:
+                print(
+                    f"Failure to destroy container based on Idle timeout {container_id}",
+                    e,
+                )
                 break
         await asyncio.sleep(1)
 
 
-async def monitor(ctx: Context):
+async def keep_monitors_running(ctx: Context):
+
     idle_timeout = ctx.local_config["filebrowser"]["idle_timeout"]
-    freq = ctx.local_config["filebrowser"]["freq"]
-    period = ctx.local_config["filebrowser"]["period"]
+    freq = ctx.local_config["filebrowser"]["activity_check_freq"]
+    period = ctx.local_config["filebrowser"]["activity_check_timeout"]
     network_monitored_list = []
     idle_time_monitored_list = []
     while True:
         network_tasks = []
         idle_timeout_tasks = []
         browsers = await get_filebrowsers()
+
         if len(browsers) > 0:
             for browser in browsers:
                 if browser not in network_monitored_list:
                     network_monitored_list.append(browser)
+
                     network_tasks.append(
                         asyncio.create_task(
                             network_monitor(ctx, browser, freq, period),
@@ -75,8 +88,8 @@ async def monitor(ctx: Context):
                             idle_timeout_monitor(ctx, browser, idle_timeout),
                         ),
                     )
-        if len(network_tasks) > 0:
-            await asyncio.gather(*network_tasks)
-        if len(idle_timeout_tasks) > 0:
-            await asyncio.gather(*idle_timeout_tasks)
+            if len(network_tasks) > 0:
+                await asyncio.gather(*network_tasks)
+            if len(idle_timeout_tasks) > 0:
+                await asyncio.gather(*idle_timeout_tasks)
         await asyncio.sleep(10)

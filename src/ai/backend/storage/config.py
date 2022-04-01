@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import trafaret as t
@@ -11,6 +12,14 @@ from .types import VolumeInfo
 
 _max_cpu_count = os.cpu_count()
 _file_perm = (Path(__file__).parent / "server.py").stat()
+
+
+@asynccontextmanager
+async def closing_async(thing):
+    try:
+        yield thing
+    finally:
+        await thing.close()
 
 
 local_config_iv = (
@@ -41,22 +50,22 @@ local_config_iv = (
             t.Key("filebrowser"): t.Dict(
                 {
                     t.Key("image"): t.String,
-                    t.Key("service-ip"): t.IP,
-                    t.Key("max-cpu", default=1): t.Int[1:_max_cpu_count],
-                    t.Key("max-mem", default="1g"): tx.BinarySize,
-                    t.Key("max-containers", default=32): t.Int[1:],
+                    t.Key("service_ip"): t.IP,
+                    t.Key("max_cpu", default=1): t.Int[1:_max_cpu_count],
+                    t.Key("max_mem", default="1g"): tx.BinarySize,
+                    t.Key("max_containers", default=32): t.Int[1:],
                     t.Key("cgroup", default="1000"): t.String,
                     t.Key("settings_path", default=None): tx.Path(type="dir"),
                     t.Key("service_port", default=None): t.Int,
                     t.Key("mount_path", default=None): tx.Path(type="dir"),
-                    t.Key("max-containers", default=None): t.Int,
-                    t.Key("db-path", default=None): tx.Path(
+                    t.Key("max_containers", default=None): t.Int,
+                    t.Key("db_path", default=None): tx.Path(
                         type="file",
                         allow_nonexisting=True,
                         allow_devnull=True,
                     ),
-                    t.Key("period", default=30): t.Int,
-                    t.Key("freq", default=1): t.Int,
+                    t.Key("activity_check_timeout", default=30): t.Int,
+                    t.Key("activity_check_freq", default=1): t.Int,
                     t.Key("idle_timeout", default=300): t.Int,
                 },
             ),

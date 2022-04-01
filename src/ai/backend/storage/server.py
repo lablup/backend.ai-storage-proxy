@@ -27,7 +27,7 @@ from .api.client import init_client_app
 from .api.manager import init_manager_app
 from .config import local_config_iv
 from .context import Context
-from .filebrowser.monitor import monitor
+from .filebrowser.monitor import keep_monitors_running
 
 log = BraceStyleAdapter(logging.getLogger("ai.backend.storage.server"))
 
@@ -92,8 +92,7 @@ async def server_main(
     manager_api_runner = web.AppRunner(manager_api_app)
     await client_api_runner.setup()
     await manager_api_runner.setup()
-    monitor_task = asyncio.create_task(monitor(ctx))
-    asyncio.ensure_future(monitor_task)
+    asyncio.create_task(keep_monitors_running(ctx))
     client_service_addr = local_config["api"]["client"]["service-addr"]
     manager_service_addr = local_config["api"]["manager"]["service-addr"]
     client_api_site = web.TCPSite(

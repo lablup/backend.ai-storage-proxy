@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 import aiodocker
@@ -16,7 +16,7 @@ from ai.backend.storage.utils import (
 )
 
 from .config_browser_app import prepare_filebrowser_app_config
-from .database import SQLite_DB
+from .database import FilebrowserTrackerDB
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -29,18 +29,26 @@ __all__ = (
 )
 
 
+@asynccontextmanager
+async def closing_async(thing):
+    try:
+        yield thing
+    finally:
+        await thing.close()
+
+
 async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int, str]:
     image = ctx.local_config["filebrowser"]["image"]
-    service_ip = ctx.local_config["filebrowser"]["service-ip"]
+    service_ip = ctx.local_config["filebrowser"]["service_ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
-    max_containers = ctx.local_config["filebrowser"]["max-containers"]
+    max_containers = ctx.local_config["filebrowser"]["max_containers"]
     cgroup = ctx.local_config["filebrowser"]["cgroup"]
     settings_path = ctx.local_config["filebrowser"]["settings_path"]
     mount_path = ctx.local_config["filebrowser"]["mount_path"]
-    cpu_count = ctx.local_config["filebrowser"]["max-cpu"]
-    memory = ctx.local_config["filebrowser"]["max-mem"]
+    cpu_count = ctx.local_config["filebrowser"]["max_cpu"]
+    memory = ctx.local_config["filebrowser"]["max_mem"]
     memory = int(BinarySize().check_and_return(memory))
-    db_path = ctx.local_config["filebrowser"]["db-path"]
+    db_path = ctx.local_config["filebrowser"]["db_path"]
 
     if is_port_in_use(service_port):
         service_port = get_available_port()
@@ -53,56 +61,55 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
 
     await prepare_filebrowser_app_config(settings_path, service_port)
 
-    docker = aiodocker.Docker()
+    async with closing_async(aiodocker.Docker()) as docker:
 
-    config = {
-        "Cmd": [
-            "/filebrowser_dir/start.sh",
-            f"{service_port}",
-        ],
-        "ExposedPorts": {
-            f"{service_port}/tcp": {},
-        },
-        "Image": image,
-        "HostConfig": {
-            "PortBindings": {
-                f"{service_port}/tcp": [
+        config = {
+            "Cmd": [
+                "/filebrowser_dir/start.sh",
+                f"{service_port}",
+            ],
+            "ExposedPorts": {
+                f"{service_port}/tcp": {},
+            },
+            "Image": image,
+            "HostConfig": {
+                "PortBindings": {
+                    f"{service_port}/tcp": [
+                        {
+                            "HostIp": f"{service_ip}",
+                            "HostPort": f"{service_port}/tcp",
+                        },
+                    ],
+                },
+                "CpuCount": cpu_count,
+                "Memory": memory,
+                "Cgroup": cgroup,
+                "Mounts": [
                     {
-                        "HostIp": f"{service_ip}",
-                        "HostPort": f"{service_port}/tcp",
+                        "Target": "/filebrowser_dir/",
+                        "Source": f"{settings_path}",
+                        "Type": "bind",
                     },
                 ],
             },
-            "CpuCount": cpu_count,
-            "Memory": memory,
-            "Cgroup": cgroup,
-            "Mounts": [
+        }
+        for vfolder in vfolders:
+            config["HostConfig"]["Mounts"].append(
                 {
-                    "Target": "/filebrowser_dir/",
-                    "Source": f"{settings_path}",
+                    "Target": f"/data/{str(vfolder['name'])}",
+                    "Source": f"{str(mangle_path(mount_path, vfolder['vfid']))}",
                     "Type": "bind",
                 },
-            ],
-        },
-    }
-    for vfolder in vfolders:
-        config["HostConfig"]["Mounts"].append(
-            {
-                "Target": f"/data/{str(vfolder['name'])}",
-                "Source": f"{str(mangle_path(mount_path, vfolder['vfid']))}",
-                "Type": "bind",
-            },
+            )
+        container_name = f"ai.backend.container-filebrowser-{service_port}"
+        container = await docker.containers.create_or_replace(
+            config=config,
+            name=container_name,
         )
-    container_name = f"FileBrowser-{service_port}"
-    container = await docker.containers.create_or_replace(
-        config=config,
-        name=container_name,
-    )
-    container_id = container._id
-    await container.start()
-    await docker.close()
+        container_id = container._id
+        await container.start()
 
-    sqlite_db = SQLite_DB(db_path)
+    sqlite_db = FilebrowserTrackerDB(db_path)
     await sqlite_db.insert_new_container(
         container_id,
         container_name,
@@ -116,75 +123,72 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
 
 
 async def recreate_container(container_name, config):
-    try:
-        docker = aiodocker.Docker()
-        container = await docker.containers.create_or_replace(
-            config=config,
-            name=container_name,
-        )
-        await container.start()
-    except Exception:
-        pass
-    finally:
-        await docker.close()
+    async with closing_async(aiodocker.Docker()) as docker:
+        try:
+            docker = aiodocker.Docker()
+            container = await docker.containers.create_or_replace(
+                config=config,
+                name=container_name,
+            )
+            await container.start()
+        except Exception as e:
+            print("Failure to recreate container ", e)
 
 
 async def destroy_container(ctx: Context, container_id: str) -> None:
-    db_path = ctx.local_config["filebrowser"]["db-path"]
-    docker = aiodocker.Docker()
-    sqlite_db = SQLite_DB(db_path)
-    for container in await docker.containers.list():
-        if container._id == container_id:
-            try:
-                await container.stop()
-                await asyncio.sleep(2)
-                await container.delete()
-                await docker.close()
-                await sqlite_db.delete_container_record(container_id)
-                break
-            except Exception:
-                await docker.close()
-    await docker.close()
+    db_path = ctx.local_config["filebrowser"]["db_path"]
+    sqlite_db = FilebrowserTrackerDB(db_path)
+
+    async with closing_async(aiodocker.Docker()) as docker:
+
+        for container in await docker.containers.list():
+            if container._id == container_id:
+                try:
+                    await container.stop()
+                    await container.delete()
+                    await sqlite_db.delete_container_record(container_id)
+                except Exception as e:
+                    print(f"Failure to destroy container {container_id[0:7]} ", e)
+                else:
+                    break
 
 
 async def get_container_by_id(container_id: str):
-    docker = aiodocker.Docker()
-    container = aiodocker.docker.DockerContainers(docker).container(
-        container_id=container_id,
-    )
-    await docker.close()
+    async with closing_async(aiodocker.Docker()) as docker:
+        container = aiodocker.docker.DockerContainers(docker).container(
+            container_id=container_id,
+        )
     return container
 
 
 async def get_filebrowsers():
-    docker = aiodocker.Docker()
+
     container_list = []
-    containers = await aiodocker.docker.DockerContainers(docker).list()
-    for container in containers:
-        stats = await container.stats(stream=False)
-        name = stats[0]["name"]
-        cnt_id = stats[0]["id"]
-        if "FileBrowser" in name:
-            container_list.append(cnt_id)
-    await docker.close()
+    async with closing_async(aiodocker.Docker()) as docker:
+        containers = await aiodocker.docker.DockerContainers(docker).list()
+        for container in containers:
+            stats = await container.stats(stream=False)
+            name = stats[0]["name"]
+            cnt_id = stats[0]["id"]
+            if "ai.backend.container-filebrowser" in name:
+                container_list.append(cnt_id)
+
     return container_list
 
 
 async def get_network_stats(container_id):
-    docker = aiodocker.Docker()
-    container = aiodocker.docker.DockerContainers(docker).container(
-        container_id=container_id,
-    )
-    stats = await container.stats(stream=False)
-    await docker.close()
+    async with closing_async(aiodocker.Docker()) as docker:
+        container = aiodocker.docker.DockerContainers(docker).container(
+            container_id=container_id,
+        )
+        stats = await container.stats(stream=False)
     return (
         stats[0]["networks"]["eth0"]["rx_bytes"],
         stats[0]["networks"]["eth0"]["tx_bytes"],
     )
 
 
-async def _check_active_connections(container_id: str) -> bool:
+async def _check_active_connections() -> bool:
     if len(await get_filebrowsers()) > 0:
         return True
-    else:
-        return False
+    return False

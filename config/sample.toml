@@ -39,7 +39,7 @@ session-expire = "1d"
 image = "cr.backend.ai/stable/filebrowser:21.02-ubuntu20.04"
 
 # The IP address to expose the filebrowser ports
-service-ip = "127.0.0.1"
+service_ip = "127.0.0.1"
 
 # The service port number by which user will be able to connect to filerowser UI.
 service_port = 8080
@@ -55,27 +55,27 @@ settings_path = "/Users/lablup/Documents/workspace/filebrowser/"
 mount_path = "/Users/vfolder/local/"
 
 # The maxium number of CPU cores available to each filebrowser container
-max-cpu = 1
+max_cpu = 1
 
 # The maximum size of memory available to each filebrowser container
-max-mem = "1g"
+max_mem = "1g"
 
 # The maximum limit of the number of filebrowser containers
-max-containers = 32
+max_containers = 32
 
 # The SQLite db path and name
-db-path = '/Users/filebrowser/containers.db'
+db_path = '/Users/filebrowser/containers.db'
 
 # The group to be used by the filebrowser container
 cgroup = "1000"
 
-# fequency in seconds for network monitor to acquire network input and output of docker container
-freq = 1
+# The frequency to check network I/O status of containers.
+activity_check_freq = 1
 
-# period in seconds to check for network idle conditions
-period = 30
+# The timeout to mark a container idle when there are no activities observed.
+activity_check_timeout = 30
 
-# idle timeout in seconds. If enabled then auto destroy containers after specified time.
+# The timeout to destroy a container after it is marked as idle.
 idle_timeout = 30
 
 [api.client]

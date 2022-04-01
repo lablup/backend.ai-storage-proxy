@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 
 
-class SQLite_DB:
+class FilebrowserTrackerDB:
     def __init__(self, db_path):
         self.meta = sa.MetaData()
         self.containers = sa.Table(
