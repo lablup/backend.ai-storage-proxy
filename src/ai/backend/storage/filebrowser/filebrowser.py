@@ -3,20 +3,27 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
+from typing import Mapping, Type
+from uuid import UUID
 
 import aiodocker
+import pkg_resources
 
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.validators import BinarySize
+from ai.backend.storage.abc import AbstractVolume
 from ai.backend.storage.context import Context
-from ai.backend.storage.utils import (
-    get_available_port,
-    is_port_in_use,
-    mangle_path,
-)
+from ai.backend.storage.utils import get_available_port
+from ai.backend.storage.vfs import BaseVolume
 
 from .config_browser_app import prepare_filebrowser_app_config
 from .database import FilebrowserTrackerDB
+
+BACKENDS: Mapping[str, Type[AbstractVolume]] = {
+    "vfs": BaseVolume,
+}
+
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -43,26 +50,33 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     service_port = ctx.local_config["filebrowser"]["service_port"]
     max_containers = ctx.local_config["filebrowser"]["max_containers"]
     cgroup = ctx.local_config["filebrowser"]["cgroup"]
-    settings_path = ctx.local_config["filebrowser"]["settings_path"]
-    mount_path = ctx.local_config["filebrowser"]["mount_path"]
     cpu_count = ctx.local_config["filebrowser"]["max_cpu"]
     memory = ctx.local_config["filebrowser"]["max_mem"]
     memory = int(BinarySize().check_and_return(memory))
     db_path = ctx.local_config["filebrowser"]["db_path"]
-
-    if is_port_in_use(service_port):
-        service_port = get_available_port()
+    mount_path = Path(ctx.local_config["filebrowser"]["mount_path"])
+    p = Path(pkg_resources.resource_filename(__name__, ""))
+    storage_proxy_root_path_index = p.parts.index("storage-proxy")
+    settings_path = (
+        Path(*p.parts[0 : storage_proxy_root_path_index + 1]) / "config/filebrowser/"
+    )
+    volume_cls: Type[AbstractVolume] = BACKENDS["vfs"]
+    volume_obj = volume_cls(
+        local_config=ctx.local_config,
+        mount_path=Path(mount_path),
+        fsprefix=None,
+        options={},
+    )
+    port_range = ctx.local_config["filebrowser"]["port_range"].split("-")
+    service_port = get_available_port(port_range)
     running_docker_containers = await get_filebrowsers()
     if len(running_docker_containers) >= max_containers:
         print(
             "Can't create new container. Number of containers exceed the maximum limit.",
         )
         return ("0", 0, "0")
-
     await prepare_filebrowser_app_config(settings_path, service_port)
-
     async with closing_async(aiodocker.Docker()) as docker:
-
         config = {
             "Cmd": [
                 "/filebrowser_dir/start.sh",
@@ -94,10 +108,13 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
             },
         }
         for vfolder in vfolders:
+            filebrowser_mount_path = str(
+                volume_obj.mangle_vfpath(UUID(vfolder["vfid"])),
+            )
             config["HostConfig"]["Mounts"].append(
                 {
                     "Target": f"/data/{str(vfolder['name'])}",
-                    "Source": f"{str(mangle_path(mount_path, vfolder['vfid']))}",
+                    "Source": filebrowser_mount_path,
                     "Type": "bind",
                 },
             )
@@ -108,7 +125,6 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
         )
         container_id = container._id
         await container.start()
-
     tracker_db = FilebrowserTrackerDB(db_path)
     await tracker_db.insert_new_container(
         container_id,
@@ -138,9 +154,7 @@ async def recreate_container(container_name, config):
 async def destroy_container(ctx: Context, container_id: str) -> None:
     db_path = ctx.local_config["filebrowser"]["db_path"]
     tracker_db = FilebrowserTrackerDB(db_path)
-
     async with closing_async(aiodocker.Docker()) as docker:
-
         for container in await docker.containers.list():
             if container._id == container_id:
                 try:
@@ -162,7 +176,6 @@ async def get_container_by_id(container_id: str):
 
 
 async def get_filebrowsers():
-
     container_list = []
     async with closing_async(aiodocker.Docker()) as docker:
         containers = await aiodocker.docker.DockerContainers(docker).list()
@@ -172,7 +185,6 @@ async def get_filebrowsers():
             cnt_id = stats[0]["id"]
             if "ai.backend.container-filebrowser" in name:
                 container_list.append(cnt_id)
-
     return container_list
 
 

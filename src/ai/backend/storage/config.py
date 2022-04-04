@@ -67,6 +67,7 @@ local_config_iv = (
                     t.Key("activity_check_timeout", default=30): t.Int,
                     t.Key("activity_check_freq", default=1): t.Int,
                     t.Key("idle_timeout", default=300): t.Int,
+                    t.Key("port_range", default="4000-5000"): t.String,
                 },
             ),
             t.Key("logging"): logging_config_iv,

@@ -1,6 +1,7 @@
 import enum
 import json
 import logging
+import random
 from contextlib import asynccontextmanager as actxmgr
 from datetime import datetime
 from datetime import timezone as tz
@@ -143,7 +144,10 @@ def is_port_in_use(port: int) -> bool:
         return s.connect_ex(("localhost", port)) == 0
 
 
-def get_available_port() -> int:
-    with socket() as s:
-        s.bind(("", 0))
-        return int(s.getsockname()[1])
+def get_available_port(port_range) -> int:
+    port_range = list(range(int(port_range[0]), int(port_range[1]) + 1))
+    while True:
+        sample_port = random.sample(port_range, 1)[0]
+        if not is_port_in_use(int(sample_port)):
+            break
+    return sample_port
