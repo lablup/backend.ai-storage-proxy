@@ -14,6 +14,7 @@ from typing import Any, AsyncIterator, Sequence
 
 import aiotools
 import click
+import pkg_resources
 from aiohttp import web
 from setproctitle import setproctitle
 
@@ -218,6 +219,10 @@ def main(cli_ctx, config_path, debug):
             if local_config["storage-proxy"]["pid-file"].is_file():
                 # check is_file() to prevent deleting /dev/null!
                 local_config["storage-proxy"]["pid-file"].unlink()
+            storage_proxy_root_directory = Path(
+                pkg_resources.resource_filename(__name__, ""),
+            )
+            Path(storage_proxy_root_directory / "filebrowser/monitor_lock.txt").unlink()
     return 0
 
 

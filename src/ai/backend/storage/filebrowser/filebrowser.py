@@ -83,12 +83,12 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
                 f"{service_port}",
             ],
             "ExposedPorts": {
-                f"{service_port}/tcp": {},
+                "8080/tcp": {},
             },
             "Image": image,
             "HostConfig": {
                 "PortBindings": {
-                    f"{service_port}/tcp": [
+                    "8080/tcp": [
                         {
                             "HostIp": f"{service_ip}",
                             "HostPort": f"{service_port}/tcp",

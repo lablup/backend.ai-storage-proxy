@@ -62,7 +62,6 @@ class FilebrowserTrackerDB:
 
     async def delete_container_record(self, container_id):
         with self.engine.connect() as connection:
-
             del_sql = self.containers.delete().where(
                 self.containers.c.container_id == container_id,
             )

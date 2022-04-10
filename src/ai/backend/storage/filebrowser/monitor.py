@@ -1,7 +1,9 @@
 import asyncio
 import time
+from pathlib import Path
 
 import aiotools
+import pkg_resources
 
 from ai.backend.storage.context import Context
 
@@ -60,6 +62,12 @@ async def idle_timeout_monitor(ctx: Context, container_id, idle_timeout):
 
 
 async def keep_monitors_running(ctx: Context):
+    storage_proxy_root_directory = Path(pkg_resources.resource_filename(__name__, ""))
+    if Path.exists(storage_proxy_root_directory / "monitor_lock.txt"):
+        return
+    else:
+        with open(storage_proxy_root_directory / "monitor_lock.txt", "w") as f:
+            f.write("1\n")
     idle_timeout = ctx.local_config["filebrowser"]["idle_timeout"]
     activity_check_freq = ctx.local_config["filebrowser"]["activity_check_freq"]
     activity_check_timeout = ctx.local_config["filebrowser"]["activity_check_timeout"]
@@ -80,7 +88,6 @@ async def keep_monitors_running(ctx: Context):
                                 activity_check_timeout,
                             ),
                         )
-
                     if (idle_timeout is not None) and (
                         browser not in idle_time_monitored_list
                     ):
