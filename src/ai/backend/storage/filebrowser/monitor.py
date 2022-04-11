@@ -68,7 +68,8 @@ async def keep_monitors_running(ctx: Context):
         return
     else:
         async with aiofiles.open(
-            storage_proxy_root_directory / "monitor_lock.txt", mode="w",
+            storage_proxy_root_directory / "monitor_lock.txt",
+            mode="w",
         ) as file:
             await file.write("1")
     idle_timeout = ctx.local_config["filebrowser"]["idle_timeout"]
