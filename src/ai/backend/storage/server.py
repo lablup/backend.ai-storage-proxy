@@ -51,7 +51,7 @@ async def server_main_logwrapper(loop, pidx, _args):
 storage_proxy_server_path = Path(pkg_resources.resource_filename(__name__, ""))
 monitor_lock_path = Path(storage_proxy_server_path / "filebrowser/monitor_lock.txt")
 if not monitor_lock_path.exists():
-    file_lock = FileLock(monitor_lock_path, timeout=10000, debug=True)
+    file_lock = FileLock(monitor_lock_path, timeout=3, debug=True)
 
 
 @aiotools.server
@@ -101,8 +101,12 @@ async def server_main(
     await client_api_runner.setup()
     await manager_api_runner.setup()
     if not file_lock.locked:
-        await file_lock.acquire()
-        asyncio.create_task(keep_monitors_running(ctx))
+        try:
+            await file_lock.acquire()
+            if file_lock.locked:
+                asyncio.create_task(keep_monitors_running(ctx))
+        except Exception as e:
+            print(e)
     client_service_addr = local_config["api"]["client"]["service-addr"]
     manager_service_addr = local_config["api"]["manager"]["service-addr"]
     client_api_site = web.TCPSite(
@@ -139,7 +143,7 @@ async def server_main(
         log.info("Shutting down...")
         await manager_api_runner.cleanup()
         await client_api_runner.cleanup()
-        if monitor_lock_path.exists():
+        if monitor_lock_path.exists() and file_lock.locked:
             file_lock.release()
             monitor_lock_path.unlink()
 
@@ -231,7 +235,7 @@ def main(cli_ctx, config_path, debug):
             if local_config["storage-proxy"]["pid-file"].is_file():
                 # check is_file() to prevent deleting /dev/null!
                 local_config["storage-proxy"]["pid-file"].unlink()
-            if monitor_lock_path.exists():
+            if monitor_lock_path.exists() and file_lock.locked:
                 file_lock.release()
                 monitor_lock_path.unlink()
     return 0
