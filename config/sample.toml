@@ -64,7 +64,7 @@ db_path = './filebrowser_dir/containers.db'
 
 # The group to be used by the filebrowser container
 user_id = 1001
-group_id = 1001
+group_id = 100
 
 # The frequency to check network I/O status of containers.
 activity_check_freq = 1
