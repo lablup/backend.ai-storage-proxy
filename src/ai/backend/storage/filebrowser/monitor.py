@@ -2,6 +2,7 @@ import asyncio
 import time
 from pathlib import Path
 
+import aiofiles
 import aiotools
 import pkg_resources
 
@@ -66,8 +67,10 @@ async def keep_monitors_running(ctx: Context):
     if Path.exists(storage_proxy_root_directory / "monitor_lock.txt"):
         return
     else:
-        with open(storage_proxy_root_directory / "monitor_lock.txt", "w") as f:
-            f.write("1\n")
+        async with aiofiles.open(
+            storage_proxy_root_directory / "monitor_lock.txt", mode="w"
+        ) as file:
+            await file.write("1")
     idle_timeout = ctx.local_config["filebrowser"]["idle_timeout"]
     activity_check_freq = ctx.local_config["filebrowser"]["activity_check_freq"]
     activity_check_timeout = ctx.local_config["filebrowser"]["activity_check_timeout"]
