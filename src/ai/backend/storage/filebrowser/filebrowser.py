@@ -80,7 +80,9 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     async with closing_async(aiodocker.Docker()) as docker:
         config = {
             "Cmd": [
-                "/filebrowser_dir/start.sh", f"{user_id}", f"{group_id}",
+                "/filebrowser_dir/start.sh",
+                f"{user_id}",
+                f"{group_id}",
                 f"{service_port}",
             ],
             "ExposedPorts": {
