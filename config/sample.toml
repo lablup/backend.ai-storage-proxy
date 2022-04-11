@@ -67,7 +67,8 @@ max_containers = 32
 db_path = '/Users/lablup/Documents/workspace/backend.ai_dev/storage-proxy/filebrowser_dir/containers.db'
 
 # The group to be used by the filebrowser container
-cgroup = "1000"
+user_id = 1001
+group_id = 1001
 
 # The frequency to check network I/O status of containers.
 activity_check_freq = 1

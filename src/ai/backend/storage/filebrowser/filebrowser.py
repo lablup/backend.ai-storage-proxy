@@ -49,7 +49,8 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     service_ip = ctx.local_config["filebrowser"]["service_ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
     max_containers = ctx.local_config["filebrowser"]["max_containers"]
-    cgroup = ctx.local_config["filebrowser"]["cgroup"]
+    user_id = ctx.local_config["filebrowser"]["user_id"]
+    group_id = ctx.local_config["filebrowser"]["group_id"]
     cpu_count = ctx.local_config["filebrowser"]["max_cpu"]
     memory = ctx.local_config["filebrowser"]["max_mem"]
     memory = int(BinarySize().check_and_return(memory))
@@ -79,7 +80,7 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     async with closing_async(aiodocker.Docker()) as docker:
         config = {
             "Cmd": [
-                "/filebrowser_dir/start.sh",
+                "/filebrowser_dir/start.sh", f"{user_id}", f"{group_id}",
                 f"{service_port}",
             ],
             "ExposedPorts": {
@@ -97,7 +98,6 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
                 },
                 "CpuCount": cpu_count,
                 "Memory": memory,
-                "Cgroup": cgroup,
                 "Mounts": [
                     {
                         "Target": "/filebrowser_dir/",
