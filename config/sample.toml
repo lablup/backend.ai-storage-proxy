@@ -48,11 +48,7 @@ service_port = 8080
 # The specific file 'settings.json' should be places in given path, 
 # otherwise the default settings file will be genrated in the following pass
 # For more configuration file info see https://filebrowser.org/installation
-settings_path = "/Users/lablup/Documents/workspace/backend.ai_dev/storage-proxy/filebrowser_dir/"
-
-# The location of storage proxy vfolder directory 
-# For example, /Users/lablup/Documents/workspace/backend.ai_dev/vfolder/local
-mount_path = "/Users/lablup/Documents/workspace/backend.ai_dev/vfolder/local"
+settings_path = "./filebrowser_dir/"
 
 # The maxium number of CPU cores available to each filebrowser container
 max_cpu = 1
@@ -64,7 +60,7 @@ max_mem = "1g"
 max_containers = 32
 
 # The SQLite db path and name
-db_path = '/Users/lablup/Documents/workspace/backend.ai_dev/storage-proxy/filebrowser_dir/containers.db'
+db_path = './filebrowser_dir/containers.db'
 
 # The group to be used by the filebrowser container
 user_id = 1001
