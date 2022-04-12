@@ -44,7 +44,9 @@ async def closing_async(thing):
         await thing.close()
 
 
-async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int, str]:
+async def create_or_update(
+    ctx: Context, host: str, vfolders: list[dict],
+) -> tuple[str, int, str]:
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service_ip"]
     service_port = ctx.local_config["filebrowser"]["service_port"]
@@ -55,19 +57,25 @@ async def create_or_update(ctx: Context, vfolders: list[dict]) -> tuple[str, int
     memory = ctx.local_config["filebrowser"]["max_mem"]
     memory = int(BinarySize().check_and_return(memory))
     db_path = ctx.local_config["filebrowser"]["db_path"]
-    mount_path = Path(ctx.local_config["filebrowser"]["mount_path"])
     p = Path(pkg_resources.resource_filename(__name__, ""))
     storage_proxy_root_path_index = p.parts.index("storage-proxy")
     settings_path = (
         Path(*p.parts[0 : storage_proxy_root_path_index + 1]) / "config/filebrowser/"
     )
-    volume_cls: Type[AbstractVolume] = BACKENDS["vfs"]
-    volume_obj = volume_cls(
-        local_config=ctx.local_config,
-        mount_path=Path(mount_path),
-        fsprefix=None,
-        options={},
-    )
+    _, requested_volume = host.split(":")
+    volumes = ctx.local_config["volume"]
+    for volume_name in volumes.keys():
+        if requested_volume == volume_name:
+            volume_cls: Type[AbstractVolume] = BACKENDS[
+                volumes.get(volume_name)["backend"]
+            ]
+            mount_path = Path(volumes.get(volume_name)["path"])
+            volume_obj = volume_cls(
+                local_config=ctx.local_config,
+                mount_path=mount_path,
+                fsprefix=None,
+                options={},
+            )
     port_range = ctx.local_config["filebrowser"]["port_range"].split("-")
     service_port = get_available_port(port_range)
     running_docker_containers = await get_filebrowsers()
