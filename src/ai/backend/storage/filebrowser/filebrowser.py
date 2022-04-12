@@ -45,7 +45,9 @@ async def closing_async(thing):
 
 
 async def create_or_update(
-    ctx: Context, host: str, vfolders: list[dict],
+    ctx: Context,
+    host: str,
+    vfolders: list[dict],
 ) -> tuple[str, int, str]:
     image = ctx.local_config["filebrowser"]["image"]
     service_ip = ctx.local_config["filebrowser"]["service_ip"]
