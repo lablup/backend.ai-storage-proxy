@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Mapping, Type
+from typing import Any, Mapping, Type, List
 from uuid import UUID
 
 import aiodocker
@@ -150,7 +150,7 @@ async def create_or_update(
     return service_ip, service_port, container_id
 
 
-async def recreate_container(container_name, config):
+async def recreate_container(container_name: str, config: dict[str, Any]) -> None:
     async with closing_async(aiodocker.Docker()) as docker:
         try:
             docker = aiodocker.Docker()
@@ -179,7 +179,7 @@ async def destroy_container(ctx: Context, container_id: str) -> None:
                     break
 
 
-async def get_container_by_id(container_id: str):
+async def get_container_by_id(container_id: str) -> Any:
     async with closing_async(aiodocker.Docker()) as docker:
         container = aiodocker.docker.DockerContainers(docker).container(
             container_id=container_id,
@@ -187,7 +187,7 @@ async def get_container_by_id(container_id: str):
     return container
 
 
-async def get_filebrowsers():
+async def get_filebrowsers() -> List[str]:
     container_list = []
     async with closing_async(aiodocker.Docker()) as docker:
         containers = await aiodocker.docker.DockerContainers(docker).list()
@@ -200,15 +200,15 @@ async def get_filebrowsers():
     return container_list
 
 
-async def get_network_stats(container_id):
+async def get_network_stats(container_id: str) -> tuple[int, int]:
     async with closing_async(aiodocker.Docker()) as docker:
         container = aiodocker.docker.DockerContainers(docker).container(
             container_id=container_id,
         )
         stats = await container.stats(stream=False)
     return (
-        stats[0]["networks"]["eth0"]["rx_bytes"],
-        stats[0]["networks"]["eth0"]["tx_bytes"],
+        int(stats[0]["networks"]["eth0"]["rx_bytes"]),
+        int(stats[0]["networks"]["eth0"]["tx_bytes"]),
     )
 
 

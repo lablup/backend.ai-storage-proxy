@@ -1,8 +1,10 @@
+from typing import Any
+
 import sqlalchemy as sa
 
 
 class FilebrowserTrackerDB:
-    def __init__(self, db_path):
+    def __init__(self, db_path: str):
         self.meta = sa.MetaData()
         self.containers = sa.Table(
             "containers",
@@ -24,12 +26,12 @@ class FilebrowserTrackerDB:
         if "containers" not in insp.get_table_names():
             self.meta.create_all(self.engine)
 
-    async def get_all_containers(self):
+    async def get_all_containers(self) -> Any:
         with self.engine.connect() as connection:
             rows = connection.execute(self.containers.select())
         return rows
 
-    async def get_filebrowser_by_container_id(self, container_id):
+    async def get_filebrowser_by_container_id(self, container_id: str) -> Any:
         with self.engine.connect() as connection:
             rows = connection.execute(
                 self.containers.select().where(
@@ -40,13 +42,13 @@ class FilebrowserTrackerDB:
 
     async def insert_new_container(
         self,
-        container_id,
-        container_name,
-        service_ip,
-        service_port,
-        config,
-        status,
-        timestamp,
+        container_id: str,
+        container_name: str,
+        service_ip: str,
+        service_port: int,
+        config: dict[str, Any],
+        status: str,
+        timestamp: str,
     ):
         with self.engine.connect() as connection:
             ins = self.containers.insert().values(
@@ -60,7 +62,7 @@ class FilebrowserTrackerDB:
             )
             connection.execute(ins)
 
-    async def delete_container_record(self, container_id):
+    async def delete_container_record(self, container_id: str) -> None:
         with self.engine.connect() as connection:
             del_sql = self.containers.delete().where(
                 self.containers.c.container_id == container_id,

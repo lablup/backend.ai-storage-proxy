@@ -10,10 +10,10 @@ from .filebrowser import destroy_container, get_filebrowsers, get_network_stats
 
 async def network_monitor(
     ctx: Context,
-    container_id,
-    activity_check_freq,
-    activity_check_timeout,
-):
+    container_id: str,
+    activity_check_freq: int,
+    activity_check_timeout: int,
+) -> None:
     start_time = time.monotonic()
     network_window = []
     while True:
@@ -43,7 +43,9 @@ async def network_monitor(
         await asyncio.sleep(activity_check_freq)
 
 
-async def idle_timeout_monitor(ctx: Context, container_id, idle_timeout):
+async def idle_timeout_monitor(
+    ctx: Context, container_id: str, idle_timeout: int,
+) -> None:
     start_time = time.monotonic()
     while True:
         current_time = time.monotonic()
@@ -59,7 +61,7 @@ async def idle_timeout_monitor(ctx: Context, container_id, idle_timeout):
         await asyncio.sleep(1)
 
 
-async def keep_monitors_running(ctx: Context):
+async def keep_monitors_running(ctx: Context) -> None:
     idle_timeout = ctx.local_config["filebrowser"]["idle_timeout"]
     activity_check_freq = ctx.local_config["filebrowser"]["activity_check_freq"]
     activity_check_timeout = ctx.local_config["filebrowser"]["activity_check_timeout"]
