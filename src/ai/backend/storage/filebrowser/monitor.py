@@ -44,7 +44,9 @@ async def network_monitor(
 
 
 async def idle_timeout_monitor(
-    ctx: Context, container_id: str, idle_timeout: int,
+    ctx: Context,
+    container_id: str,
+    idle_timeout: int,
 ) -> None:
     start_time = time.monotonic()
     while True:

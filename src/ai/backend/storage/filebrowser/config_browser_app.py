@@ -4,7 +4,10 @@ from pathlib import Path
 import aiofiles
 
 
-async def prepare_filebrowser_app_config(settings_path: Path, service_port: int) -> None:
+async def prepare_filebrowser_app_config(
+    settings_path: Path,
+    service_port: int,
+) -> None:
     filebrowser_config = {
         "settings": {
             "key": (

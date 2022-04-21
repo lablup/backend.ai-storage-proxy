@@ -7,7 +7,7 @@ from datetime import datetime
 from datetime import timezone as tz
 from pathlib import Path
 from socket import AF_INET, SOCK_STREAM, socket
-from typing import Any, Optional, Union, List
+from typing import Any, List, Optional, Union
 
 import trafaret as t
 from aiohttp import web

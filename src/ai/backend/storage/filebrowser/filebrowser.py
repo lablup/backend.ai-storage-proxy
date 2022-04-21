@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping, Type, List
+from typing import Any, List, Mapping, Type
 from uuid import UUID
 
 import aiodocker
