@@ -146,7 +146,8 @@ async def server_main(
         if monitor_lock_path.exists() and file_lock.locked:
             file_lock.release()
             monitor_lock_path.unlink()
-
+        if ctx.local_config["filebrowser"]["db_path"].is_file():
+            ctx.local_config["filebrowser"]["db_path"].unlink()
 
 @click.group(invoke_without_command=True)
 @click.option(
@@ -238,6 +239,8 @@ def main(cli_ctx, config_path, debug):
             if monitor_lock_path.exists() and file_lock.locked:
                 file_lock.release()
                 monitor_lock_path.unlink()
+            
+
     return 0
 
 
