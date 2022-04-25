@@ -16,6 +16,11 @@ Changes
 
 <!-- towncrier release notes start -->
 
+## 22.03.0 (2022-04-25)
+
+No significant changes.
+
+
 ## 22.03.0b2 (2022-04-18)
 
 No significant changes.
