@@ -1,13 +1,18 @@
 from dataclasses import dataclass
+import logging
 import time
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 import aiohttp
 from aiohttp import web
 
 from .exceptions import WekaNotFoundError, WekaUnauthorizedError
 
+from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.types import BinarySize
+
+
+log = BraceStyleAdapter(logging.getLogger(__name__))
 
 
 @dataclass
@@ -89,14 +94,18 @@ class WekaAPIClient:
     def _is_token_valid(self) -> bool:
         return self._access_token is not None and self._valid_until >= time.time()
 
+    @property
+    def _req_header(self) -> Mapping[str, str]:
+        return {'Authorization': 'Bearer ' + self._access_token, 'Content-Type': 'application/json'}
+
     async def _login(self, sess: aiohttp.ClientSession) -> None:
         if self._refresh_token is not None:
             response = await sess.post(
-                '/login/refresh', data={'refresh_token': self._refresh_token}
+                '/api/v2/login/refresh', data={'refresh_token': self._refresh_token}
             )
         else:
             response = await sess.post(
-                '/login',
+                '/api/v2/login',
                 data={
                     'username': self.username,
                     'password': self.password,
@@ -104,74 +113,78 @@ class WekaAPIClient:
                 }
             )
         data = await response.json()
-        self._access_token = data['access_token']
-        self._refresh_token = data['refresh_token']
-        self._valid_until = data['expires_in'] + time.time()
+        self._access_token = data['data']['access_token']
+        self._refresh_token = data['data']['refresh_token']
+        self._valid_until = data['data']['expires_in'] + time.time()
 
-    async def _build_request(self, method: str, path: str, body: Optional[Any] = None):
-        async with aiohttp.ClientSession(base_url=self.api_endpoint + '/api/v2') as sess:
-            if method == 'GET':
-                func = sess.get
-            elif method == 'POST':
-                func = sess.post
-            elif method == 'PUT':
-                func = sess.put
-            elif method == 'PATCH':
-                func = sess.patch
+    async def _build_request(self, sess: aiohttp.ClientSession, method: str, path: str, body: Optional[Any] = None):
+        if method == 'GET':
+            func = sess.get
+        elif method == 'POST':
+            func = sess.post
+        elif method == 'PUT':
+            func = sess.put
+        elif method == 'PATCH':
+            func = sess.patch
+        else:
+            func = sess.delete
+
+        if not self._is_token_valid:
+            await self._login(sess)
+
+        try:
+            if method == 'GET' or method == 'DELETE':
+                return await func('/api/v2' + path, headers=self._req_header)
             else:
-                func = sess.delete
-
-            if not self._is_token_valid:
-                await self._login()
-
+                return await func('/api/v2' + path, headers=self._req_header, data=body)
+        except web.HTTPUnauthorized:
+            await self._login(sess)
             try:
                 if method == 'GET' or method == 'DELETE':
-                    return await func(path)
+                    return await func('/api/v2' + path, headers=self._req_header)
+
                 else:
-                    return await func(path, data=body)
+                    return await func('/api/v2' + path, headers=self._req_header, data=body)
+
             except web.HTTPUnauthorized:
-                await self._login()
-                try:
-                    if method == 'GET' or method == 'DELETE':
-                        return await func(path)
-
-                    else:
-                        return await func(path, data=body)
-
-                except web.HTTPUnauthorized:
-                    raise WekaUnauthorizedError
+                raise WekaUnauthorizedError
 
     async def list_fs(self) -> Iterable[WekaFs]:
-        response = await self._build_request('GET', '/fileSystems')
-        data = await response.json()
+        async with aiohttp.ClientSession(
+            base_url=self.api_endpoint,
+        ) as sess:
+            response = await self._build_request(sess, 'GET', '/fileSystems')
+            data = await response.json()
         if len(data['data']) == 0:
             raise WekaNotFoundError
-    
-        for fs_json in data['data']:
-            yield WekaFs.from_json(fs_json)
+        return [WekaFs.from_json(fs_json) for fs_json in data['data']]
 
     async def get_fs(self, fs_uid: str) -> WekaFs:
-        response = await self._build_request('GET', f'/fileSystems/{fs_uid}')
-        data = await response.json()
+        async with aiohttp.ClientSession(
+            base_url=self.api_endpoint,
+        ) as sess:
+            response = await self._build_request(sess, 'GET', f'/fileSystems/{fs_uid}')
+            data = await response.json()
         if data.get('data') is None:
             raise WekaNotFoundError
         return WekaFs.from_json(data['data'])
 
     async def list_quota(self, fs_uid: str) -> Iterable[WekaQuota]:
-        response = await self._build_request('GET', f'/fileSystems/{fs_uid}/quota')
-        data = await response.json()
-
-        for quota_id in data['data'].keys():
-            quota_data = data['data'][quota_id]
-            yield WekaQuota.from_json(quota_id, quota_data)
+        async with aiohttp.ClientSession(
+            base_url=self.api_endpoint,
+        ) as sess:
+            response = await self._build_request(sess, 'GET', f'/fileSystems/{fs_uid}/quota')
+            data = await response.json()
+        return [WekaQuota.from_json(quota_id, data['data'][quota_id]) for quota_id in data['data'].keys()]
 
     async def get_quota(self, fs_uid: str, inode_id: int) -> WekaQuota:
-        response = await self._build_request('GET', f'/fileSystems/{fs_uid}/quota/{inode_id}')
-        data = await response.json()
-
+        async with aiohttp.ClientSession(
+            base_url=self.api_endpoint,
+        ) as sess:
+            response = await self._build_request(sess, 'GET', f'/fileSystems/{fs_uid}/quota/{inode_id}')
+            data = await response.json()
         if len(data['data'].keys()) == 0:
             raise WekaNotFoundError
-
         quota_id = data['data'].keys()[0]
         return WekaQuota.from_json(quota_id, data['data'][quota_id])
 
@@ -189,8 +202,12 @@ class WekaAPIClient:
             'soft_limit_bytes': _format_size(soft_limit),
             'hard_limit_bytes': _format_size(hard_limit),
         }
-        response = await self._build_request('PUT', f'/fileSystems/{fs_uid}/quota/{inode_id}', body)
-        data = await response.json()
+
+        async with aiohttp.ClientSession(
+            base_url=self.api_endpoint,
+        ) as sess:
+            response = await self._build_request(sess, 'PUT', f'/fileSystems/{fs_uid}/quota/{inode_id}', body)
+            data = await response.json()
 
         quota_id = data['data'].keys()[0]
         return WekaQuota(
@@ -226,4 +243,7 @@ class WekaAPIClient:
             await sess.post(self.api_endpoint + '/api/v1', data=body)
 
     async def remove_quota(self, fs_uid: str, inode_id: int):
-        await self._build_request('DELETE', f'/fileSystems/{fs_uid}/quota/{inode_id}')
+        async with aiohttp.ClientSession(
+            base_url=self.api_endpoint,
+        ) as sess:
+            await self._build_request(sess, 'DELETE', f'/fileSystems/{fs_uid}/quota/{inode_id}')

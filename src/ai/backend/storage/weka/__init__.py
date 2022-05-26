@@ -49,7 +49,7 @@ class WekaVolume(BaseVolume):
         return await asyncio.get_running_loop().run_in_executor(None, lambda: os.stat(path).st_ino)
 
     async def get_capabilities(self) -> FrozenSet[str]:
-        return await frozenset([CAP_VFOLDER, CAP_QUOTA, CAP_METRIC])
+        return frozenset([CAP_VFOLDER, CAP_QUOTA, CAP_METRIC])
 
     async def get_hwinfo(self) -> HardwareMetadata:
         raise NotImplementedError  # TODO: Implement
