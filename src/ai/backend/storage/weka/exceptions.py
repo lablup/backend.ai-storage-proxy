@@ -16,3 +16,7 @@ class WekaNotFoundError(WekaAPIError):
 
 class WekaUnauthorizedError(WekaAPIError):
     pass
+
+
+class WekaNoMetricError(WekaError):
+    pass
