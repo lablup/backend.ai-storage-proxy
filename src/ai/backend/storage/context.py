@@ -5,7 +5,6 @@ from pathlib import Path, PurePosixPath
 from typing import Any, AsyncIterator, Mapping, Type
 
 from ai.backend.common.etcd import AsyncEtcd
-
 from ai.backend.storage.weka import WekaVolume
 
 from .abc import AbstractVolume

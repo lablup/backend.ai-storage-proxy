@@ -1,19 +1,18 @@
-from dataclasses import dataclass
-from datetime import datetime
 import json
 import logging
 import time
-from typing import Any, Iterable, Mapping, MutableMapping, Optional
 import urllib.parse
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Iterable, Mapping, MutableMapping, Optional
 
 import aiohttp
 from aiohttp import web
 
-from .exceptions import WekaNotFoundError, WekaUnauthorizedError
-
 from ai.backend.common.logging import BraceStyleAdapter
 from ai.backend.common.types import BinarySize
 
+from .exceptions import WekaNotFoundError, WekaUnauthorizedError
 
 log = BraceStyleAdapter(logging.getLogger(__name__))
 
@@ -30,19 +29,19 @@ class WekaQuota:
     def from_json(cls, quota_id: str, data: Any):
         return WekaQuota(
             quota_id,
-            data['inode_id'],
-            data['hard_limit_bytes'],
-            data['soft_limit_bytes'],
-            data['grace_seconds'],
+            data["inode_id"],
+            data["hard_limit_bytes"],
+            data["soft_limit_bytes"],
+            data["grace_seconds"],
         )
 
     def to_json(self):
         return {
-            'quota_id': self.quota_id,
-            'inode_id': self.inode_id,
-            'hard_limit': self.hard_limit,
-            'soft_limit': self.soft_limit,
-            'grace_seconds': self.grace_seconds,
+            "quota_id": self.quota_id,
+            "inode_id": self.inode_id,
+            "hard_limit": self.hard_limit,
+            "soft_limit": self.soft_limit,
+            "grace_seconds": self.grace_seconds,
         }
 
 
@@ -66,21 +65,21 @@ class WekaFs:
 
     def from_json(data: Any):
         return WekaFs(
-            data['id'],
-            data['name'],
-            data['uid'],
-            data['group_id'],
-            data['group_name'],
-            data['used_total_data'],
-            data['used_total'],
-            data['free_total'],
-            data['available_total'],
-            data['available_ssd_metadata'],
-            data['used_ssd'],
-            data['free_ssd'],
-            data['available_ssd'],
-            data['ssd_budget'],
-            data['total_budget'],
+            data["id"],
+            data["name"],
+            data["uid"],
+            data["group_id"],
+            data["group_name"],
+            data["used_total_data"],
+            data["used_total"],
+            data["free_total"],
+            data["available_total"],
+            data["available_ssd_metadata"],
+            data["used_ssd"],
+            data["free_ssd"],
+            data["available_ssd"],
+            data["ssd_budget"],
+            data["total_budget"],
         )
 
 
@@ -90,6 +89,7 @@ def error_handler(inner):
             return await inner(*args, **kwargs)
         except web.HTTPNotFound:
             raise WekaNotFoundError
+
     return outer
 
 
@@ -103,7 +103,9 @@ class WekaAPIClient:
     _refresh_token: Optional[str]
     _valid_until: int
 
-    def __init__(self, endpoint: str, username: str, password: str, organization: str) -> None:
+    def __init__(
+        self, endpoint: str, username: str, password: str, organization: str
+    ) -> None:
         self.api_endpoint = endpoint
         self.username = username
         self.password = password
@@ -118,26 +120,30 @@ class WekaAPIClient:
 
     @property
     def _req_header(self) -> Mapping[str, str]:
-        return {'Authorization': f'Bearer {self._access_token}', 'Content-Type': 'application/json'}
+        return {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+        }
 
     async def _login(self, sess: aiohttp.ClientSession) -> None:
         if self._refresh_token is not None:
             response = await sess.post(
-                '/api/v2/login/refresh', data={'refresh_token': self._refresh_token},
+                "/api/v2/login/refresh",
+                data={"refresh_token": self._refresh_token},
             )
         else:
             response = await sess.post(
-                '/api/v2/login',
+                "/api/v2/login",
                 data={
-                    'username': self.username,
-                    'password': self.password,
-                    'org': self.organization,
+                    "username": self.username,
+                    "password": self.password,
+                    "org": self.organization,
                 },
             )
         data = await response.json()
-        self._access_token = data['data']['access_token']
-        self._refresh_token = data['data']['refresh_token']
-        self._valid_until = data['data']['expires_in'] + time.time()
+        self._access_token = data["data"]["access_token"]
+        self._refresh_token = data["data"]["refresh_token"]
+        self._valid_until = data["data"]["expires_in"] + time.time()
 
     async def _build_request(
         self,
@@ -146,13 +152,13 @@ class WekaAPIClient:
         path: str,
         body: Optional[Any] = None,
     ) -> aiohttp.ClientResponse:
-        if method == 'GET':
+        if method == "GET":
             func = sess.get
-        elif method == 'POST':
+        elif method == "POST":
             func = sess.post
-        elif method == 'PUT':
+        elif method == "PUT":
             func = sess.put
-        elif method == 'PATCH':
+        elif method == "PATCH":
             func = sess.patch
         else:
             func = sess.delete
@@ -161,18 +167,20 @@ class WekaAPIClient:
             await self._login(sess)
 
         try:
-            if method == 'GET' or method == 'DELETE':
-                return await func('/api/v2' + path, headers=self._req_header)
+            if method == "GET" or method == "DELETE":
+                return await func("/api/v2" + path, headers=self._req_header)
             else:
-                return await func('/api/v2' + path, headers=self._req_header, data=body)
+                return await func("/api/v2" + path, headers=self._req_header, data=body)
         except web.HTTPUnauthorized:
             await self._login(sess)
             try:
-                if method == 'GET' or method == 'DELETE':
-                    return await func('/api/v2' + path, headers=self._req_header)
+                if method == "GET" or method == "DELETE":
+                    return await func("/api/v2" + path, headers=self._req_header)
 
                 else:
-                    return await func('/api/v2' + path, headers=self._req_header, data=body)
+                    return await func(
+                        "/api/v2" + path, headers=self._req_header, data=body
+                    )
 
             except web.HTTPUnauthorized:
                 raise WekaUnauthorizedError
@@ -182,33 +190,35 @@ class WekaAPIClient:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            response = await self._build_request(sess, 'GET', '/fileSystems')
+            response = await self._build_request(sess, "GET", "/fileSystems")
             data = await response.json()
-        if len(data['data']) == 0:
+        if len(data["data"]) == 0:
             raise WekaNotFoundError
-        return [WekaFs.from_json(fs_json) for fs_json in data['data']]
+        return [WekaFs.from_json(fs_json) for fs_json in data["data"]]
 
     @error_handler
     async def get_fs(self, fs_uid: str) -> WekaFs:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            response = await self._build_request(sess, 'GET', f'/fileSystems/{fs_uid}')
+            response = await self._build_request(sess, "GET", f"/fileSystems/{fs_uid}")
             data = await response.json()
-        if data.get('data') is None:
+        if data.get("data") is None:
             raise WekaNotFoundError
-        return WekaFs.from_json(data['data'])
+        return WekaFs.from_json(data["data"])
 
     @error_handler
     async def list_quotas(self, fs_uid: str) -> Iterable[WekaQuota]:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            response = await self._build_request(sess, 'GET', f'/fileSystems/{fs_uid}/quota')
+            response = await self._build_request(
+                sess, "GET", f"/fileSystems/{fs_uid}/quota"
+            )
             data = await response.json()
         return [
-            WekaQuota.from_json(quota_id, data['data'][quota_id])
-            for quota_id in data['data'].keys()
+            WekaQuota.from_json(quota_id, data["data"][quota_id])
+            for quota_id in data["data"].keys()
         ]
 
     @error_handler
@@ -216,12 +226,14 @@ class WekaAPIClient:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            response = await self._build_request(sess, 'GET', f'/fileSystems/{fs_uid}/quota/{inode_id}')
+            response = await self._build_request(
+                sess, "GET", f"/fileSystems/{fs_uid}/quota/{inode_id}"
+            )
             data = await response.json()
-        if len(data['data'].keys()) == 0:
+        if len(data["data"].keys()) == 0:
             raise WekaNotFoundError
-        quota_id = data['data'].keys()[0]
-        return WekaQuota.from_json(quota_id, data['data'][quota_id])
+        quota_id = data["data"].keys()[0]
+        return WekaQuota.from_json(quota_id, data["data"][quota_id])
 
     @error_handler
     async def set_quota(
@@ -231,18 +243,17 @@ class WekaAPIClient:
         soft_limit: BinarySize,
         hard_limit: BinarySize,
     ) -> WekaQuota:
-
         def _format_size(s: BinarySize) -> str:
             ss = str(s)
-            if ss.endswith('bytes'):
-                return ss.replace('bytes', 'B').replace(' ', '')
+            if ss.endswith("bytes"):
+                return ss.replace("bytes", "B").replace(" ", "")
             else:
-                return ss.replace(' ', '')
+                return ss.replace(" ", "")
 
         body = {
-            'grace_seconds': None,
-            'soft_limit_bytes': _format_size(soft_limit),
-            'hard_limit_bytes': _format_size(hard_limit),
+            "grace_seconds": None,
+            "soft_limit_bytes": _format_size(soft_limit),
+            "hard_limit_bytes": _format_size(hard_limit),
         }
 
         async with aiohttp.ClientSession(
@@ -250,19 +261,19 @@ class WekaAPIClient:
         ) as sess:
             response = await self._build_request(
                 sess,
-                'PUT',
-                f'/fileSystems/{fs_uid}/quota/{inode_id}',
+                "PUT",
+                f"/fileSystems/{fs_uid}/quota/{inode_id}",
                 body,
             )
             data = await response.json()
 
-        quota_id = data['data'].keys()[0]
+        quota_id = data["data"].keys()[0]
         return WekaQuota(
             quota_id,
-            data['data'][quota_id]['inode_id'],
-            data['data'][quota_id]['hard_limit_bytes'],
-            data['data'][quota_id]['soft_limit_bytes'],
-            data['data'][quota_id]['grace_seconds'],
+            data["data"][quota_id]["inode_id"],
+            data["data"][quota_id]["hard_limit_bytes"],
+            data["data"][quota_id]["soft_limit_bytes"],
+            data["data"][quota_id]["grace_seconds"],
         )
 
     @error_handler
@@ -273,29 +284,29 @@ class WekaAPIClient:
         hard_limit: Optional[BinarySize] = None,
         soft_limit: Optional[BinarySize] = None,
     ) -> None:
-        '''
+        """
         Sets quota using undocumented V1 API. Should be considered deprecated
         after we figure out how to set limit as unlimited with V2 API.
-        '''
+        """
         body: MutableMapping[str, Any] = {
-            'id': time.time() * 1000,
-            'jsonrpc': '2.0',
-            'method': 'set_directory_quota',
-            'params': {
-                'activate': True,
-                'inode_context': inode_id,
-                'path': path,
+            "id": time.time() * 1000,
+            "jsonrpc": "2.0",
+            "method": "set_directory_quota",
+            "params": {
+                "activate": True,
+                "inode_context": inode_id,
+                "path": path,
             },
         }
 
         if soft_limit is not None:
-            body['params']['soft_limit_bytes'] = int(soft_limit)
+            body["params"]["soft_limit_bytes"] = int(soft_limit)
         if hard_limit is not None:
-            body['params']['hard_limit_bytes'] = int(hard_limit)
+            body["params"]["hard_limit_bytes"] = int(hard_limit)
 
         async with aiohttp.ClientSession() as sess:
             await sess.post(
-                self.api_endpoint + '/api/v1',
+                self.api_endpoint + "/api/v1",
                 headers=self._req_header,
                 data=json.dumps(body),
             )
@@ -305,14 +316,16 @@ class WekaAPIClient:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            await self._build_request(sess, 'DELETE', f'/fileSystems/{fs_uid}/quota/{inode_id}')
+            await self._build_request(
+                sess, "DELETE", f"/fileSystems/{fs_uid}/quota/{inode_id}"
+            )
 
     @error_handler
     async def check_health(self) -> str:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            response = await self._build_request(sess, 'GET', '/healthcheck')
+            response = await self._build_request(sess, "GET", "/healthcheck")
             return await response.text()
 
     @error_handler
@@ -320,9 +333,9 @@ class WekaAPIClient:
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
-            response = await self._build_request(sess, 'GET', '/cluster')
+            response = await self._build_request(sess, "GET", "/cluster")
             data = await response.json()
-            return data['data']
+            return data["data"]
 
     @error_handler
     async def get_metric(
@@ -332,21 +345,21 @@ class WekaAPIClient:
         end_time: Optional[datetime] = None,
         category: Optional[str] = None,
     ) -> Mapping[str, Any]:
-        params = [('start_time', start_time.isoformat() + 'Z')]
+        params = [("start_time", start_time.isoformat() + "Z")]
         if end_time is not None:
-            params.append(('end_time', end_time.isoformat() + 'Z'))
+            params.append(("end_time", end_time.isoformat() + "Z"))
         if category is not None:
-            params.append(('category', category))
+            params.append(("category", category))
         for metric in metrics:
-            params.append(('stat', metric))
+            params.append(("stat", metric))
         querystring = urllib.parse.urlencode(params)
         async with aiohttp.ClientSession(
             base_url=self.api_endpoint,
         ) as sess:
             response = await self._build_request(
                 sess,
-                'GET',
-                f'/stats?{querystring}',
+                "GET",
+                f"/stats?{querystring}",
             )
             data = await response.json()
-            return data['data']['all']
+            return data["data"]["all"]
