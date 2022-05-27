@@ -19,6 +19,8 @@ storage-specific optimization support.
     - PureStorage's FlashBlade-optimized backend with RapidFile Toolkit (formerly PureTools)
   - `netapp`
     - NetApp QTree integration backend based on the NetApp ONTAP REST API
+  - `weka`
+    - Weka.IO integration backend with Weka.IO V2 REST API
   - `cephfs` (TODO)
     - CephFS-optimized backend with quota limit support
 
@@ -153,10 +155,18 @@ or NFS.
    - To install NetApp XCP, please refer [NetApp XCP install guide](https://xcp.netapp.com/)
 * Create Qtree in Volume explicitly using NetApp ONTAP Sysmgr GUI
 
-
 #### Note on operation
 The volume host of Backend.AI Storage proxy corresponds to Qtree of NetApp ONTAP, not NetApp ONTAP Volume.   
 Please DO NOT remove Backend.AI mapped qtree in NetApp ONTAP Sysmgr GUI. If not, you cannot access to NetApp ONTAP Volume through Backend.AI.
 
 > NOTE:   
 Qtree name in configuration file(`storage-proxy.toml`) must have the same name created in NetApp ONTAP Sysmgr.
+
+### Weka.IO
+
+#### Prerequisites
+
+* Weka.IO agent installed and running
+* Weka.IO filesystem mounted under `/vfroot`
+* Weka.IO REST API access (username/password/organization)
+
