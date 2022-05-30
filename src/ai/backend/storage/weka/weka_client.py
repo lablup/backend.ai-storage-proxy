@@ -104,7 +104,11 @@ class WekaAPIClient:
     _valid_until: int
 
     def __init__(
-        self, endpoint: str, username: str, password: str, organization: str
+        self,
+        endpoint: str,
+        username: str,
+        password: str,
+        organization: str,
     ) -> None:
         self.api_endpoint = endpoint
         self.username = username
@@ -179,7 +183,9 @@ class WekaAPIClient:
 
                 else:
                     return await func(
-                        "/api/v2" + path, headers=self._req_header, data=body
+                        "/api/v2" + path,
+                        headers=self._req_header,
+                        data=body,
                     )
 
             except web.HTTPUnauthorized:
@@ -213,7 +219,9 @@ class WekaAPIClient:
             base_url=self.api_endpoint,
         ) as sess:
             response = await self._build_request(
-                sess, "GET", f"/fileSystems/{fs_uid}/quota"
+                sess,
+                "GET",
+                f"/fileSystems/{fs_uid}/quota",
             )
             data = await response.json()
         return [
@@ -227,7 +235,9 @@ class WekaAPIClient:
             base_url=self.api_endpoint,
         ) as sess:
             response = await self._build_request(
-                sess, "GET", f"/fileSystems/{fs_uid}/quota/{inode_id}"
+                sess,
+                "GET",
+                f"/fileSystems/{fs_uid}/quota/{inode_id}",
             )
             data = await response.json()
         if len(data["data"].keys()) == 0:
@@ -317,7 +327,9 @@ class WekaAPIClient:
             base_url=self.api_endpoint,
         ) as sess:
             await self._build_request(
-                sess, "DELETE", f"/fileSystems/{fs_uid}/quota/{inode_id}"
+                sess,
+                "DELETE",
+                f"/fileSystems/{fs_uid}/quota/{inode_id}",
             )
 
     @error_handler

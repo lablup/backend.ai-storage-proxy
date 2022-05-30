@@ -61,7 +61,8 @@ class WekaVolume(BaseVolume):
 
     async def _get_inode_id(self, path: Path) -> int:
         return await asyncio.get_running_loop().run_in_executor(
-            None, lambda: os.stat(path).st_ino
+            None,
+            lambda: os.stat(path).st_ino,
         )
 
     async def get_capabilities(self) -> FrozenSet[str]:
@@ -101,7 +102,7 @@ class WekaVolume(BaseVolume):
 
     async def get_performance_metric(self) -> FSPerfMetric:
         start_time = datetime.now().replace(second=0, microsecond=0) - timedelta(
-            minutes=1
+            minutes=1,
         )
 
         try:
