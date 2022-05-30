@@ -388,7 +388,6 @@ class BaseVolume(AbstractVolume):
         q: janus.Queue[bytes] = janus.Queue()
 
         async def _write_task(q: janus._SyncQueueProxy[bytes]) -> None:
-
             def _write():
                 with open(target_path, "wb") as f:
                     while True:
@@ -399,6 +398,7 @@ class BaseVolume(AbstractVolume):
                             f.write(buf)
                         finally:
                             q.task_done()
+
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, _write)
 
