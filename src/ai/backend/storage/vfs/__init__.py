@@ -387,19 +387,22 @@ class BaseVolume(AbstractVolume):
         target_path = self.sanitize_vfpath(vfid, relpath)
         q: janus.Queue[bytes] = janus.Queue()
 
-        def _write(q: janus._SyncQueueProxy[bytes]) -> None:
-            with open(target_path, "wb") as f:
-                while True:
-                    buf = q.get()
-                    try:
-                        if not buf:
-                            return
-                        f.write(buf)
-                    finally:
-                        q.task_done()
+        async def _write_task(q: janus._SyncQueueProxy[bytes]) -> None:
 
-        loop = asyncio.get_running_loop()
-        write_task = asyncio.create_task(loop.run_in_executor(None, _write, q.sync_q))
+            def _write():
+                with open(target_path, "wb") as f:
+                    while True:
+                        buf = q.get()
+                        try:
+                            if not buf:
+                                return
+                            f.write(buf)
+                        finally:
+                            q.task_done()
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _write)
+
+        write_task = asyncio.create_task(_write_task(q.sync_q))
         try:
             async for buf in payload:
                 await q.async_q.put(buf)
