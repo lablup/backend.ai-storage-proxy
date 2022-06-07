@@ -280,7 +280,7 @@ class NetAppVolume(BaseVolume):
     async def get_usage(
         self,
         vfid: UUID,
-        relpath: PurePosixPath = PurePosixPath("."),
+        relpath: PurePosixPath = None,
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
@@ -359,8 +359,7 @@ class NetAppVolume(BaseVolume):
                 def _calc_usage(target_path: os.DirEntry | Path) -> None:
                     nonlocal total_size, total_count
                     _timeout = 3
-                    # FIXME: Remove "type: ignore" when python/mypy#11964 is resolved.
-                    with os.scandir(target_path) as scanner:  # type: ignore
+                    with os.scandir(target_path) as scanner:
                         for entry in scanner:
                             if entry.is_dir():
                                 _calc_usage(entry)
@@ -377,7 +376,7 @@ class NetAppVolume(BaseVolume):
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, _calc_usage, target_path)
         except StorageProxyError:
-            raise ExecutionError("Storage server is busy. Please try again")
+            raise ExecutionError(message="Storage server is busy. Please try again")
         except FileNotFoundError:
             available = False
         except IndexError:
@@ -388,7 +387,7 @@ class NetAppVolume(BaseVolume):
             total_count = -1
         if not available:
             raise ExecutionError(
-                "Cannot access the scan result file. Please check xcp is activated.",
+                message="Cannot access the scan result file. Please check xcp is activated.",
             )
 
         return VFolderUsage(file_count=total_count, used_bytes=total_size)

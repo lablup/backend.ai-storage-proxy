@@ -7,7 +7,6 @@ import os
 import secrets
 import shutil
 import time
-import warnings
 from pathlib import Path, PurePosixPath
 from typing import AsyncIterator, FrozenSet, Sequence, Union
 from uuid import UUID
@@ -134,9 +133,8 @@ class BaseVolume(AbstractVolume):
             ),
         )
 
-    async def get_vfolder_mount(self, vfid: UUID, subpath: str) -> Path:
-        self.sanitize_vfpath(vfid, PurePosixPath(subpath))
-        return self.mangle_vfpath(vfid).resolve()
+    async def get_vfolder_mount(self, vfid: UUID) -> Path:
+        return self.mangle_vfpath(vfid)
 
     async def put_metadata(self, vfid: UUID, payload: bytes) -> None:
         vfpath = self.mangle_vfpath(vfid)
@@ -178,7 +176,7 @@ class BaseVolume(AbstractVolume):
     async def get_usage(
         self,
         vfid: UUID,
-        relpath: PurePosixPath = PurePosixPath("."),
+        relpath: PurePosixPath = None,
     ) -> VFolderUsage:
         target_path = self.sanitize_vfpath(vfid, relpath)
         total_size = 0
@@ -188,8 +186,7 @@ class BaseVolume(AbstractVolume):
         def _calc_usage(target_path: os.DirEntry | Path) -> None:
             nonlocal total_size, total_count
             _timeout = 3
-            # FIXME: Remove "type: ignore" when python/mypy#11964 is resolved.
-            with os.scandir(target_path) as scanner:  # type: ignore
+            with os.scandir(target_path) as scanner:
                 for entry in scanner:
                     if entry.is_dir():
                         _calc_usage(entry)
@@ -313,12 +310,15 @@ class BaseVolume(AbstractVolume):
         dst: PurePosixPath,
     ) -> None:
         src_path = self.sanitize_vfpath(vfid, src)
+        if not src_path.is_file():
+            raise InvalidAPIParameters(msg=f"source path {str(src_path)} is not a file")
         dst_path = self.sanitize_vfpath(vfid, dst)
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
-            lambda: shutil.move(str(src_path), str(dst_path)),
+            lambda: dst_path.parent.mkdir(parents=True, exist_ok=True),
         )
+        await loop.run_in_executor(None, src_path.rename, dst_path)
 
     async def move_tree(
         self,
@@ -326,11 +326,6 @@ class BaseVolume(AbstractVolume):
         src: PurePosixPath,
         dst: PurePosixPath,
     ) -> None:
-        warnings.warn(
-            "Use move_file() instead. move_tree() will be deprecated",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         src_path = self.sanitize_vfpath(vfid, src)
         if not src_path.is_dir():
             raise InvalidAPIParameters(

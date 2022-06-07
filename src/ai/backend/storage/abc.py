@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from pathlib import Path, PurePath, PurePosixPath
-from typing import Any, AsyncIterator, Final, FrozenSet, Mapping, Sequence
+from typing import (
+    Any,
+    AsyncIterator,
+    Final,
+    FrozenSet,
+    Mapping,
+    Optional,
+    Sequence,
+)
 from uuid import UUID
 
 from ai.backend.common.types import BinarySize, HardwareMetadata
 
-from .exception import InvalidSubpathError, VFolderNotFoundError
 from .types import (
     DirEntry,
     FSPerfMetric,
@@ -50,22 +57,16 @@ class AbstractVolume(metaclass=ABCMeta):
         rest = vfid.hex[4:]
         return Path(self.mount_path, prefix1, prefix2, rest)
 
-    def sanitize_vfpath(
-        self,
-        vfid: UUID,
-        relpath: PurePosixPath = PurePosixPath("."),
-    ) -> Path:
+    def sanitize_vfpath(self, vfid: UUID, relpath: Optional[PurePosixPath]) -> Path:
+        if relpath is None:
+            relpath = PurePosixPath(".")
         vfpath = self.mangle_vfpath(vfid).resolve()
-        if not (vfpath.exists() and vfpath.is_dir()):
-            raise VFolderNotFoundError(vfid)
         target_path = (vfpath / relpath).resolve()
-        if not target_path.is_relative_to(vfpath):
-            raise InvalidSubpathError(vfid, relpath)
+        try:
+            target_path.relative_to(vfpath)
+        except ValueError:
+            raise PermissionError("cannot access outside of the given vfolder")
         return target_path
-
-    def strip_vfpath(self, vfid: UUID, target_path: Path) -> PurePosixPath:
-        vfpath = self.mangle_vfpath(vfid).resolve()
-        return PurePosixPath(target_path.relative_to(vfpath))
 
     # ------ volume operations -------
 
@@ -121,7 +122,7 @@ class AbstractVolume(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def get_vfolder_mount(self, vfid: UUID, subpath: str) -> Path:
+    async def get_vfolder_mount(self, vfid: UUID) -> Path:
         pass
 
     @abstractmethod
@@ -152,7 +153,7 @@ class AbstractVolume(metaclass=ABCMeta):
     async def get_usage(
         self,
         vfid: UUID,
-        relpath: PurePosixPath = PurePosixPath("."),
+        relpath: PurePosixPath = None,
     ) -> VFolderUsage:
         pass
 

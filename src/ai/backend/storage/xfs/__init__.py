@@ -237,7 +237,7 @@ class XfsVolume(BaseVolume):
             ],
         )
 
-    async def get_usage(self, vfid: UUID, relpath: PurePosixPath = PurePosixPath(".")):
+    async def get_usage(self, vfid: UUID, relpath: PurePosixPath = None):
         full_report = await run(
             ["sudo", "xfs_quota", "-x", "-c", "report -pbih", self.mount_path],
         )
