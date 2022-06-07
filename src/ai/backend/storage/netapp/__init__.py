@@ -113,6 +113,18 @@ class NetAppVolume(BaseVolume):
             io_usec_write=metric["latency"]["write"],
         )
 
+    async def create_vfolder(
+        self,
+        vfid: UUID,
+        options: VFolderCreationOptions = None,
+    ) -> None:
+        vfpath = self.mangle_vfpath(vfid)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: vfpath.mkdir(0o755, parents=True, exist_ok=False),
+        )
+
     async def delete_vfolder(self, vfid: UUID) -> None:
         vfpath = self.mangle_vfpath(vfid)
 
@@ -169,7 +181,7 @@ class NetAppVolume(BaseVolume):
             raise VFolderCreationError("Not enough space available for clone")
 
         # create the target vfolder
-        await dst_volume.create_vfolder(dst_vfid, options=options, exist_ok=True)
+        await dst_volume.create_vfolder(dst_vfid, options=options)
 
         # arrange directory based on nfs
         src_vfpath = str(self.mangle_vfpath(src_vfid)).split(

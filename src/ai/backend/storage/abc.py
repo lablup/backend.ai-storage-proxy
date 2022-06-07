@@ -83,8 +83,6 @@ class AbstractVolume(metaclass=ABCMeta):
         self,
         vfid: UUID,
         options: VFolderCreationOptions = None,
-        *,
-        exist_ok: bool = False,
     ) -> None:
         pass
 
@@ -101,9 +99,9 @@ class AbstractVolume(metaclass=ABCMeta):
         options: VFolderCreationOptions = None,
     ) -> None:
         """
-        Create a new vfolder on the destination volume with
-        ``exist_ok=True`` option and copy all contents of the source
-        vfolder into it, preserving file permissions and timestamps.
+        Create a new vfolder on the destination volume
+        and copy all contents of the source vfolder into it,
+        preserving file permissions and timestamps.
         """
         pass
 
