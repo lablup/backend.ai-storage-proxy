@@ -13,7 +13,6 @@ class DellEMCClient:
     user: str
     password: str
     api_version: str
-    system_name: str
     _session: aiohttp.ClientSession
 
     def __init__(
@@ -23,13 +22,11 @@ class DellEMCClient:
         password: str,
         *,
         api_version: str = "12",
-        system_name: str = "nfs",
     ) -> None:
         self.endpoint = endpoint
         self.user = user
         self.password = password
         self.api_version = api_version
-        self.system_name = system_name
         self._session = aiohttp.ClientSession()
 
     async def aclose(self) -> None:
@@ -101,27 +98,11 @@ class DellEMCClient:
         try:
             cluster_metadata = []
             cluster_metadata.append({
-                "config": await self.get_cluster_config(),
                 "interface": await self.get_cluster_interface(),
             })
             return cluster_metadata
         except Exception as e:
             raise(e)
-        
-    async def get_cluster_config(self) -> Mapping[str, Any]:
-        async with self._session.get(
-            f"{self.endpoint}/platform/{self.api_version}/cluster/config",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=True,
-        ) as resp:
-            data = await resp.json()
-        return {
-            "name": data["name"],
-            "release": data["onefs_version"]["release"],
-            "build": data["onefs_version"]["build"],
-            "local_lnn": data["local_lnn"],
-        }
         
     async def get_cluster_interface(self) -> List[Mapping[str, Any]]:
         async with self._session.get(
@@ -156,26 +137,6 @@ class DellEMCClient:
             data = await resp.json()
         return data["drive"]
 
-    async def get_protocol_stats(self) -> Mapping[str, any]:
-        async with self._session.get(
-            f"{self.endpoint}/platform/{self.api_version}/statistics/summary/protocol-stats",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=True,
-        ) as resp:
-            data = await resp.json()
-        return data["protocol-stats"]
-
-    async def get_workload_stats(self) -> Mapping[str, any]:
-        async with self._session.get(
-            f"{self.endpoint}/platform/{self.api_version}/statistics/summary/workload?system_names={self.system_name}",
-            auth=aiohttp.BasicAuth(self.user, self.password),
-            ssl=False,
-            raise_for_status=True,
-        ) as resp:
-            data = await resp.json()
-            return data["workload"][0]
-
     async def get_system_stats(self) -> Mapping[int, any]:
         async with self._session.get(
             f"{self.endpoint}/platform/{self.api_version}/statistics/summary/system",
@@ -185,8 +146,7 @@ class DellEMCClient:
         ) as resp:
             data = await resp.json()
         return data["system"][0]
-
-'''
+    
     async def get_workload_stats(self) -> Mapping[int, any]:
         async with self._session.get(
             f"{self.endpoint}/platform/{self.api_version}/statistics/summary/workload",
@@ -196,4 +156,3 @@ class DellEMCClient:
         ) as resp:
             data = await resp.json()
         return data["workload"]
-'''
