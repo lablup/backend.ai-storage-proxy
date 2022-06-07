@@ -35,12 +35,14 @@ class DellEMCVolume(BaseVolume):
         self.dell_admin = self.config["dell_admin"]
         self.dell_password = str(self.config["dell_password"])
         self.dell_api_version = self.config["dell_api_version"]
+        self.dell_system_name = self.config["dell_system_name"]
 
         self.dellEMC_client = DellEMCClient(
             str(self.endpoint),
             self.dell_admin,
             self.dell_password,
             api_version=self.dell_api_version,
+            system_name=self.dell_system_name,
         )
 
         self.quota_manager = QuotaManager(
@@ -91,6 +93,13 @@ class DellEMCVolume(BaseVolume):
         if "errors" in resp:
             raise ExecutionError("api error")
         return resp
+    
+    async def get_protocol_stats(self):
+        resp = await self.dellEMC_client.get_protocol_stats()
+        
+        if "errors" in resp:
+            raise ExecutionError("api error")
+        return resp
 
     async def get_system_stats(self):
         resp = await self.dellEMC_client.get_system_stats()
@@ -98,36 +107,26 @@ class DellEMCVolume(BaseVolume):
         if "errors" in resp:
             raise ExecutionError("api error")
         return resp
-    
+
     async def get_workload_stats(self):
         resp = await self.dellEMC_client.get_workload_stats()
 
         if "errors" in resp:
             raise ExecutionError("api error")
         return resp
-    
-    def sum_of_stats(self, param: str, stats: list):
-        return sum(stat.get(param) for stat in stats)
 
     async def get_performance_metric(self) -> FSPerfMetric:
-        # drive_stats = await self.get_drive_stats()
-        # system_stats = await self.get_system_stats()
-        # return FSPerfMetric(
-        #     iops_read=sum(drive["bytes_in"] for drive in drive_stats),
-        #     iops_write=sum(drive["bytes_out"] for drive in drive_stats),
-        #     io_bytes_read=system_stats["disk_in"],
-        #     io_bytes_write=system_stats["disk_out"],
-        #     io_usec_read=sum(drive["xfers_in"] for drive in drive_stats),
-        #     io_usec_write=sum(drive["xfers_out"] for drive in drive_stats),
-        # )
-        workload_stats = await self.get_workload_stats()
+        protocol_stats = await self.get_protocol_stats()
+        workload = await self.get_workload_stats()
         return FSPerfMetric(
-            iops_read=self.sum_of_stats("bytes_in", workload_stats),
-            iops_write=self.sum_of_stats("bytes_out", workload_stats),
-            io_bytes_read=self.sum_of_stats("reads", workload_stats),
-            io_bytes_write=self.sum_of_stats("writes", workload_stats),
-            io_usec_read=self.sum_of_stats("latency_read", workload_stats),
-            io_usec_write=self.sum_of_stats("latency_write", workload_stats),
+            iops_read=protocol_stats["disk"]["iops"],
+            iops_write=0,  # Dell does not support IOPS Read/Write, They support only IOPS.
+            # io_bytes_read=workload["bytes_out"],
+            # io_bytes_write=workload["bytes_in"],
+            io_bytes_read=protocol_stats["onefs"]["out"],
+            io_bytes_write=protocol_stats["onefs"]["in"],
+            io_usec_read=workload["latency_write"],
+            io_usec_write=workload["latency_read"],
         )
 
     async def create_quota(self, path, type):
