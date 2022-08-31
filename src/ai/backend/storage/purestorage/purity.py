@@ -87,7 +87,8 @@ class PurityClient:
         }
 
     async def get_nfs_metric(
-        self, fs_name: str
+        self,
+        fs_name: str,
     ) -> AsyncGenerator[Mapping[str, Any], None]:
         if self.auth_token is None:
             raise RuntimeError("The auth token for Purity API is not initialized.")

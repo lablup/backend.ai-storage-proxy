@@ -17,6 +17,8 @@ storage-specific optimization support.
     - `agent`: Implementation of `AbstractVolumeAgent` with XFS support
   - `purestorage`
     - PureStorage's FlashBlade-optimized backend with RapidFile Toolkit (formerly PureTools)
+  - `netapp`
+    - NetApp QTree integration backend based on the NetApp ONTAP REST API
   - `cephfs` (TODO)
     - CephFS-optimized backend with quota limit support
 
@@ -71,6 +73,7 @@ such as nginx and the storage proxy daemon itself should be run without SSL.
 #### Prerequisites
 
 * User account permission to access for the given directory
+  - Make sure a directory such as `/vfroot/vfs` a directory or you want to mount exists
 
 
 ### XFS
@@ -79,7 +82,18 @@ such as nginx and the storage proxy daemon itself should be run without SSL.
 
 * Local device mounted under `/vfroot`
 * Native support for XFS filesystem
-* Access to root shell
+  - Mounting XFS volume with an option `-o pquota` to enable project quota
+  - To turn on quotas on the root filesystem, the quota mount flags must be
+    set with the `rootflags=` boot parameter. Usually, this is not recommended.
+* Access to root privilege
+  - Execution of `xfs_quota`, which performs quota-related commands, requires
+    the `root` privilege.
+  - Thus, you need to start the Storage-Proxy service by a `root` user or a
+    user with passwordless sudo access.
+  - If the root user starts the Storage-Proxy, the owner of every file created
+    is also root. In some situations, this would not be the desired setting.
+    In that case, it might be better to start the service with a regular user
+    with passwordless sudo privilege.
 
 #### Creating virtual XFS device for testing
 
@@ -105,6 +119,15 @@ to use the storage for testing:
 # mount -o loop -o pquota $LODEVICE /vfroot/xfs
 ```
 
+#### Note on operation
+
+XFS keeps quota mapping information on two files: `/etc/projects` and
+`/etc/projid`. If they are deleted or damaged in any way, per-directory quota
+information will also be lost. So, it is crucial not to delete them
+accidentally. If possible, it is a good idea to backup them to a different disk
+or NFS.
+
+
 ### PureStorage FlashBlade
 
 #### Prerequisites
@@ -118,3 +141,22 @@ to use the storage for testing:
 #### Prerequisites
 
 * FUSE export mounted unde `/vfroot`
+
+
+### NetApp ONTAP
+
+#### Prerequisites
+
+* NFSv3 export mounted under `/vfroot`
+* NetApp ONTAP API access
+* native NetApp XCP or Dockerized NetApp XCP container
+   - To install NetApp XCP, please refer [NetApp XCP install guide](https://xcp.netapp.com/)
+* Create Qtree in Volume explicitly using NetApp ONTAP Sysmgr GUI
+
+
+#### Note on operation
+The volume host of Backend.AI Storage proxy corresponds to Qtree of NetApp ONTAP, not NetApp ONTAP Volume.   
+Please DO NOT remove Backend.AI mapped qtree in NetApp ONTAP Sysmgr GUI. If not, you cannot access to NetApp ONTAP Volume through Backend.AI.
+
+> NOTE:   
+Qtree name in configuration file(`storage-proxy.toml`) must have the same name created in NetApp ONTAP Sysmgr.

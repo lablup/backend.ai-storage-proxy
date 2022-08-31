@@ -53,7 +53,7 @@ class VolumeInfo:
                 t.Key("path"): tx.Path(type="dir"),
                 t.Key("fsprefix", default="."): tx.PurePath(relative_only=True),
                 t.Key("options", default=None): t.Null | t.Mapping(t.String, t.Any),
-            }
+            },
         )
 
 
@@ -64,6 +64,14 @@ class VFolderCreationOptions:
     @classmethod
     def as_trafaret(cls) -> t.Trafaret:
         return t.Dict({t.Key("quota", default=None): t.Null | tx.BinarySize})
+
+    @classmethod
+    def as_object(cls, dict_opts: Mapping | None) -> VFolderCreationOptions:
+        if dict_opts is None:
+            quota = None
+        else:
+            quota = dict_opts.get("quota")
+        return VFolderCreationOptions(quota=quota)
 
 
 @attr.s(auto_attribs=True, slots=True, frozen=True)

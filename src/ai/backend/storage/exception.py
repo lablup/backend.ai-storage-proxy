@@ -4,26 +4,24 @@ from typing import Any
 from aiohttp import web
 
 
-class ExecutionError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
-
-
 class StorageProxyError(Exception):
     pass
 
 
-class VFolderCreationError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
+class ExecutionError(StorageProxyError):
+    pass
 
 
-class VFolderNotFoundError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
+class VFolderCreationError(StorageProxyError):
+    pass
+
+
+class VFolderNotFoundError(StorageProxyError):
+    pass
+
+
+class InvalidSubpathError(StorageProxyError):
+    pass
 
 
 class InvalidVolumeError(StorageProxyError):
@@ -47,5 +45,6 @@ class InvalidAPIParameters(web.HTTPBadRequest):
         if data is not None:
             payload["data"] = data
         super().__init__(
-            text=json.dumps(payload), content_type="application/problem+json"
+            text=json.dumps(payload),
+            content_type="application/problem+json",
         )
