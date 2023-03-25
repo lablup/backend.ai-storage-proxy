@@ -1,4 +1,8 @@
 # Backend.AI Storage Proxy
+
+> ### !!! Deprecation notice
+> This repository is deprecated and no longer maintained. The code has been migrated to our semi-mono repository at https://github.com/lablup/backend.ai.
+
 Backend.AI Storage Proxy is an RPC daemon to manage vfolders used in Backend.AI agent, with quota and
 storage-specific optimization support.
 
